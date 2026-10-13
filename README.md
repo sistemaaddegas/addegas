@@ -15,13 +15,14 @@ Rodar local: `npx serve .` e abra o endereço exibido. Abrir o arquivo direto (`
 
 ## Estrutura
 ```
-index.html               o sistema (template + lógica + dados de exemplo)
-support.js               runtime do index.html no navegador (não editar)
-assets/                  logo, dd, textura do login
+index.html               o sistema da adega (template + lógica + dados de exemplo), em /
+admin.html               painel interno da equipe Addegas, em /admin
+support.js               runtime do index.html e do admin.html no navegador (não editar)
+assets/                  logo, dd, texturas do login e logos dos apps (assets/apps/)
 icons/                   favicon, apple-touch-icon e ícones 192/512 do app
 data/lucro-no-copo.js    categorias, produtos, insumos e drinks do Lucro no Copo
 manifest.webmanifest     permite "Adicionar à tela inicial" no celular
-vercel.json              cache de assets/icons; sem build
+vercel.json              sem build; URLs limpas (/admin); cache de assets/icons
 .vercelignore            tira docs, scripts e fase 2 do site publicado
 scripts/
   verificar-deploy.sh    confere se tudo responde 200 depois do deploy
@@ -35,7 +36,13 @@ proximos-passos/
 - O `support.js` carrega React 18.3.1 e ReactDOM do unpkg.com, com verificação de integridade (SRI), e monta a interface. As fontes vêm do Google Fonts.
 - Dependências externas em produção: `unpkg.com`, `fonts.googleapis.com` e `fonts.gstatic.com`.
 - Não há backend. Vendas, mesas, contas, anotações e o resto funcionam em memória e voltam aos dados de exemplo quando a página recarrega.
-- Para atualizar com uma versão nova do design, rode `node scripts/atualizar-design.mjs "/caminho/Addegas.dc.html"` e faça push.
+- Para atualizar com uma versão nova do design, rode `node scripts/atualizar-design.mjs "/caminho/Addegas.dc.html"` e faça push. Para o painel Admin: `node scripts/atualizar-design.mjs "/caminho/Addegas Admin.dc.html" admin.html`.
+
+## Painel Admin (`/admin`)
+O `admin.html` é o `Addegas Admin.dc.html` do design, idêntico, com o mesmo bloco `addegas:head` (título "Addegas — Administração" e `noindex`, para não aparecer no Google). É o painel da equipe Addegas, não o do dono da adega.
+- **Telas:** visão geral, adegas, CRM e oportunidades, planos e assinaturas, financeiro, descontos e benefícios, repositório de produtos, tickets e melhorias, uso do sistema e funis, marketing e tráfego, brindes de fidelidade, entre outras.
+- **Perfis:** administrador mestre, financeiro, suporte, comercial e marketing, analista. Cada perfil vê um conjunto diferente de menus.
+- **Login de demonstração:** um dos e-mails listados na tela, senha `addegas-demo` e código de verificação `482913`. Tudo é simulado no navegador (a faixa "DEMO" avisa). O login e as permissões de verdade são trabalho do back-end.
 
 ## Valores fixos no código
 São os mesmos valores do design:
@@ -54,7 +61,7 @@ Menu (computador):
 - **Ferramentas:** Promoções, Lucro no Copo, Anotações
 - **Configurar:** Equipe, WhatsApp, Ajustes
 
-Fora do menu: login, escolha da loja e cadastro da adega em 3 passos (nome e bairro, produtos, apps conectados), seletor de lojas e central de alertas (sino com bolinha vermelha e número branco).
+Fora do menu: login (com "Esqueci minha senha" e entrada no caixa com PIN), escolha da loja e cadastro da adega em 3 passos (nome e bairro, produtos, apps conectados), seletor de lojas e central de alertas (sino com bolinha vermelha e número branco). Também há perfil (dados pessoais, acesso e PIN do caixa) e "Fale com o suporte", onde se registra um problema ou melhoria (assunto, urgência e anexo) e se acompanham os tickets em "Meus tickets".
 
 - **Início:** saudação com o nome do usuário. Cards Vendas de hoje, Vendas no caixa, Pedidos em andamento e Fiado a receber (pretos, com texto branco). Ações rápidas: Nova venda (amarelo), Fechar caixa (vermelho vivo `#E5241B`) ou Abrir caixa, Entrada de mercadoria (verde vivo `#16C60C`) e Promoções (azul `#1E90FF`). Acesso rápido em formato de prateleira, com até 10 produtos editáveis que lançam direto no caixa. Mais vendidos hoje, com miniatura do produto.
 - **Caixa:**
