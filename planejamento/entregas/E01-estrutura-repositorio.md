@@ -1,5 +1,14 @@
 # E01 · Estrutura do repositório do back-end e ambiente local
 
+> ✅ **Concluída em 28/10/2026.** Resultado:
+> - `supabase/config.toml` com projeto `addegas`, portas 573xx (as 543xx e 553xx são do lava-facil e do nexum-pro; o Windows reserva 56245–56444), `site_url` do Vite e confirmação de e-mail ligada;
+> - `supabase/seed.sql` inicial, `supabase/tests/database/000_fumaca.test.sql` (pgTAP) e `supabase/README.md` (fluxo, convenções, catálogo de erros);
+> - rascunho antigo arquivado em `supabase/_referencia/`, fora das migrations;
+> - CLI do Supabase fixa (2.122.0) como dependência, scripts `db:*` no `package.json`, `package-lock.json` gerado (o CI usava `npm ci` sem lockfile e falharia);
+> - job `banco` no CI (sobe o Postgres, lint e testes).
+>
+> Verificado: `db:start`, `db:reset`, `db:test` (3/3), `db:lint` (sem erros), `db:types`, `typecheck` e `build` passam. Ficou para a E54: o `vite-plugin-pwa` está em `generateSW` e passa para `injectManifest`.
+
 **Marco:** M1 · Fundação | **Tamanho:** P | **Depende de:** E00 (`D35`) | **Desbloqueia:** E02, E03
 **Origem:** §2 ("migrations versionadas no repositório")
 

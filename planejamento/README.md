@@ -13,6 +13,13 @@ Este plano **não inicia o desenvolvimento**. Ele quebra a arquitetura em entreg
 | [juridico/](juridico/) | Minutas de Termos de Uso, Política de Privacidade e Acordo de Tratamento de Dados, para validar com advogado |
 | [dominio-e-email.md](dominio-e-email.md) | Subdomínios, registros DNS no Registro.br, e-mail de envio (Resend) e de recebimento, checklist dos serviços |
 
+## Andamento
+| Entrega | Situação | Onde |
+| --- | --- | --- |
+| E01 · Estrutura do repositório e ambiente local | ✅ Concluída em 28/10/2026 | `proximos-passos/app-react-supabase/supabase/` |
+| E02 · Ambientes e segredos | ⏭️ Próxima (precisa criar os projetos no Supabase) | — |
+| E03 · Esqueleto do banco | ⏭️ Pode começar em paralelo (só local) | — |
+
 ## Premissas de trabalho (decididas em 28/10/2026)
 - **Uma pessoa, com IA, sem compromisso de prazo** (D33). Os tamanhos das fichas medem complexidade, não agenda.
 - **Tudo no plano gratuito** (Supabase, Vercel), W-API paga (D32).
