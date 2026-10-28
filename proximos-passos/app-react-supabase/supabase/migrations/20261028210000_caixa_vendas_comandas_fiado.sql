@@ -76,7 +76,7 @@ create table app.fiado_accounts (
   store_id uuid not null references app.stores (id),
   name text not null check (length(trim(name)) between 1 and 80),
   name_norm text not null,
-  phone text not null check (phone ~ '^[0-9]{10,11}$'),
+  phone text check (phone ~ '^[0-9]{10,11}$'), -- nulo só depois de anonimizado (E23/E46)
   promised_date date,
   note text,
   credit_limit app.cents, -- D55b: opcional, desligado por padrão
@@ -1012,7 +1012,8 @@ as $$
     private.ok(coalesce(jsonb_agg(jsonb_build_object(
       'fiado_account_id', f.id, 'name', f.name, 'balance', f.balance, 'promised_date', f.promised_date,
       'credit_limit', f.credit_limit,
-      'phone', case when private.current_user_kind() = 'terminal' or not private.can(p_store_id, 'fiado_receber')
+      'phone', case when f.phone is null then null
+                    when private.current_user_kind() = 'terminal' or not private.can(p_store_id, 'fiado_receber')
                     then '(' || substr(f.phone, 1, 2) || ') •••••-' || right(f.phone, 4)
                     else f.phone end
     ) order by f.name), '[]'::jsonb)) end

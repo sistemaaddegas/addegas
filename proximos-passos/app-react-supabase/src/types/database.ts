@@ -277,14 +277,14 @@ isOneToOne: false
                   ]
                 },"fiado_accounts": {
                   Row: {
-                    "balance": number,"created_at": string,"credit_limit": number | null,"id": string,"name": string,"name_norm": string,"note": string | null,"phone": string,"phone_anonymized_at": string | null,"promised_date": string | null,"store_id": string,"updated_at": string
+                    "balance": number,"created_at": string,"credit_limit": number | null,"id": string,"name": string,"name_norm": string,"note": string | null,"phone": string | null,"phone_anonymized_at": string | null,"promised_date": string | null,"store_id": string,"updated_at": string
                   }
                   ComputedFields: never
                   Insert: {
-                    "balance"?: number,"created_at"?: string,"credit_limit"?: number | null,"id"?: string,"name": string,"name_norm": string,"note"?: string | null,"phone": string,"phone_anonymized_at"?: string | null,"promised_date"?: string | null,"store_id": string,"updated_at"?: string
+                    "balance"?: number,"created_at"?: string,"credit_limit"?: number | null,"id"?: string,"name": string,"name_norm": string,"note"?: string | null,"phone"?: string | null,"phone_anonymized_at"?: string | null,"promised_date"?: string | null,"store_id": string,"updated_at"?: string
                   }
                   Update: {
-                    "balance"?: number,"created_at"?: string,"credit_limit"?: number | null,"id"?: string,"name"?: string,"name_norm"?: string,"note"?: string | null,"phone"?: string,"phone_anonymized_at"?: string | null,"promised_date"?: string | null,"store_id"?: string,"updated_at"?: string
+                    "balance"?: number,"created_at"?: string,"credit_limit"?: number | null,"id"?: string,"name"?: string,"name_norm"?: string,"note"?: string | null,"phone"?: string | null,"phone_anonymized_at"?: string | null,"promised_date"?: string | null,"store_id"?: string,"updated_at"?: string
                   }
                   Relationships: [
                     {
@@ -1147,6 +1147,9 @@ isOneToOne: false
 "my_subscription":
 { Args: { "p_account_id": string }; Returns: Json
                            },
+"my_tickets":
+{ Args: { "p_account_id": string }; Returns: Json
+                           },
 "open_cash":
 { Args: { "p_opening_float"?: number,"p_operator_session_id": string }; Returns: Json
                            },
@@ -1155,6 +1158,9 @@ isOneToOne: false
                            },
 "open_tab":
 { Args: { "p_kind": string,"p_label": string,"p_nickname"?: string,"p_operator_session_id": string }; Returns: Json
+                           },
+"open_ticket":
+{ Args: { "p_account_id": string,"p_correlation_ids"?: (string)[],"p_description": string,"p_kind": string,"p_store_id": string,"p_subject": string,"p_urgency"?: string }; Returns: Json
                            },
 "operator_login":
 { Args: { "p_member_id": string,"p_pin": string }; Returns: Json
@@ -1186,8 +1192,14 @@ isOneToOne: false
 "remove_tab_item":
 { Args: { "p_operator_session_id": string,"p_reason": string,"p_tab_item_id": string }; Returns: Json
                            },
+"reply_ticket":
+{ Args: { "p_body": string,"p_ticket_id": string }; Returns: Json
+                           },
 "report_sales":
 { Args: { "p_from": string,"p_store_id": string,"p_to": string }; Returns: Json
+                           },
+"request_cancellation":
+{ Args: { "p_account_id": string,"p_undo"?: boolean }; Returns: Json
                            },
 "revoke_terminal":
 { Args: { "p_terminal_id": string }; Returns: Json
