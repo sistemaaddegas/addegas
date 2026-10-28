@@ -31,7 +31,7 @@ stable
 security definer
 set search_path = ''
 as $$
-  select private.is_account_member(p_account_id) or private.terminal_account() = p_account_id;
+  select private.is_account_member(p_account_id) or coalesce(private.terminal_account() = p_account_id, false);
 $$;
 
 -- Lê o que é da loja: membro da loja ou terminal da loja.
@@ -42,7 +42,7 @@ stable
 security definer
 set search_path = ''
 as $$
-  select private.is_store_member(p_store_id) or private.terminal_store() = p_store_id;
+  select private.is_store_member(p_store_id) or coalesce(private.terminal_store() = p_store_id, false);
 $$;
 
 revoke execute on function private.terminal_account() from public, anon;

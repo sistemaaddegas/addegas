@@ -6,8 +6,7 @@ select plan(8);
 -- Exceções conscientes, documentadas na entrega que as criou.
 create temp table guarda_excecoes (tipo text, nome text);
 insert into guarda_excecoes values
-  -- ('anon_select', 'app.public_catalog')  -- E31: vitrine pública
-  (null, null);
+  ('anon_exec', 'app.public_catalog');  -- E31/D38: vitrine pública da loja, sem custo nem saldo exato
 
 select is_empty(
   $$ select n.nspname || '.' || c.relname
@@ -47,8 +46,9 @@ select is_empty(
   $$ select n.nspname || '.' || p.proname || '(' || pg_get_function_identity_arguments(p.oid) || ')'
      from pg_proc p join pg_namespace n on n.oid = p.pronamespace
      where n.nspname in ('app', 'private', 'platform', 'support', 'analytics', 'audit')
-       and has_function_privilege('anon', p.oid, 'EXECUTE') $$,
-  'nenhuma função nossa executável por anon'
+       and has_function_privilege('anon', p.oid, 'EXECUTE')
+       and n.nspname || '.' || p.proname not in (select nome from guarda_excecoes where tipo = 'anon_exec') $$,
+  'nenhuma função nossa executável por anon (fora as exceções)'
 );
 
 select is_empty(
