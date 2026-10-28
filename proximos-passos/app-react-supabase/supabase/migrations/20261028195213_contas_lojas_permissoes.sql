@@ -287,6 +287,37 @@ alter table app.permissions enable row level security;
 alter table app.role_permissions enable row level security;
 alter table app.role_settings enable row level security;
 
+-- Senha provisória (E07, D20): enquanto o hash atual do usuário for o da senha criada pelo dono,
+-- ele não acessa nada da loja. Trocou a senha, o acesso volta sozinho.
+create table private.provisional_passwords (
+  user_id uuid primary key references auth.users (id) on delete cascade,
+  password_hash text not null,
+  created_at timestamptz not null default now()
+);
+alter table private.provisional_passwords enable row level security;
+
+create or replace function private.password_pending()
+returns boolean
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select exists (select 1 from private.provisional_passwords pp join auth.users u on u.id = pp.user_id
+                 where pp.user_id = (select auth.uid()) and u.encrypted_password = pp.password_hash);
+$$;
+
+create or replace function private.remember_provisional_password(p_user_id uuid)
+returns void
+language sql
+security definer
+set search_path = ''
+as $$
+  insert into private.provisional_passwords (user_id, password_hash)
+  select id, encrypted_password from auth.users where id = p_user_id
+  on conflict (user_id) do update set password_hash = excluded.password_hash, created_at = now();
+$$;
+
 -- Helpers de acesso -------------------------------------------------------------
 -- Pessoa logada é membro ativo da loja (loja não arquivada).
 create or replace function private.is_store_member(p_store_id uuid)
@@ -299,7 +330,7 @@ as $$
   select exists (
     select 1 from app.store_members m join app.stores s on s.id = m.store_id
     where m.store_id = p_store_id and m.user_id = (select auth.uid()) and m.active and s.archived_at is null
-  );
+  ) and not private.password_pending();
 $$;
 
 -- Pessoa logada é membro ativo de alguma loja da conta.
@@ -310,12 +341,12 @@ stable
 security definer
 set search_path = ''
 as $$
-  select exists (
+  select (exists (
     select 1 from app.store_members m join app.stores s on s.id = m.store_id
     where s.account_id = p_account_id and m.user_id = (select auth.uid()) and m.active
   ) or exists (
     select 1 from app.accounts a where a.id = p_account_id and a.owner_user_id = (select auth.uid())
-  );
+  )) and not private.password_pending();
 $$;
 
 -- Estado de acesso efetivo: acesso temporário do suporte vale como liberado (D27).
@@ -387,7 +418,7 @@ as $$
       and (m.role = 'owner' or coalesce(rp.allowed, false))
       and (not p.blocked_when_suspended or private.account_access(s.account_id) <> 'suspended')
       and (p.feature_code is null or private.plan_allows(s.account_id, p.feature_code))
-  );
+  ) and not private.password_pending();
 $$;
 
 create or replace function private.member_role(p_store_id uuid)
@@ -401,6 +432,10 @@ as $$
   where m.store_id = p_store_id and m.user_id = (select auth.uid()) and m.active;
 $$;
 
+revoke execute on function private.password_pending() from public, anon;
+grant execute on function private.password_pending() to authenticated, service_role;
+revoke execute on function private.remember_provisional_password(uuid) from public, anon, authenticated;
+grant execute on function private.remember_provisional_password(uuid) to service_role;
 revoke execute on function private.is_store_member(uuid) from public, anon;
 revoke execute on function private.is_account_member(uuid) from public, anon;
 revoke execute on function private.account_access(uuid) from public, anon, authenticated;
@@ -675,7 +710,7 @@ as $$
     'access', private.account_access(s.account_id)
   ) order by s.created_at), '[]'::jsonb))
   from app.store_members m join app.stores s on s.id = m.store_id
-  where m.user_id = (select auth.uid()) and m.active and s.archived_at is null;
+  where m.user_id = (select auth.uid()) and m.active and s.archived_at is null and not private.password_pending();
 $$;
 
 -- E12: lista calculada de permissões e o limite de desconto da pessoa na loja.
@@ -762,6 +797,19 @@ begin
   return private.ok();
 end;
 $$;
+
+-- E07: o app mostra a tela de troca de senha antes de qualquer outra.
+create or replace function app.must_change_password()
+returns boolean
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select private.password_pending();
+$$;
+revoke execute on function app.must_change_password() from public, anon;
+grant execute on function app.must_change_password() to authenticated;
 
 -- E33: estado da assinatura visto pela adega, sem expor o schema platform.
 create or replace function app.my_subscription(p_account_id uuid)

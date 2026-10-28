@@ -1272,6 +1272,9 @@ isOneToOne: false
 "merge_fiado":
 { Args: { "p_from": string,"p_into": string,"p_store_id": string }; Returns: Json
                            },
+"must_change_password":
+{ Args: Record<PropertyKey, never>; Returns: boolean
+                           },
 "my_permissions":
 { Args: { "p_store_id": string }; Returns: Json
                            },

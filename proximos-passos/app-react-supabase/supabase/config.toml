@@ -403,3 +403,20 @@ s3_secret_key = "env(S3_SECRET_KEY)"
 # declarative_schema_path = "./database"
 # JSON string passed through to pg-delta SQL formatting.
 # format_options = "{\"keywordCase\":\"upper\",\"indent\":2,\"maxWidth\":80,\"commaStyle\":\"trailing\"}"
+
+# Addegas · Edge Functions que autenticam por outro meio (assinatura do parceiro, segredo do cron,
+# código de pareamento, captcha) ou que aceitam chamada sem login. As demais exigem o JWT do usuário.
+[functions.health]
+verify_jwt = false
+[functions.logs]
+verify_jwt = false
+[functions.terminals]
+verify_jwt = false
+[functions.hooks-stripe]
+verify_jwt = false
+[functions.hooks-wapi]
+verify_jwt = false
+[functions.cron]
+verify_jwt = false
+[functions.leads]
+verify_jwt = false
