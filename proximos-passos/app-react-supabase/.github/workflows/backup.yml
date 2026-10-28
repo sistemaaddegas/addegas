@@ -1,0 +1,27 @@
+name: Backup diário
+# E02/E51 · No plano gratuito do Supabase não há backup restaurável: este job faz o dump diário de produção,
+# criptografa e guarda como artefato privado por 30 dias. Teste de restauração trimestral (E51/E52).
+# Segredos: SUPABASE_DB_URL_PRD (conexão direta, sessão), BACKUP_PASSPHRASE.
+on:
+  schedule:
+    - cron: '30 6 * * *' # 03:30 em São Paulo
+  workflow_dispatch:
+
+jobs:
+  dump:
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: supabase/setup-cli@v1
+        with: { version: 2.122.0 }
+      - name: Dump (schema + dados)
+        run: |
+          supabase db dump --db-url "${{ secrets.SUPABASE_DB_URL_PRD }}" -f schema.sql
+          supabase db dump --db-url "${{ secrets.SUPABASE_DB_URL_PRD }}" --data-only -f data.sql
+          tar czf backup.tgz schema.sql data.sql
+          gpg --batch --yes --passphrase "${{ secrets.BACKUP_PASSPHRASE }}" -c backup.tgz
+      - uses: actions/upload-artifact@v4
+        with:
+          name: backup-${{ github.run_id }}
+          path: backup.tgz.gpg
+          retention-days: 30

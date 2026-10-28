@@ -6,7 +6,7 @@ grant usage on schema tests to authenticated, service_role;
 
 -- Cria um usuário no Auth (kind opcional; e-mail confirmado por padrão).
 create or replace function tests.new_user(p_email text, p_kind text default null, p_confirmed boolean default true)
-returns uuid language plpgsql as $$
+returns uuid language plpgsql set search_path = '' as $$
 declare v uuid := gen_random_uuid();
 begin
   insert into auth.users (instance_id, id, aud, role, email, encrypted_password, email_confirmed_at,
@@ -18,7 +18,7 @@ begin
 end $$;
 
 -- Entra como o usuário (claims do JWT + papel authenticated). Chame `reset role` antes.
-create or replace function tests.act_as(p_user uuid) returns void language plpgsql as $$
+create or replace function tests.act_as(p_user uuid) returns void language plpgsql set search_path = '' as $$
 begin
   perform set_config('request.jwt.claims', jsonb_build_object('sub', p_user, 'role', 'authenticated',
     'app_metadata', (select raw_app_meta_data from auth.users where id = p_user))::text, true);
@@ -26,7 +26,7 @@ begin
 end $$;
 
 -- Cria dono + conta + loja e devolve {account_id, store_id}. Roda como o próprio dono.
-create or replace function tests.new_store_owner(p_email text, p_store text) returns jsonb language plpgsql as $$
+create or replace function tests.new_store_owner(p_email text, p_store text) returns jsonb language plpgsql set search_path = '' as $$
 declare v_user uuid := tests.new_user(p_email); v jsonb;
 begin
   perform tests.act_as(v_user);
@@ -37,7 +37,7 @@ end $$;
 
 -- Membro com login numa loja (sem passar pela Edge Function).
 create or replace function tests.add_member(p_store uuid, p_email text, p_role app.member_role) returns uuid
-language plpgsql as $$
+language plpgsql set search_path = '' as $$
 declare v_user uuid := tests.new_user(p_email);
 begin
   perform private.attach_login_member(null, p_store, v_user, split_part(p_email, '@', 1), p_role);
@@ -45,19 +45,19 @@ begin
 end $$;
 
 -- Terminal pareado na loja; devolve o usuário técnico (para tests.act_as).
-create or replace function tests.new_terminal(p_store uuid) returns uuid language plpgsql as $$
+create or replace function tests.new_terminal(p_store uuid) returns uuid language plpgsql set search_path = '' as $$
 declare v_user uuid := tests.new_user('terminal-' || gen_random_uuid() || '@terminals.addegas.invalid', 'terminal');
 begin
   insert into app.terminals (store_id, name, auth_user_id) values (p_store, 'Balcão teste', v_user);
   return v_user;
 end $$;
 
-create or replace function tests.set_pin(p_member uuid, p_pin text) returns void language sql as $$
+create or replace function tests.set_pin(p_member uuid, p_pin text) returns void language sql set search_path = '' as $$
   insert into private.member_pins (member_id, pin_hash) values (p_member, extensions.crypt(p_pin, extensions.gen_salt('bf', 4)))
   on conflict (member_id) do update set pin_hash = excluded.pin_hash;
 $$;
 
-create or replace function tests.member_id(p_store uuid, p_user uuid) returns uuid language sql as $$
+create or replace function tests.member_id(p_store uuid, p_user uuid) returns uuid language sql set search_path = '' as $$
   select id from app.store_members where store_id = p_store and user_id = p_user;
 $$;
 

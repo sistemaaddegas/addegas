@@ -202,10 +202,13 @@ token_verifications = 30
 web3 = 30
 
 # Configure one of the supported captcha providers: `hcaptcha`, `turnstile`.
+# Addegas (E06, D45): na nuvem, ligar o captcha Turnstile no cadastro, login e recuperação de senha
+# (painel do Supabase → Authentication → Bot protection, ou estas linhas com o segredo do ambiente).
+# Fica desligado no local porque os testes entram por senha sem captcha.
 # [auth.captcha]
 # enabled = true
-# provider = "hcaptcha"
-# secret = ""
+# provider = "turnstile"
+# secret = "env(TURNSTILE_SECRET)"
 
 [auth.email]
 # Allow/disallow new user signups via email to your project.
@@ -291,9 +294,11 @@ auth_token = "env(SUPABASE_AUTH_SMS_TWILIO_AUTH_TOKEN)"
 max_enrolled_factors = 10
 
 # Control MFA via App Authenticator (TOTP)
+# Addegas (E11, D44): 2FA por aplicativo autenticador. Obrigatório para a equipe (a admin-api exige aal2);
+# opcional para o dono da adega.
 [auth.mfa.totp]
-enroll_enabled = false
-verify_enabled = false
+enroll_enabled = true
+verify_enabled = true
 
 # Configure MFA via Phone Messaging
 [auth.mfa.phone]

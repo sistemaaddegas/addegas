@@ -229,6 +229,7 @@ create table private.pairing_codes (
   created_at timestamptz not null default now()
 );
 create index pairing_codes_store_idx on private.pairing_codes (store_id);
+create index pairing_codes_created_by_idx on private.pairing_codes (created_by);
 create index pairing_codes_open_idx on private.pairing_codes (expires_at) where used_at is null;
 alter table private.pairing_codes enable row level security;
 
@@ -598,16 +599,21 @@ revoke execute on function private.consume_override(uuid, uuid, numeric) from pu
 
 -- Políticas --------------------------------------------------------------------------------
 -- Terminal lê a lista de operadores da loja (tela de PIN), sem dados além do nome e papel.
-create policy store_members_terminal on app.store_members for select to authenticated
-  using (store_id = (select private.terminal_store()));
-create policy stores_terminal on app.stores for select to authenticated
-  using (id = (select private.terminal_store()));
+-- Uma política de leitura por tabela (membro OU terminal), em vez de duas permissivas (advisor do Supabase).
+drop policy store_members_select on app.store_members;
+create policy store_members_select on app.store_members for select to authenticated
+  using ((select private.is_store_member(store_id)) or store_id = (select private.terminal_store()));
+drop policy stores_select on app.stores;
+create policy stores_select on app.stores for select to authenticated
+  using ((select private.is_store_member(id)) or id = (select private.terminal_store())
+         or exists (select 1 from app.accounts a where a.id = account_id and a.owner_user_id = (select auth.uid())));
 create policy terminals_select on app.terminals for select to authenticated
   using ((select private.is_store_member(store_id)) or id = (select (private.current_terminal()).id));
 create policy operator_sessions_select on app.operator_sessions for select to authenticated
   using ((select private.can(store_id, 'caixa')) or terminal_id = (select (private.current_terminal()).id));
-create policy default_terminal_settings on app.store_settings for select to authenticated
-  using (store_id = (select private.terminal_store()));
+drop policy store_settings_select on app.store_settings;
+create policy store_settings_select on app.store_settings for select to authenticated
+  using ((select private.is_store_member(store_id)) or store_id = (select private.terminal_store()));
 
 grant select on app.terminals, app.operator_sessions to authenticated;
 grant all on app.terminals, app.operator_sessions to service_role;
