@@ -122,7 +122,7 @@ do $$ begin perform set_config('addegas.audit_maintenance', 'on', true); end $$;
 insert into audit.system_logs (source, level, message, created_at) values ('front', 'error', 'velho', now() - interval '31 days');
 do $$ begin perform set_config('addegas.audit_maintenance', 'off', true); end $$;
 select is((private.run_daily_maintenance() ->> 'logs_deleted')::int, 1, 'manutenção apaga log de front com mais de 30 dias (D26)');
-select is((select count(*)::int from cron.job where jobname like 'addegas-%'), 3, 'três rotinas agendadas no pg_cron');
+select is((select count(*)::int from cron.job where jobname like 'addegas-%'), 5, 'rotinas agendadas no pg_cron (manutenção, alertas, SLA, pedidos, uso e retenção)');
 
 select * from finish();
 rollback;

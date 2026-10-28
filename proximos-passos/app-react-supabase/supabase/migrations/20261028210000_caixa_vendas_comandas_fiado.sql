@@ -499,7 +499,8 @@ $$;
 --     override_token?, payments:[{method, amount}], fiado:{fiado_account_id | name, phone},
 --     delivery_fee?, channel?, order_id?, origin?}
 -- p_tab_id: fechamento de comanda (itens vêm da comanda, estoque já baixado no lançamento, D41).
-create or replace function private.finalize_sale(p jsonb, p_tab_id uuid default null)
+-- p_order_id: conclusão de pedido (itens, canal e taxa de entrega vêm do pedido; estoque baixado na confirmação, E41).
+create or replace function private.finalize_sale(p jsonb, p_tab_id uuid default null, p_order_id uuid default null)
 returns jsonb
 language plpgsql
 security definer
@@ -540,6 +541,9 @@ declare
   v_name text;
   v_no_stock boolean;
   v_bdate date;
+  v_order record;
+  v_order_channel text;
+  v_order_status text;
 begin
   -- 1. Idempotência (TK-2051): mesma requisição devolve a mesma venda, sem gravar nada.
   if v_req is null then
@@ -570,7 +574,19 @@ begin
   end if;
 
   -- 3. Itens com preço do servidor
-  if p_tab_id is not null then
+  if p_order_id is not null then
+    select * into v_order from app.orders where id = p_order_id and store_id = v_store and status not in ('completed', 'rejected', 'canceled');
+    if not found then
+      return private.err('ORDER_NOT_OPEN');
+    end if;
+    v_fee := v_order.delivery_fee;
+    v_order_channel := v_order.channel;
+    v_order_status := v_order.status;
+    for v_it in select oi.product_id, oi.bundle_id, oi.name, oi.quantity qty, oi.unit_price from app.order_items oi where oi.order_id = p_order_id loop
+      v_items := v_items || jsonb_build_object('product_id', v_it.product_id, 'bundle_id', v_it.bundle_id,
+        'name', v_it.name, 'quantity', v_it.qty, 'unit_price', v_it.unit_price, 'from_tab', v_order.stock_moved);
+    end loop;
+  elsif p_tab_id is not null then
     for v_it in
       select ti.product_id, ti.bundle_id, ti.name, sum(ti.quantity) qty, ti.unit_price
       from app.tab_items ti where ti.tab_id = p_tab_id and ti.removed_at is null
@@ -724,7 +740,7 @@ begin
     fiado_account_id, order_id, channel, subtotal, discount, delivery_fee, total, origin, client_request_id,
     discount_authorized_by, business_date)
   values (v_store, v_account, v_number, v_cash, v_t.id, v_op.id, p_tab_id, v_fiado_id,
-    nullif(p ->> 'order_id', '')::uuid, coalesce(nullif(p ->> 'channel', ''), 'counter'), v_subtotal, v_discount, v_fee,
+    p_order_id, coalesce(v_order_channel, nullif(p ->> 'channel', ''), 'counter'), v_subtotal, v_discount, v_fee,
     v_total, coalesce(nullif(p ->> 'origin', ''), 'normal'), v_req, v_authorized, v_bdate)
   returning id into v_sale;
 
@@ -766,6 +782,11 @@ begin
   if p_tab_id is not null then
     update app.tabs set status = 'closed', closed_at = now(), sale_id = v_sale where id = p_tab_id;
   end if;
+  if p_order_id is not null then
+    update app.orders set status = 'completed', completed_at = now(), sale_id = v_sale where id = p_order_id;
+    insert into app.order_events (order_id, store_id, from_status, to_status, actor_user, origin)
+    values (p_order_id, v_store, v_order_status, 'completed', (select auth.uid()), 'store');
+  end if;
 
   if v_discount > 0 then
     perform private.audit_store('sale.discount', v_store, v_account, 'sale', v_sale::text, null,
@@ -776,7 +797,7 @@ begin
     'sold_without_stock', coalesce(v_short, '[]'::jsonb), 'replayed', false));
 end;
 $$;
-revoke execute on function private.finalize_sale(jsonb, uuid) from public, anon, authenticated;
+revoke execute on function private.finalize_sale(jsonb, uuid, uuid) from public, anon, authenticated;
 
 create or replace function app.finalize_sale(p jsonb)
 returns jsonb
