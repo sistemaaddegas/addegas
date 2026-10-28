@@ -23,10 +23,12 @@ icons/                   favicon, apple-touch-icon e ícones 192/512 do app
 data/lucro-no-copo.js    categorias, produtos, insumos e drinks do Lucro no Copo
 manifest.webmanifest     permite "Adicionar à tela inicial" no celular
 vercel.json              sem build; URLs limpas (/admin); cache de assets/icons
-.vercelignore            tira docs, scripts e fase 2 do site publicado
+.vercelignore            tira README, CLAUDE.md, docs, planejamento, scripts e fase 2 do site publicado
 scripts/
-  verificar-deploy.sh    confere se tudo responde 200 depois do deploy
+  verificar-deploy.sh    confere se tudo responde 200 depois do deploy (e se docs/planejamento ficaram fora)
   atualizar-design.mjs   aplica uma nova versão do design no index.html
+docs/                    arquitetura do back-end (interno, fora do deploy)
+planejamento/            entregas, análise crítica, dúvidas e minutas jurídicas (interno, fora do deploy)
 proximos-passos/
   app-react-supabase/    fase 2: Vite + React + TypeScript + Supabase (fora do deploy)
 ```
