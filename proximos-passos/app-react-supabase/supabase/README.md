@@ -44,6 +44,17 @@ Nunca altere uma migration que já foi aplicada no `addegas-dev` ou no `addegas-
 - Nomes no banco em inglês; mensagens para o usuário em português, no front.
 - Erros com código estável, que o front traduz: `raise exception using errcode = 'P0001', message = 'SALE_CASH_CLOSED'`.
 
+## Guardas automáticas
+`tests/database/900_guardas.test.sql` roda por último e falha se qualquer migration:
+- criar tabela sem RLS (no `app` e nos schemas internos);
+- abrir tabela ou view do `app` para `anon` (exceções ficam listadas no próprio arquivo, com a entrega que as justifica);
+- deixar tabela interna acessível a `anon`/`authenticated`;
+- deixar função nossa executável por `anon`, ou função de `platform`/`support`/`analytics`/`audit` executável por `authenticated`;
+- criar função `security definer` sem `search_path` fixo;
+- criar chave estrangeira sem índice.
+
+Helpers do `private` usados dentro de políticas de RLS precisam de `grant execute ... to authenticated`: o Postgres confere a permissão com o papel de quem consulta (provado em `001_esqueleto.test.sql`). Isso é seguro porque o `private` não é exposto pela API.
+
 ## Catálogo de códigos de erro
 Cada entrega acrescenta os seus. Formato: `ÁREA_MOTIVO`.
 
