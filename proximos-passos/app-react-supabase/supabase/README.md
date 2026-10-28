@@ -44,6 +44,18 @@ Nunca altere uma migration que já foi aplicada no `addegas-dev` ou no `addegas-
 - Nomes no banco em inglês; mensagens para o usuário em português, no front.
 - Erros com código estável, que o front traduz: `raise exception using errcode = 'P0001', message = 'SALE_CASH_CLOSED'`.
 
+## Padrão de RPC
+- RPCs que o app chama ficam no schema `app`, são `security definer` com `set search_path = ''`, conferem `auth.uid()` e a permissão (`private.can`) logo no começo, e têm `grant execute ... to authenticated` explícito.
+- Resposta sempre em `jsonb`: sucesso `{"ok": true, "data": {...}}` (`private.ok`), recusa previsível `{"ok": false, "error": {"code": "...", "detail": "..."}}` (`private.err`).
+- **Toda recusa previsível (permissão, validação, caixa fechado) acontece antes de qualquer escrita** e devolve `private.err`, nunca exceção. Motivo: uma exceção desfaz a transação inteira, inclusive o registro da negação na auditoria (`private.audit_store(..., p_outcome => 'denied')`).
+- Depois que a RPC começou a gravar, falha vira exceção (`private.fail`), e o Postgres desfaz tudo.
+- Toda RPC que muda dado grava `private.audit_store` na mesma transação.
+
+## Logs e auditoria
+- `private.log(source, level, message, code, context)`: grava em `audit.system_logs` com o `correlation_id` da requisição, e-mails mascarados e chaves sensíveis (senha, token, PIN, cartão) removidas.
+- `audit.store_actions` e `audit.admin_actions` aceitam só inserção; um trigger barra update e delete até do dono do schema. A anonimização da LGPD (E51) liga `addegas.audit_maintenance` dentro da própria rotina.
+- As tabelas são particionadas por mês (`private.ensure_month_partitions`); a rotina diária da E46 cria as partições futuras.
+
 ## Guardas automáticas
 `tests/database/900_guardas.test.sql` roda por último e falha se qualquer migration:
 - criar tabela sem RLS (no `app` e nos schemas internos);
