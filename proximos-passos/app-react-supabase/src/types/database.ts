@@ -19,6 +19,32 @@ export type Database = {
                   Relationships: [
                     
                   ]
+                },"operator_sessions": {
+                  Row: {
+                    "end_reason": string | null,"ended_at": string | null,"expires_at": string,"id": string,"member_id": string,"started_at": string,"store_id": string,"terminal_id": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "end_reason"?: string | null,"ended_at"?: string | null,"expires_at"?: string,"id"?: string,"member_id": string,"started_at"?: string,"store_id": string,"terminal_id": string
+                  }
+                  Update: {
+                    "end_reason"?: string | null,"ended_at"?: string | null,"expires_at"?: string,"id"?: string,"member_id"?: string,"started_at"?: string,"store_id"?: string,"terminal_id"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "operator_sessions_member_id_store_id_fkey"
+      columns: ["member_id","store_id"]
+isOneToOne: false
+      referencedRelation: "store_members"
+      referencedColumns: ["id","store_id"]
+    },{
+      foreignKeyName: "operator_sessions_terminal_id_store_id_fkey"
+      columns: ["terminal_id","store_id"]
+isOneToOne: false
+      referencedRelation: "terminals"
+      referencedColumns: ["id","store_id"]
+    }
+                  ]
                 },"permissions": {
                   Row: {
                     "blocked_when_suspended": boolean,"code": string,"feature_code": string | null,"grp": string,"name": string,"sort": number
@@ -159,14 +185,46 @@ isOneToOne: false
       referencedColumns: ["id"]
     }
                   ]
+                },"terminals": {
+                  Row: {
+                    "active": boolean,"auth_user_id": string | null,"created_at": string,"id": string,"last_seen_at": string | null,"name": string,"registered_by": string | null,"revoked_at": string | null,"store_id": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "active"?: boolean,"auth_user_id"?: string | null,"created_at"?: string,"id"?: string,"last_seen_at"?: string | null,"name": string,"registered_by"?: string | null,"revoked_at"?: string | null,"store_id": string
+                  }
+                  Update: {
+                    "active"?: boolean,"auth_user_id"?: string | null,"created_at"?: string,"id"?: string,"last_seen_at"?: string | null,"name"?: string,"registered_by"?: string | null,"revoked_at"?: string | null,"store_id"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "terminals_store_id_fkey"
+      columns: ["store_id"]
+isOneToOne: false
+      referencedRelation: "stores"
+      referencedColumns: ["id"]
+    }
+                  ]
                 }
           }
           Views: {
             [_ in never]: never
           }
           Functions: {
-            "complete_onboarding":
+            "authorize_override":
+{ Args: { "p_action": string,"p_member_id": string,"p_pin": string,"p_value": number }; Returns: Json
+                           },
+"can_create_member":
+{ Args: { "p_role": Database["app"]['Enums']["member_role"],"p_store_id": string }; Returns: Json
+                           },
+"complete_onboarding":
 { Args: { "p_city"?: string,"p_neighborhood"?: string,"p_origin"?: Json,"p_owner_name"?: string,"p_store_name": string,"p_whatsapp"?: string }; Returns: Json
+                           },
+"create_pairing_code":
+{ Args: { "p_store_id": string,"p_terminal_name": string }; Returns: Json
+                           },
+"create_pin_member":
+{ Args: { "p_display_name": string,"p_pin": string,"p_role": Database["app"]['Enums']["member_role"],"p_store_id": string }; Returns: Json
                            },
 "create_store":
 { Args: { "p_account_id": string,"p_city"?: string,"p_name": string,"p_neighborhood"?: string,"p_whatsapp"?: string }; Returns: Json
@@ -180,11 +238,26 @@ isOneToOne: false
 "my_subscription":
 { Args: { "p_account_id": string }; Returns: Json
                            },
+"operator_login":
+{ Args: { "p_member_id": string,"p_pin": string }; Returns: Json
+                           },
+"operator_logout":
+{ Args: Record<PropertyKey, never>; Returns: Json
+                           },
+"revoke_terminal":
+{ Args: { "p_terminal_id": string }; Returns: Json
+                           },
+"set_member_pin":
+{ Args: { "p_member_id": string,"p_pin": string }; Returns: Json
+                           },
 "set_role_discount_limit":
 { Args: { "p_max_pct": number,"p_role": Database["app"]['Enums']["member_role"],"p_store_id": string }; Returns: Json
                            },
 "set_role_permission":
 { Args: { "p_allowed": boolean,"p_permission": string,"p_role": Database["app"]['Enums']["member_role"],"p_store_id": string }; Returns: Json
+                           },
+"update_member":
+{ Args: { "p_active"?: boolean,"p_display_name"?: string,"p_member_id": string,"p_role"?: Database["app"]['Enums']["member_role"] }; Returns: Json
                            }
           }
           Enums: {

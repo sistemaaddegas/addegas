@@ -63,7 +63,7 @@ $$;
 create or replace function private.redact(p_value jsonb)
 returns jsonb
 language plpgsql
-immutable
+stable
 set search_path = ''
 as $$
 declare
