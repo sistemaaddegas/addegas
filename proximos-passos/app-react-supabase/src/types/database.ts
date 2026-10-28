@@ -65,6 +65,64 @@ isOneToOne: false
       referencedColumns: ["id"]
     }
                   ]
+                },"cash_movements": {
+                  Row: {
+                    "amount": number,"business_date": string,"cash_session_id": string,"created_at": string,"id": string,"member_id": string | null,"reason": string | null,"ref_id": string | null,"store_id": string,"type": Database["app"]['Enums']["cash_movement_type"]
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "amount": number,"business_date": string,"cash_session_id": string,"created_at"?: string,"id"?: string,"member_id"?: string | null,"reason"?: string | null,"ref_id"?: string | null,"store_id": string,"type": Database["app"]['Enums']["cash_movement_type"]
+                  }
+                  Update: {
+                    "amount"?: number,"business_date"?: string,"cash_session_id"?: string,"created_at"?: string,"id"?: string,"member_id"?: string | null,"reason"?: string | null,"ref_id"?: string | null,"store_id"?: string,"type"?: Database["app"]['Enums']["cash_movement_type"]
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "cash_movements_cash_session_id_store_id_fkey"
+      columns: ["cash_session_id","store_id"]
+isOneToOne: false
+      referencedRelation: "cash_sessions"
+      referencedColumns: ["id","store_id"]
+    },{
+      foreignKeyName: "cash_movements_member_id_store_id_fkey"
+      columns: ["member_id","store_id"]
+isOneToOne: false
+      referencedRelation: "store_members"
+      referencedColumns: ["id","store_id"]
+    }
+                  ]
+                },"cash_sessions": {
+                  Row: {
+                    "business_date": string,"closed_at": string | null,"closed_by": string | null,"counted_cash": number | null,"difference": number | null,"expected_cash": number | null,"id": string,"note": string | null,"opened_at": string,"opened_by": string,"opening_float": number,"status": string,"store_id": string,"summary": Json | null,"terminal_id": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "business_date": string,"closed_at"?: string | null,"closed_by"?: string | null,"counted_cash"?: number | null,"difference"?: number | null,"expected_cash"?: number | null,"id"?: string,"note"?: string | null,"opened_at"?: string,"opened_by": string,"opening_float"?: number,"status"?: string,"store_id": string,"summary"?: Json | null,"terminal_id": string
+                  }
+                  Update: {
+                    "business_date"?: string,"closed_at"?: string | null,"closed_by"?: string | null,"counted_cash"?: number | null,"difference"?: number | null,"expected_cash"?: number | null,"id"?: string,"note"?: string | null,"opened_at"?: string,"opened_by"?: string,"opening_float"?: number,"status"?: string,"store_id"?: string,"summary"?: Json | null,"terminal_id"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "cash_sessions_closed_by_store_id_fkey"
+      columns: ["closed_by","store_id"]
+isOneToOne: false
+      referencedRelation: "store_members"
+      referencedColumns: ["id","store_id"]
+    },{
+      foreignKeyName: "cash_sessions_opened_by_store_id_fkey"
+      columns: ["opened_by","store_id"]
+isOneToOne: false
+      referencedRelation: "store_members"
+      referencedColumns: ["id","store_id"]
+    },{
+      foreignKeyName: "cash_sessions_terminal_id_store_id_fkey"
+      columns: ["terminal_id","store_id"]
+isOneToOne: false
+      referencedRelation: "terminals"
+      referencedColumns: ["id","store_id"]
+    }
+                  ]
                 },"categories": {
                   Row: {
                     "account_id": string,"color": string | null,"id": string,"name": string,"sort": number
@@ -83,6 +141,46 @@ isOneToOne: false
 isOneToOne: false
       referencedRelation: "accounts"
       referencedColumns: ["id"]
+    }
+                  ]
+                },"fiado_accounts": {
+                  Row: {
+                    "balance": number,"created_at": string,"credit_limit": number | null,"id": string,"name": string,"name_norm": string,"note": string | null,"phone": string,"phone_anonymized_at": string | null,"promised_date": string | null,"store_id": string,"updated_at": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "balance"?: number,"created_at"?: string,"credit_limit"?: number | null,"id"?: string,"name": string,"name_norm": string,"note"?: string | null,"phone": string,"phone_anonymized_at"?: string | null,"promised_date"?: string | null,"store_id": string,"updated_at"?: string
+                  }
+                  Update: {
+                    "balance"?: number,"created_at"?: string,"credit_limit"?: number | null,"id"?: string,"name"?: string,"name_norm"?: string,"note"?: string | null,"phone"?: string,"phone_anonymized_at"?: string | null,"promised_date"?: string | null,"store_id"?: string,"updated_at"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "fiado_accounts_store_id_fkey"
+      columns: ["store_id"]
+isOneToOne: false
+      referencedRelation: "stores"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"fiado_ledger": {
+                  Row: {
+                    "amount": number,"created_at": string,"fiado_account_id": string,"id": string,"member_id": string | null,"method": Database["app"]['Enums']["pay_method"] | null,"note": string | null,"sale_id": string | null,"store_id": string,"type": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "amount": number,"created_at"?: string,"fiado_account_id": string,"id"?: string,"member_id"?: string | null,"method"?: Database["app"]['Enums']["pay_method"] | null,"note"?: string | null,"sale_id"?: string | null,"store_id": string,"type": string
+                  }
+                  Update: {
+                    "amount"?: number,"created_at"?: string,"fiado_account_id"?: string,"id"?: string,"member_id"?: string | null,"method"?: Database["app"]['Enums']["pay_method"] | null,"note"?: string | null,"sale_id"?: string | null,"store_id"?: string,"type"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "fiado_ledger_fiado_account_id_store_id_fkey"
+      columns: ["fiado_account_id","store_id"]
+isOneToOne: false
+      referencedRelation: "fiado_accounts"
+      referencedColumns: ["id","store_id"]
     }
                   ]
                 },"operator_sessions": {
@@ -275,6 +373,120 @@ isOneToOne: false
       referencedColumns: ["id"]
     }
                   ]
+                },"sale_items": {
+                  Row: {
+                    "bundle_id": string | null,"id": string,"name": string,"product_id": string | null,"quantity": number,"sale_id": string,"sold_without_stock": boolean,"stock_from_tab": boolean,"store_id": string,"total": number,"unit_cost": number,"unit_price": number
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "bundle_id"?: string | null,"id"?: string,"name": string,"product_id"?: string | null,"quantity": number,"sale_id": string,"sold_without_stock"?: boolean,"stock_from_tab"?: boolean,"store_id": string,"total": number,"unit_cost"?: number,"unit_price": number
+                  }
+                  Update: {
+                    "bundle_id"?: string | null,"id"?: string,"name"?: string,"product_id"?: string | null,"quantity"?: number,"sale_id"?: string,"sold_without_stock"?: boolean,"stock_from_tab"?: boolean,"store_id"?: string,"total"?: number,"unit_cost"?: number,"unit_price"?: number
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "sale_items_bundle_id_fkey"
+      columns: ["bundle_id"]
+isOneToOne: false
+      referencedRelation: "bundles"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "sale_items_product_id_fkey"
+      columns: ["product_id"]
+isOneToOne: false
+      referencedRelation: "products"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "sale_items_sale_id_store_id_fkey"
+      columns: ["sale_id","store_id"]
+isOneToOne: false
+      referencedRelation: "sales"
+      referencedColumns: ["id","store_id"]
+    }
+                  ]
+                },"sale_payments": {
+                  Row: {
+                    "amount": number,"change_given": number,"id": string,"method": Database["app"]['Enums']["pay_method"],"sale_id": string,"store_id": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "amount": number,"change_given"?: number,"id"?: string,"method": Database["app"]['Enums']["pay_method"],"sale_id": string,"store_id": string
+                  }
+                  Update: {
+                    "amount"?: number,"change_given"?: number,"id"?: string,"method"?: Database["app"]['Enums']["pay_method"],"sale_id"?: string,"store_id"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "sale_payments_sale_id_store_id_fkey"
+      columns: ["sale_id","store_id"]
+isOneToOne: false
+      referencedRelation: "sales"
+      referencedColumns: ["id","store_id"]
+    }
+                  ]
+                },"sales": {
+                  Row: {
+                    "account_id": string,"business_date": string,"cancel_reason": string | null,"canceled_at": string | null,"canceled_by": string | null,"cash_session_id": string | null,"channel": string,"client_request_id": string,"created_at": string,"delivery_fee": number,"discount": number,"discount_authorized_by": string | null,"fiado_account_id": string | null,"id": string,"number": number,"operator_member_id": string | null,"order_id": string | null,"origin": string,"status": string,"store_id": string,"subtotal": number,"tab_id": string | null,"terminal_id": string | null,"total": number
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "account_id": string,"business_date": string,"cancel_reason"?: string | null,"canceled_at"?: string | null,"canceled_by"?: string | null,"cash_session_id"?: string | null,"channel"?: string,"client_request_id": string,"created_at"?: string,"delivery_fee"?: number,"discount"?: number,"discount_authorized_by"?: string | null,"fiado_account_id"?: string | null,"id"?: string,"number": number,"operator_member_id"?: string | null,"order_id"?: string | null,"origin"?: string,"status"?: string,"store_id": string,"subtotal": number,"tab_id"?: string | null,"terminal_id"?: string | null,"total": number
+                  }
+                  Update: {
+                    "account_id"?: string,"business_date"?: string,"cancel_reason"?: string | null,"canceled_at"?: string | null,"canceled_by"?: string | null,"cash_session_id"?: string | null,"channel"?: string,"client_request_id"?: string,"created_at"?: string,"delivery_fee"?: number,"discount"?: number,"discount_authorized_by"?: string | null,"fiado_account_id"?: string | null,"id"?: string,"number"?: number,"operator_member_id"?: string | null,"order_id"?: string | null,"origin"?: string,"status"?: string,"store_id"?: string,"subtotal"?: number,"tab_id"?: string | null,"terminal_id"?: string | null,"total"?: number
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "sales_canceled_by_store_id_fkey"
+      columns: ["canceled_by","store_id"]
+isOneToOne: false
+      referencedRelation: "store_members"
+      referencedColumns: ["id","store_id"]
+    },{
+      foreignKeyName: "sales_cash_session_id_store_id_fkey"
+      columns: ["cash_session_id","store_id"]
+isOneToOne: false
+      referencedRelation: "cash_sessions"
+      referencedColumns: ["id","store_id"]
+    },{
+      foreignKeyName: "sales_discount_authorized_by_store_id_fkey"
+      columns: ["discount_authorized_by","store_id"]
+isOneToOne: false
+      referencedRelation: "store_members"
+      referencedColumns: ["id","store_id"]
+    },{
+      foreignKeyName: "sales_fiado_account_id_store_id_fkey"
+      columns: ["fiado_account_id","store_id"]
+isOneToOne: false
+      referencedRelation: "fiado_accounts"
+      referencedColumns: ["id","store_id"]
+    },{
+      foreignKeyName: "sales_operator_member_id_store_id_fkey"
+      columns: ["operator_member_id","store_id"]
+isOneToOne: false
+      referencedRelation: "store_members"
+      referencedColumns: ["id","store_id"]
+    },{
+      foreignKeyName: "sales_store_id_account_id_fkey"
+      columns: ["store_id","account_id"]
+isOneToOne: false
+      referencedRelation: "stores"
+      referencedColumns: ["id","account_id"]
+    },{
+      foreignKeyName: "sales_tab_id_store_id_fkey"
+      columns: ["tab_id","store_id"]
+isOneToOne: false
+      referencedRelation: "tabs"
+      referencedColumns: ["id","store_id"]
+    },{
+      foreignKeyName: "sales_terminal_id_store_id_fkey"
+      columns: ["terminal_id","store_id"]
+isOneToOne: false
+      referencedRelation: "terminals"
+      referencedColumns: ["id","store_id"]
+    }
+                  ]
                 },"stock_count_items": {
                   Row: {
                     "count_id": string,"counted_at": string,"counted_qty": number,"product_id": string,"store_id": string,"system_qty_at_count": number
@@ -405,6 +617,26 @@ isOneToOne: false
       referencedColumns: ["id","account_id"]
     }
                   ]
+                },"store_counters": {
+                  Row: {
+                    "name": string,"store_id": string,"value": number
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "name": string,"store_id": string,"value"?: number
+                  }
+                  Update: {
+                    "name"?: string,"store_id"?: string,"value"?: number
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "store_counters_store_id_fkey"
+      columns: ["store_id"]
+isOneToOne: false
+      referencedRelation: "stores"
+      referencedColumns: ["id"]
+    }
+                  ]
                 },"store_members": {
                   Row: {
                     "active": boolean,"created_at": string,"display_name": string,"id": string,"role": Database["app"]['Enums']["member_role"],"store_id": string,"updated_at": string,"user_id": string | null
@@ -491,6 +723,82 @@ isOneToOne: false
       referencedColumns: ["id"]
     }
                   ]
+                },"tab_items": {
+                  Row: {
+                    "added_at": string,"added_by": string | null,"bundle_id": string | null,"id": string,"name": string,"product_id": string | null,"quantity": number,"remove_reason": string | null,"removed_at": string | null,"removed_by": string | null,"store_id": string,"tab_id": string,"unit_price": number
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "added_at"?: string,"added_by"?: string | null,"bundle_id"?: string | null,"id"?: string,"name": string,"product_id"?: string | null,"quantity": number,"remove_reason"?: string | null,"removed_at"?: string | null,"removed_by"?: string | null,"store_id": string,"tab_id": string,"unit_price": number
+                  }
+                  Update: {
+                    "added_at"?: string,"added_by"?: string | null,"bundle_id"?: string | null,"id"?: string,"name"?: string,"product_id"?: string | null,"quantity"?: number,"remove_reason"?: string | null,"removed_at"?: string | null,"removed_by"?: string | null,"store_id"?: string,"tab_id"?: string,"unit_price"?: number
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "tab_items_added_by_store_id_fkey"
+      columns: ["added_by","store_id"]
+isOneToOne: false
+      referencedRelation: "store_members"
+      referencedColumns: ["id","store_id"]
+    },{
+      foreignKeyName: "tab_items_bundle_id_fkey"
+      columns: ["bundle_id"]
+isOneToOne: false
+      referencedRelation: "bundles"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "tab_items_product_id_fkey"
+      columns: ["product_id"]
+isOneToOne: false
+      referencedRelation: "products"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "tab_items_removed_by_store_id_fkey"
+      columns: ["removed_by","store_id"]
+isOneToOne: false
+      referencedRelation: "store_members"
+      referencedColumns: ["id","store_id"]
+    },{
+      foreignKeyName: "tab_items_tab_id_store_id_fkey"
+      columns: ["tab_id","store_id"]
+isOneToOne: false
+      referencedRelation: "tabs"
+      referencedColumns: ["id","store_id"]
+    }
+                  ]
+                },"tabs": {
+                  Row: {
+                    "closed_at": string | null,"id": string,"kind": string,"label": string,"nickname": string | null,"opened_at": string,"opened_by": string | null,"sale_id": string | null,"status": string,"store_id": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "closed_at"?: string | null,"id"?: string,"kind": string,"label": string,"nickname"?: string | null,"opened_at"?: string,"opened_by"?: string | null,"sale_id"?: string | null,"status"?: string,"store_id": string
+                  }
+                  Update: {
+                    "closed_at"?: string | null,"id"?: string,"kind"?: string,"label"?: string,"nickname"?: string | null,"opened_at"?: string,"opened_by"?: string | null,"sale_id"?: string | null,"status"?: string,"store_id"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "tabs_opened_by_store_id_fkey"
+      columns: ["opened_by","store_id"]
+isOneToOne: false
+      referencedRelation: "store_members"
+      referencedColumns: ["id","store_id"]
+    },{
+      foreignKeyName: "tabs_sale_fk"
+      columns: ["sale_id","store_id"]
+isOneToOne: false
+      referencedRelation: "sales"
+      referencedColumns: ["id","store_id"]
+    },{
+      foreignKeyName: "tabs_store_id_fkey"
+      columns: ["store_id"]
+isOneToOne: false
+      referencedRelation: "stores"
+      referencedColumns: ["id"]
+    }
+                  ]
                 },"terminals": {
                   Row: {
                     "active": boolean,"auth_user_id": string | null,"created_at": string,"id": string,"last_seen_at": string | null,"name": string,"registered_by": string | null,"revoked_at": string | null,"store_id": string
@@ -520,6 +828,9 @@ isOneToOne: false
             "add_products_from_catalog":
 { Args: { "p_items": Json,"p_store_id": string }; Returns: Json
                            },
+"add_tab_item":
+{ Args: { "p_bundle_id": string,"p_operator_session_id": string,"p_product_id": string,"p_quantity": number,"p_tab_id": string }; Returns: Json
+                           },
 "apply_stock_count":
 { Args: { "p_count_id": string }; Returns: Json
                            },
@@ -528,6 +839,18 @@ isOneToOne: false
                            },
 "can_create_member":
 { Args: { "p_role": Database["app"]['Enums']["member_role"],"p_store_id": string }; Returns: Json
+                           },
+"cancel_sale":
+{ Args: { "p_operator_session_id": string,"p_reason": string,"p_sale_id": string }; Returns: Json
+                           },
+"cash_movement":
+{ Args: { "p_amount": number,"p_operator_session_id": string,"p_reason": string,"p_type": string }; Returns: Json
+                           },
+"close_cash":
+{ Args: { "p_counted_cash": number,"p_note"?: string,"p_operator_session_id": string }; Returns: Json
+                           },
+"close_tab":
+{ Args: { "p": Json,"p_tab_id": string }; Returns: Json
                            },
 "complete_onboarding":
 { Args: { "p_city"?: string,"p_neighborhood"?: string,"p_origin"?: Json,"p_owner_name"?: string,"p_store_name": string,"p_whatsapp"?: string }; Returns: Json
@@ -541,6 +864,18 @@ isOneToOne: false
 "create_store":
 { Args: { "p_account_id": string,"p_city"?: string,"p_name": string,"p_neighborhood"?: string,"p_whatsapp"?: string }; Returns: Json
                            },
+"fiado_list":
+{ Args: { "p_store_id": string }; Returns: Json
+                           },
+"finalize_sale":
+{ Args: { "p": Json }; Returns: Json
+                           },
+"find_fiado":
+{ Args: { "p_query": string,"p_store_id": string }; Returns: Json
+                           },
+"merge_fiado":
+{ Args: { "p_from": string,"p_into": string,"p_store_id": string }; Returns: Json
+                           },
 "my_permissions":
 { Args: { "p_store_id": string }; Returns: Json
                            },
@@ -550,8 +885,14 @@ isOneToOne: false
 "my_subscription":
 { Args: { "p_account_id": string }; Returns: Json
                            },
+"open_cash":
+{ Args: { "p_opening_float"?: number,"p_operator_session_id": string }; Returns: Json
+                           },
 "open_stock_count":
 { Args: { "p_store_id": string }; Returns: Json
+                           },
+"open_tab":
+{ Args: { "p_kind": string,"p_label": string,"p_nickname"?: string,"p_operator_session_id": string }; Returns: Json
                            },
 "operator_login":
 { Args: { "p_member_id": string,"p_pin": string }; Returns: Json
@@ -559,11 +900,17 @@ isOneToOne: false
 "operator_logout":
 { Args: Record<PropertyKey, never>; Returns: Json
                            },
+"receive_fiado_payment":
+{ Args: { "p_amount": number,"p_fiado_account_id": string,"p_method": string,"p_operator_session_id": string }; Returns: Json
+                           },
 "receive_goods":
 { Args: { "p_items": Json,"p_note"?: string,"p_purchase_order_id"?: string,"p_store_id": string,"p_supplier_id"?: string }; Returns: Json
                            },
 "register_stock_change":
 { Args: { "p_kind": string,"p_product_id": string,"p_quantity": number,"p_reason": string,"p_store_id": string }; Returns: Json
+                           },
+"remove_tab_item":
+{ Args: { "p_operator_session_id": string,"p_reason": string,"p_tab_item_id": string }; Returns: Json
                            },
 "revoke_terminal":
 { Args: { "p_terminal_id": string }; Returns: Json
@@ -604,12 +951,15 @@ isOneToOne: false
 "transfer_stock":
 { Args: { "p_from_store": string,"p_items": Json,"p_note"?: string,"p_to_store": string }; Returns: Json
                            },
+"update_fiado":
+{ Args: { "p_clear_limit"?: boolean,"p_credit_limit"?: number,"p_fiado_account_id": string,"p_note"?: string,"p_promised_date"?: string,"p_store_id": string }; Returns: Json
+                           },
 "update_member":
 { Args: { "p_active"?: boolean,"p_display_name"?: string,"p_member_id": string,"p_role"?: Database["app"]['Enums']["member_role"] }; Returns: Json
                            }
           }
           Enums: {
-            "member_role": "owner"|"manager"|"cashier"|"stock_keeper"|"courier","stock_movement_type": "initial"|"entry"|"sale"|"sale_cancel"|"adjustment"|"count_adjustment"|"loss"|"transfer_out"|"transfer_in"|"order"|"order_cancel"|"tab"|"tab_remove"
+            "cash_movement_type": "opening"|"sale_cash_in"|"change_out"|"withdrawal"|"reinforcement"|"courier_payment"|"sale_cancel_refund"|"fiado_payment_in"|"adjustment","member_role": "owner"|"manager"|"cashier"|"stock_keeper"|"courier","pay_method": "pix"|"credit"|"debit"|"cash"|"fiado","stock_movement_type": "initial"|"entry"|"sale"|"sale_cancel"|"adjustment"|"count_adjustment"|"loss"|"transfer_out"|"transfer_in"|"order"|"order_cancel"|"tab"|"tab_remove"
           }
           CompositeTypes: {
             [_ in never]: never
@@ -759,7 +1109,7 @@ export type CompositeTypes<
 export const Constants = {
   "app": {
           Enums: {
-            "member_role": ["owner", "manager", "cashier", "stock_keeper", "courier"],"stock_movement_type": ["initial", "entry", "sale", "sale_cancel", "adjustment", "count_adjustment", "loss", "transfer_out", "transfer_in", "order", "order_cancel", "tab", "tab_remove"]
+            "cash_movement_type": ["opening", "sale_cash_in", "change_out", "withdrawal", "reinforcement", "courier_payment", "sale_cancel_refund", "fiado_payment_in", "adjustment"],"member_role": ["owner", "manager", "cashier", "stock_keeper", "courier"],"pay_method": ["pix", "credit", "debit", "cash", "fiado"],"stock_movement_type": ["initial", "entry", "sale", "sale_cancel", "adjustment", "count_adjustment", "loss", "transfer_out", "transfer_in", "order", "order_cancel", "tab", "tab_remove"]
           }
         },"graphql_public": {
           Enums: {

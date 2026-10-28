@@ -44,11 +44,11 @@ begin
   return v_user;
 end $$;
 
--- Terminal pareado na loja, com sessão de operador do membro informado (PIN já definido).
+-- Terminal pareado na loja; devolve o usuário técnico (para tests.act_as).
 create or replace function tests.new_terminal(p_store uuid) returns uuid language plpgsql as $$
-declare v_term uuid; v_user uuid := tests.new_user('terminal-' || gen_random_uuid() || '@terminals.addegas.invalid', 'terminal');
+declare v_user uuid := tests.new_user('terminal-' || gen_random_uuid() || '@terminals.addegas.invalid', 'terminal');
 begin
-  insert into app.terminals (store_id, name, auth_user_id) values (p_store, 'Balcão teste', v_user) returning id into v_term;
+  insert into app.terminals (store_id, name, auth_user_id) values (p_store, 'Balcão teste', v_user);
   return v_user;
 end $$;
 
