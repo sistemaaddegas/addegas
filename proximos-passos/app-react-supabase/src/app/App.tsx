@@ -22,6 +22,7 @@ import { Anotacoes } from '@/features/anotacoes/anotacoes'
 import { Equipe } from '@/features/equipe/equipe'
 import { AjustesTela } from '@/features/ajustes/ajustes'
 import { WhatsApp } from '@/features/whatsapp/whatsapp'
+import { LucroNoCopo } from '@/features/lucro-no-copo/lucro-no-copo'
 
 type Stage = 'guest' | 'password' | 'store' | 'app'
 
@@ -43,7 +44,7 @@ function Gate({ stage }: { stage: Stage }) {
 }
 
 // Telas já portadas; as outras do menu ainda mostram o Placeholder (siga o Addegas.dc.html).
-const TELAS: Record<string, ReactNode> = { '/': <Inicio />, '/caixa': <Caixa />, '/pedidos': <Pedidos />, '/estoque': <Estoque />, '/clientes': <Clientes />, '/relatorios': <Relatorios />, '/combos': <Combos />, '/compras': <Compras />, '/anotacoes': <Anotacoes />, '/equipe': <Equipe />, '/ajustes': <AjustesTela />, '/whatsapp': <WhatsApp /> }
+const TELAS: Record<string, ReactNode> = { '/': <Inicio />, '/caixa': <Caixa />, '/pedidos': <Pedidos />, '/estoque': <Estoque />, '/clientes': <Clientes />, '/relatorios': <Relatorios />, '/combos': <Combos />, '/compras': <Compras />, '/anotacoes': <Anotacoes />, '/equipe': <Equipe />, '/ajustes': <AjustesTela />, '/whatsapp': <WhatsApp />, '/lucro-no-copo': <LucroNoCopo /> }
 const Placeholder = ({ title }: { title: string }) => <div className="p-8 display text-3xl">{title}</div>
 
 export function App() {
