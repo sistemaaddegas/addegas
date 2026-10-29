@@ -1,14 +1,13 @@
 import { useMemo, useState } from 'react'
 import qrcode from 'qrcode-generator'
 import { rpc } from '@/lib/supabase'
-import { brlc, parseBRL } from '@/lib/format'
+import { brlc, centavos, parseBRL } from '@/lib/format'
 import { brCode, type PixConfig } from '@/lib/pix'
 import { Icon, type IconName } from '@/components/icon'
 import { Sheet, bigBtn, chipBtn, moneyInput } from '@/components/sheet'
 import { useToast } from '@/components/toast'
 import type { Operador } from './dados'
 
-const centavos = (s: string) => Math.round(parseBRL(s) * 100)
 const label = 'text-sm font-bold text-[#C4C4C9]'
 
 // Abrir caixa ------------------------------------------------------------------------------------
