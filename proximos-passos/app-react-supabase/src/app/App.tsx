@@ -1,4 +1,4 @@
-import { BrowserRouter, Navigate, Outlet, Route, Routes } from 'react-router'
+import { BrowserRouter, Navigate, Outlet, Route, Routes, useLocation } from 'react-router'
 import { useAuth } from '@/lib/auth'
 import { NAV } from './routes'
 import { AppShell } from './AppShell'
@@ -10,18 +10,23 @@ import { Entrar } from '@/features/acesso/entrar'
 import { Lojas } from '@/features/acesso/lojas'
 import { NovaSenha } from '@/features/acesso/nova-senha'
 import { Inicio } from '@/features/inicio/inicio'
+import { Caixa } from '@/features/caixa/caixa'
 
 type Stage = 'guest' | 'password' | 'store' | 'app'
 
 /** Para onde a pessoa vai, conforme a etapa do acesso em que está. */
 function Gate({ stage }: { stage: Stage }) {
-  const { session, loading, storeId, needsNewPassword } = useAuth()
+  const { session, loading, storeId, needsNewPassword, terminal } = useAuth()
+  const { pathname } = useLocation()
   if (loading) return null
   let where: Stage
   if (!session) where = 'guest'
   else if (needsNewPassword) where = 'password'
+  else if (terminal) where = 'app' // aparelho de caixa: a loja vem do terminal
   else if (stage === 'store') where = 'store' // dá para trocar de loja a qualquer momento
   else where = storeId ? 'app' : 'store'
+  // No aparelho de caixa só existe o caixa (e o Mais, para desconectar no celular).
+  if (where === 'app' && stage === 'app' && terminal && pathname !== '/caixa' && pathname !== '/mais') return <Navigate to="/caixa" replace />
   if (where !== stage) return <Navigate to={{ guest: '/entrar', password: '/nova-senha', store: '/lojas', app: '/' }[where]} replace />
   return stage === 'app' ? <AppShell><Outlet /></AppShell> : <Outlet />
 }
@@ -48,7 +53,8 @@ export function App() {
         <Route path="/cadastro" element={<Placeholder title="Cadastrar adega" />} />
         <Route element={<Gate stage="app" />}>
           <Route path="/" element={<Inicio />} />
-          {NAV.filter((n) => n.path !== '/').map((n) => <Route key={n.path} path={n.path} element={<Placeholder title={n.label} />} />)}
+          <Route path="/caixa" element={<Caixa />} />
+          {NAV.filter((n) => n.path !== '/' && n.path !== '/caixa').map((n) => <Route key={n.path} path={n.path} element={<Placeholder title={n.label} />} />)}
           <Route path="/mais" element={<Mais />} />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />

@@ -12,6 +12,15 @@ const IC = {
   cal: ['M3 5h18v16H3z', 'M16 3v4', 'M8 3v4', 'M3 10h18'],
   clock: ['c:12,12,10', 'M12 6v6l4 2'],
   chat: ['M7.9 20A9 9 0 1 0 4 16.1L2 22z'],
+  search: ['c:11,11,8', 'm21 21-4.3-4.3'],
+  x: ['M18 6 6 18', 'm6 6 12 12'],
+  minus: ['M5 12h14'],
+  qr: ['M3 3h7v7H3z', 'M14 3h7v7h-7z', 'M3 14h7v7H3z', 'M14 14h3v3h-3z', 'M20 14v.01', 'M14 20h.01', 'M17 17h4v4'],
+  cash: ['M2 6h20v12H2z', 'c:12,12,3'],
+  card: ['M2 5h20v14H2z', 'M2 10h20'],
+  book: ['M4 19.5A2.5 2.5 0 0 1 6.5 17H20V2H6.5A2.5 2.5 0 0 0 4 4.5z', 'M4 19.5A2.5 2.5 0 0 0 6.5 22H20v-5'],
+  user: ['c:12,8,4', 'M4 21a8 8 0 0 1 16 0'],
+  store: ['M3 9h18l-2-6H5z', 'M5 9v12h14V9', 'M9 21v-6h6v6'],
 } satisfies Record<string, string[]>
 
 export type IconName = keyof typeof IC

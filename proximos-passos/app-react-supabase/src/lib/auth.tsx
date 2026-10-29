@@ -3,6 +3,9 @@ import type { Session } from '@supabase/supabase-js'
 import { useQueryClient } from '@tanstack/react-query'
 import { rpc, supabase } from './supabase'
 
+/** Aparelho pareado como caixa (E09): entra com um usuário técnico, e quem opera entra com o PIN. */
+export type Terminal = { id: string; storeId: string; name: string }
+
 type AuthCtx = {
   session: Session | null
   loading: boolean
@@ -12,11 +15,13 @@ type AuthCtx = {
   /** Senha provisória (E07) ou link de recuperação: a única tela liberada é a de criar senha. */
   needsNewPassword: boolean
   passwordChanged: () => void
+  /** Preenchido quando este aparelho é um caixa; aí a loja vem do terminal, não da escolha da pessoa. */
+  terminal: Terminal | null
   signOut: () => Promise<void>
 }
 const Ctx = createContext<AuthCtx>({
   session: null, loading: true, storeId: null, setStoreId: () => {},
-  needsNewPassword: false, passwordChanged: () => {}, signOut: async () => {},
+  needsNewPassword: false, passwordChanged: () => {}, terminal: null, signOut: async () => {},
 })
 
 const STORE_KEY = 'addegas.store'
@@ -27,6 +32,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true)
   const [storeId, setStore] = useState<string | null>(() => localStorage.getItem(STORE_KEY))
   const [needsNewPassword, setNeedsNewPassword] = useState(false)
+  const [terminal, setTerminal] = useState<Terminal | null>(null)
   const recovering = useRef(false)
   const queryClient = useQueryClient()
 
@@ -38,8 +44,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (s && s.user.id !== checkedUser) {
         checkedUser = s.user.id
         setLoading(true)
-        setNeedsNewPassword(recovering.current || await rpc<boolean>('must_change_password').catch(() => false))
+        if (s.user.app_metadata?.kind === 'terminal') {
+          // A RLS só deixa o terminal ler a própria linha; revogado = nenhuma linha.
+          const { data } = await supabase.from('terminals').select('id, store_id, name').eq('active', true).limit(1)
+          const t = data?.[0]
+          setTerminal(t ? { id: t.id, storeId: t.store_id, name: t.name } : null)
+          setNeedsNewPassword(false)
+          if (!t) await supabase.auth.signOut()
+        } else {
+          setTerminal(null)
+          setNeedsNewPassword(recovering.current || await rpc<boolean>('must_change_password').catch(() => false))
+        }
       }
+      if (!s) setTerminal(null)
       setSession(s)
       setLoading(false)
     }
@@ -66,7 +83,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <Ctx.Provider value={{ session, loading, storeId, setStoreId, needsNewPassword, passwordChanged: () => { recovering.current = false; setNeedsNewPassword(false) }, signOut }}>
+    <Ctx.Provider value={{
+      session, loading, storeId: terminal?.storeId ?? storeId, setStoreId, needsNewPassword,
+      passwordChanged: () => { recovering.current = false; setNeedsNewPassword(false) }, terminal, signOut,
+    }}>
       {children}
     </Ctx.Provider>
   )

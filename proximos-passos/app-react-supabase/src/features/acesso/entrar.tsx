@@ -1,10 +1,12 @@
 import { useState, type FormEvent } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import { Link } from 'react-router'
 import type { AuthError } from '@supabase/supabase-js'
 import { supabase } from '@/lib/supabase'
 import { SLUG_KEY } from '@/lib/auth'
 import { mensagem } from '@/lib/erros'
 import { useToast } from '@/components/toast'
+import { parearAparelho } from '@/features/caixa/parear'
 import { AuthLayout, Field, btnOutline, btnPrimary, btnText } from './layout'
 
 const EMAIL = /^[^@\s]+@[^@\s]+\.[^@\s]+$/
@@ -29,7 +31,10 @@ function authCode(e: AuthError) {
 }
 
 export function Entrar() {
-  const [mode, setMode] = useState<'login' | 'rec' | 'sent'>('login')
+  const [mode, setMode] = useState<'login' | 'rec' | 'sent' | 'pair'>('login')
+  const [slug, setSlug] = useState(() => localStorage.getItem(SLUG_KEY) ?? '')
+  const [codigo, setCodigo] = useState('')
+  const qc = useQueryClient()
   const [login, setLogin] = useState('')
   const [senha, setSenha] = useState('')
   const [busy, setBusy] = useState(false)
@@ -61,8 +66,36 @@ export function Entrar() {
     setMode('sent')
   }
 
+  // Aparelho que ainda não é caixa: troca o código gerado pelo dono ou gerente por uma sessão de terminal (E09).
+  const doPair = async (e: FormEvent) => {
+    e.preventDefault()
+    if (!/^[a-z0-9-]+$/.test(slug.trim().toLowerCase())) return toast('Informe a loja como aparece no código (ex.: adega-esquina)')
+    if (!/^\d{6}$/.test(codigo.trim())) return toast('O código tem 6 dígitos')
+    setBusy(true)
+    try {
+      const t = await parearAparelho(slug, codigo, qc)
+      localStorage.setItem(SLUG_KEY, slug.trim().toLowerCase())
+      toast(`Este aparelho agora é o caixa ${t.name}`) // as rotas levam para o PIN
+    } catch (err) {
+      toast((err as Error).message)
+      setBusy(false)
+    }
+  }
+
   return (
     <AuthLayout>
+      {mode === 'pair' && (
+        <form onSubmit={doPair} className="contents">
+          <div className="flex flex-col gap-1.5 mb-1">
+            <div className="text-[30px] font-black uppercase leading-none tracking-[-0.01em]" style={{ fontStretch: '100%' }}>Entrar no caixa</div>
+            <div className="text-[15px] text-[#C4C4C9] leading-[1.45]">Uma vez por aparelho: peça ao dono ou ao gerente o código em Caixa, no celular dele. Depois, cada pessoa entra só com o PIN.</div>
+          </div>
+          <Field label="Loja" value={slug} onChange={(e) => setSlug(e.target.value)} autoCapitalize="none" spellCheck={false} placeholder="adega-esquina" />
+          <Field label="Código de 6 dígitos" value={codigo} onChange={(e) => setCodigo(e.target.value.replace(/\D/g, '').slice(0, 6))} inputMode="numeric" autoComplete="one-time-code" placeholder="000000" />
+          <button type="submit" disabled={busy} className={btnPrimary}>{busy ? 'Registrando…' : 'Registrar este aparelho'}</button>
+          <button type="button" onClick={() => setMode('login')} className={btnText}>Voltar ao login</button>
+        </form>
+      )}
       {mode === 'login' && (
         <form onSubmit={doLogin} className="contents">
           <div className="flex flex-col gap-1.5 mb-1">
@@ -75,7 +108,7 @@ export function Entrar() {
           <Field label="Senha" value={senha} onChange={(e) => setSenha(e.target.value)} type="password" autoComplete="current-password" placeholder="••••••••" />
           <button type="submit" disabled={busy} className={`${btnPrimary} mt-1`}>{busy ? 'Entrando…' : 'Entrar'}</button>
           <button type="button" onClick={() => setMode('rec')} className="self-start -mt-1 p-0 bg-transparent text-brand text-sm font-bold cursor-pointer">Esqueci minha senha</button>
-          <button type="button" onClick={() => toast('No caixa, cada pessoa entra com o PIN de 4 dígitos')} className={btnOutline}>Entrar no caixa com PIN</button>
+          <button type="button" onClick={() => setMode('pair')} className={btnOutline}>Entrar no caixa com PIN</button>
           <div className="flex justify-center gap-1.5 text-sm text-[#C4C4C9] mt-2">
             Ainda não usa?<Link to="/cadastro" className="text-brand font-bold">Cadastrar minha adega</Link>
           </div>
