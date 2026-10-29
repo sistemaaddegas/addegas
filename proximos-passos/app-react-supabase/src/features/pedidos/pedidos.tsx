@@ -9,6 +9,7 @@ import { useToast } from '@/components/toast'
 import { canal } from '@/components/canal'
 import { chip, chipCls, dot, ha, minutos, qtd, seg, segBar, segCls } from '@/lib/visual'
 import { usePedidos, type Entregador, type Pedido } from './dados'
+import { NovoPedido } from './novo-pedido'
 
 // Abas do protótipo (OT) e os status do banco que entram em cada uma.
 const ABAS = [
@@ -50,6 +51,7 @@ export function Pedidos() {
   const [busy, setBusy] = useState<string | null>(null)
   const [recusar, setRecusar] = useState<Pedido | null>(null)
   const [chamar, setChamar] = useState<Pedido | null>(null)
+  const [novo, setNovo] = useState(false)
 
   if (isLoading) return <div className="p-4 tablet:p-8 text-[#C4C4C9]">Carregando…</div>
   if (error || !data) return <div className="p-4 tablet:p-8 text-bad">Não deu para carregar os pedidos. {error?.message}</div>
@@ -89,6 +91,7 @@ export function Pedidos() {
 
   return (
     <div className="p-4 tablet:p-8 flex flex-col gap-3.5 max-w-[1400px] mx-auto w-full">
+      <div className="flex flex-wrap items-center gap-3">
       <div className={segBar}>
         {ABAS.map((t, k) => {
           const on = aba === t.id
@@ -102,6 +105,10 @@ export function Pedidos() {
             </button>
           )
         })}
+      </div>
+
+      <span className="flex-1" />
+      <button onClick={() => setNovo(true)} className="h-12 px-[18px] rounded-[3px_10px_2px_9px] bg-brand text-brand-ink text-[15px] font-extrabold flex items-center gap-2 cursor-pointer flex-none"><Icon name="plus" />Lançar pedido</button>
       </div>
 
       <div className="flex gap-2 overflow-x-auto no-scrollbar max-w-full">
@@ -156,7 +163,7 @@ export function Pedidos() {
               {!a && (
                 <div className="flex items-center gap-2 text-ok text-sm font-bold">
                   <Icon name="check" />Concluído
-                  {!o.sale_id && <span className="ml-auto text-[13px] text-brand">Falta registrar no caixa</span>}
+                  {!o.sale_id && <span className="ml-auto text-[13px] text-brand">Falta receber no caixa</span>}
                 </div>
               )}
             </div>
@@ -172,6 +179,7 @@ export function Pedidos() {
         </div>
       )}
 
+      {novo && <NovoPedido storeId={storeId!} onClose={() => setNovo(false)} onDone={() => Promise.all([qc.invalidateQueries({ queryKey: ['pedidos'] }), qc.invalidateQueries({ queryKey: ['inicio'] })])} />}
       {recusar && <Recusar o={recusar} busy={busy === recusar.id} onClose={() => setRecusar(null)} onOk={(m) => mudar(recusar, 'rejected', m)} />}
       {chamar && (
         <Sheet title={`Quem leva o #${chamar.number}?`} onClose={() => setChamar(null)}>
