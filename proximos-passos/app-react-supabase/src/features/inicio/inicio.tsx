@@ -3,27 +3,12 @@ import { useNavigate } from 'react-router'
 import { useAuth } from '@/lib/auth'
 import { brlc } from '@/lib/format'
 import { Icon, type IconName } from '@/components/icon'
-import { useInicio, type Pedido } from './dados'
+import { canal, CanalLogo } from '@/components/canal'
+import { card, ha, hora, irr, minutos, pill, pillCls } from '@/lib/visual'
+import { useInicio } from './dados'
 
-// Bordas irregulares do protótipo (IRR / irr(i)).
-const IRR = ['2px 14px 3px 11px / 3px 9px 2px 12px', '12px 2px 13px 3px / 9px 3px 12px 2px', '3px 11px 2px 14px / 12px 2px 9px 3px', '13px 3px 11px 2px / 2px 12px 3px 9px']
-const irr = (i: number) => IRR[((i % 4) + 4) % 4]
 const KC = ['#4ADE80', '#FBC009', '#7CB3FF', '#FF8A5B']
-const card = 'rounded-[4px_13px_5px_11px] bg-surface border border-line flex flex-col min-w-0'
 
-const CANAL: Record<string, { nome: string; img?: string; letra?: string; bg?: string; cor?: string }> = {
-  ifood: { nome: 'iFood', img: '/assets/apps/ifood-red.png' },
-  ze_delivery: { nome: 'Zé Delivery', img: '/assets/apps/ze-delivery.png' },
-  food99: { nome: '99Food', img: '/assets/apps/99food.png' },
-  keeta: { nome: 'Keeta', img: '/assets/apps/keeta.png' },
-  whatsapp: { nome: 'WhatsApp', bg: '#25D366', cor: '#FFFFFF' },
-  phone: { nome: 'Telefone', letra: 'T', bg: '#2A2A2E', cor: '#F5F5F2' },
-  counter: { nome: 'Balcão', letra: 'B', bg: '#2A2A2E', cor: '#F5F5F2' },
-  catalog: { nome: 'Catálogo', letra: 'C', bg: '#FBC009', cor: '#0A0A0B' },
-}
-
-const pill = (c: string, bg: string): CSSProperties => ({ color: c, background: bg })
-const pillCls = 'inline-flex items-center h-[26px] px-2.5 rounded-full text-xs font-extrabold whitespace-nowrap flex-none'
 const STATUS: Record<string, [string, CSSProperties]> = {
   new: ['Novo', pill('#0A0A0B', '#FBC009')],
   preparing: ['Em preparo', pill('#4ADE80', 'rgba(74,222,128,.12)')],
@@ -31,9 +16,6 @@ const STATUS: Record<string, [string, CSSProperties]> = {
   out_for_delivery: ['Em rota', pill('#7CB3FF', 'rgba(124,179,255,.12)')],
 }
 
-const minutos = (iso: string) => Math.floor((Date.now() - new Date(iso).getTime()) / 60000)
-const ha = (iso: string) => { const m = minutos(iso); return m < 60 ? `há ${m} min` : m < 1440 ? `há ${Math.floor(m / 60)} h` : `há ${Math.floor(m / 1440)} d` }
-const hora = (iso: string) => new Date(iso).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
 const diaSemana = (iso: string) => {
   const d = new Date(iso + 'T12:00:00')
   const w = d.toLocaleDateString('pt-BR', { weekday: 'long' }).split('-')[0]
@@ -44,17 +26,6 @@ const diaSemana = (iso: string) => {
 function Arte({ image, size }: { image: string | null; size: number }) {
   if (image) return null
   return <img src="/icons/dd-amarelo.png" alt="" draggable={false} className="block w-auto max-w-[80%] object-contain opacity-30 pointer-events-none" style={{ height: Math.round(size * 0.78) }} />
-}
-
-function Logo({ p }: { p: Pedido }) {
-  const c = CANAL[p.channel] ?? { nome: p.channel, letra: p.channel[0]?.toUpperCase(), bg: '#2A2A2E', cor: '#F5F5F2' }
-  return (
-    <span title={c.nome} className="w-10 h-10 flex-none overflow-hidden rounded-[3px_10px_2px_9px] flex items-center justify-center text-[17px] font-black"
-      style={{ background: c.img ? '#FFFFFF' : c.bg, color: c.cor }}>
-      {c.img ? <span className="block w-full h-full bg-cover bg-center" style={{ backgroundImage: `url("${c.img}")` }} />
-        : c.letra ?? <Icon name="chat" size={22} />}
-    </span>
-  )
 }
 
 function Cabecalho({ titulo, children }: { titulo: ReactNode; children?: ReactNode }) {
@@ -112,7 +83,7 @@ export function Inicio() {
       return { icon: 'wallet' as const, st: icBox('#FF6B5E', 'rgba(255,107,94,.12)'), title: b.description, sub: `Venceu há ${dias} ${dias === 1 ? 'dia' : 'dias'} · ${brlc(b.amount)}`, cta: 'Ver contas', to: '/compras' }
     }),
     ...novos.filter((o) => minutos(o.created_at) >= 5).map((o) => ({ icon: 'clock' as const, st: icBox('#FBC009', 'rgba(251,192,9,.12)'),
-      title: `Pedido #${o.number} aguardando`, sub: `${CANAL[o.channel]?.nome ?? o.channel} · ${ha(o.created_at)}`, cta: 'Ver pedido', to: '/pedidos' })),
+      title: `Pedido #${o.number} aguardando`, sub: `${canal(o.channel).nome} · ${ha(o.created_at)}`, cta: 'Ver pedido', to: '/pedidos' })),
   ]
 
   const topMax = d.top[0]?.qty || 1
@@ -216,9 +187,9 @@ export function Inicio() {
             const [stL, stSt] = STATUS[o.status] ?? [o.status, pill('#ADADB4', '#232327')]
             return (
               <div key={o.id} onClick={() => navigate('/pedidos')} className="flex items-center gap-3 py-3 border-t border-line cursor-pointer">
-                <Logo p={o} />
+                <CanalLogo channel={o.channel} />
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 text-sm font-bold">{CANAL[o.channel]?.nome ?? o.channel}<span className="text-[#ADADB4] font-semibold">#{o.number}</span></div>
+                  <div className="flex items-center gap-2 text-sm font-bold">{canal(o.channel).nome}<span className="text-[#ADADB4] font-semibold">#{o.number}</span></div>
                   <div className="text-sm text-[#C4C4C9] mt-[3px] truncate">{o.customer_name ?? 'Cliente'}</div>
                 </div>
                 <span className="font-extrabold num">{brlc(o.total)}</span>

@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import { BrowserRouter, Navigate, Outlet, Route, Routes, useLocation } from 'react-router'
 import { useAuth } from '@/lib/auth'
 import { NAV } from './routes'
@@ -11,6 +12,7 @@ import { Lojas } from '@/features/acesso/lojas'
 import { NovaSenha } from '@/features/acesso/nova-senha'
 import { Inicio } from '@/features/inicio/inicio'
 import { Caixa } from '@/features/caixa/caixa'
+import { Pedidos } from '@/features/pedidos/pedidos'
 
 type Stage = 'guest' | 'password' | 'store' | 'app'
 
@@ -31,7 +33,8 @@ function Gate({ stage }: { stage: Stage }) {
   return stage === 'app' ? <AppShell><Outlet /></AppShell> : <Outlet />
 }
 
-// Substitua cada Placeholder pela tela em src/features/<modulo> seguindo Addegas.dc.html
+// Telas já portadas; as outras do menu ainda mostram o Placeholder (siga o Addegas.dc.html).
+const TELAS: Record<string, ReactNode> = { '/': <Inicio />, '/caixa': <Caixa />, '/pedidos': <Pedidos /> }
 const Placeholder = ({ title }: { title: string }) => <div className="p-8 display text-3xl">{title}</div>
 
 export function App() {
@@ -52,9 +55,7 @@ export function App() {
         </Route>
         <Route path="/cadastro" element={<Placeholder title="Cadastrar adega" />} />
         <Route element={<Gate stage="app" />}>
-          <Route path="/" element={<Inicio />} />
-          <Route path="/caixa" element={<Caixa />} />
-          {NAV.filter((n) => n.path !== '/' && n.path !== '/caixa').map((n) => <Route key={n.path} path={n.path} element={<Placeholder title={n.label} />} />)}
+          {NAV.map((n) => <Route key={n.path} path={n.path} element={TELAS[n.path] ?? <Placeholder title={n.label} />} />)}
           <Route path="/mais" element={<Mais />} />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />

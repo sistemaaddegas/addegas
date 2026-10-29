@@ -39,3 +39,5 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .display { font-weight: 900; font-stretch: 115%; letter-spacing: -0.02em; }
 .safe-top { padding-top: env(safe-area-inset-top); }
 .safe-bottom { padding-bottom: env(safe-area-inset-bottom); }
+.no-scrollbar { scrollbar-width: none; }
+.no-scrollbar::-webkit-scrollbar { display: none; }

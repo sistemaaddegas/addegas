@@ -6,15 +6,9 @@ import { setCartOpen } from '@/lib/caixa-state'
 import { Icon } from '@/components/icon'
 import { Sheet } from '@/components/sheet'
 import { useToast } from '@/components/toast'
+import { chip, irr } from '@/lib/visual'
 import { useCaixaAberto, useCatalogo, type Operador, type Produto } from './dados'
 import { AbrirCaixa, Cobrar, Desconto, FecharCaixa, VendaFeita, type Venda } from './modais'
-
-const IRR = ['2px 14px 3px 11px / 3px 9px 2px 12px', '12px 2px 13px 3px / 9px 3px 12px 2px', '3px 11px 2px 14px / 12px 2px 9px 3px', '13px 3px 11px 2px / 2px 12px 3px 9px']
-const irr = (i: number) => IRR[((i % 4) + 4) % 4]
-const chip = (on: boolean, i: number) => ({
-  borderRadius: irr(i), transform: on ? (i % 2 ? 'rotate(-.5deg)' : 'rotate(.4deg)') : 'none',
-  border: `1px solid ${on ? '#FBC009' : '#2A2A2E'}`, background: on ? '#FBC009' : '#141416', color: on ? '#0A0A0B' : '#F5F5F2',
-})
 
 type Modal = null | 'abrir' | 'fechar' | 'pagar' | 'desconto' | 'carrinho'
 
