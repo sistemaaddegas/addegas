@@ -16,6 +16,7 @@ import { Pedidos } from '@/features/pedidos/pedidos'
 import { Estoque } from '@/features/estoque/estoque'
 import { Clientes } from '@/features/clientes/clientes'
 import { Relatorios } from '@/features/relatorios/relatorios'
+import { Combos } from '@/features/combos/combos'
 
 type Stage = 'guest' | 'password' | 'store' | 'app'
 
@@ -37,7 +38,7 @@ function Gate({ stage }: { stage: Stage }) {
 }
 
 // Telas já portadas; as outras do menu ainda mostram o Placeholder (siga o Addegas.dc.html).
-const TELAS: Record<string, ReactNode> = { '/': <Inicio />, '/caixa': <Caixa />, '/pedidos': <Pedidos />, '/estoque': <Estoque />, '/clientes': <Clientes />, '/relatorios': <Relatorios /> }
+const TELAS: Record<string, ReactNode> = { '/': <Inicio />, '/caixa': <Caixa />, '/pedidos': <Pedidos />, '/estoque': <Estoque />, '/clientes': <Clientes />, '/relatorios': <Relatorios />, '/combos': <Combos /> }
 const Placeholder = ({ title }: { title: string }) => <div className="p-8 display text-3xl">{title}</div>
 
 export function App() {
