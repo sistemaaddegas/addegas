@@ -1,12 +1,13 @@
 import { useMemo, useState } from 'react'
 import qrcode from 'qrcode-generator'
-import { rpc } from '@/lib/supabase'
+import { AppError, rpc } from '@/lib/supabase'
+import { useAuth } from '@/lib/auth'
 import { brlc, centavos, parseBRL } from '@/lib/format'
 import { brCode, type PixConfig } from '@/lib/pix'
 import { Icon, type IconName } from '@/components/icon'
 import { Sheet, bigBtn, chipBtn, moneyInput } from '@/components/sheet'
 import { useToast } from '@/components/toast'
-import type { Operador } from './dados'
+import { useOperadores, type Operador } from './dados'
 
 const label = 'text-sm font-bold text-[#C4C4C9]'
 
@@ -144,31 +145,41 @@ export function Cobrar({ op, total, itens, desconto, pix, requestId, onClose, on
   const [metodo, setMetodo] = useState<Metodo>('pix')
   const [recebido, setRecebido] = useState('')
   const [busy, setBusy] = useState(false)
+  const [fiado, setFiado] = useState<FiadoEscolha | null>(null)
+  const [pedirSenha, setPedirSenha] = useState(false)
   const toast = useToast()
   const rec = centavos(recebido)
   const troco = rec - total
   const codigoPix = useMemo(() => pix ? brCode(pix, total, requestId) : null, [pix, total, requestId])
   const notas = [...new Set([total, ...[1000, 2000, 5000, 10000, 20000].map((n) => Math.ceil(total / n) * n)])].filter((v) => v >= total).slice(0, 5)
 
-  const confirmar = async () => {
+  const confirmar = async (overrideToken?: string) => {
     if (metodo === 'cash' && recebido.trim() && rec < total) return toast('O valor recebido é menor que o total')
+    if (metodo === 'fiado' && !fiado) return toast('Diga para quem é o fiado')
     setBusy(true)
     try {
       const v = await rpc<Venda>('finalize_sale', { p: {
         operator_session_id: op.sessionId, client_request_id: requestId, discount: desconto,
+        ...(overrideToken ? { override_token: overrideToken } : {}),
+        ...(metodo === 'fiado' && fiado ? { fiado: 'id' in fiado ? { fiado_account_id: fiado.id } : { name: fiado.name, phone: fiado.phone } } : {}),
         items: itens.map((i) => i.kind === 'product' ? { product_id: i.id, quantity: i.qty } : { bundle_id: i.id, quantity: i.qty }),
         payments: [{ method: metodo, amount: metodo === 'cash' && recebido.trim() ? rec : total }],
       } })
-      onDone({ ...v, metodo: METODOS.find((m) => m[0] === metodo)![1] })
-    } catch (e) { toast((e as Error).message); setBusy(false) }
+      onDone({ ...v, metodo: metodo === 'fiado' && fiado ? `Fiado de ${fiado.name.split(' ')[0]}` : METODOS.find((m) => m[0] === metodo)![1] })
+    } catch (e) {
+      setBusy(false)
+      // Desconto acima do limite do papel: pede o PIN de quem pode liberar e tenta de novo.
+      if (e instanceof AppError && e.code === 'SALE_DISCOUNT_FORBIDDEN') return setPedirSenha(true)
+      toast((e as Error).message)
+    }
   }
 
   return (
     <Sheet title="Cobrar · Balcão" onClose={onClose} footer={
-      <button onClick={confirmar} disabled={busy} className={`${bigBtn} h-[62px] text-lg`}>
+      <button onClick={() => confirmar()} disabled={busy} className={`${bigBtn} h-[62px] text-lg`}>
         {busy ? 'Registrando…' : 'Confirmar pagamento'}<span className="hidden desktop:inline text-xs font-bold border-[1.5px] border-black/35 rounded-md px-1.5 py-[3px]">Enter</span>
       </button>}>
-      <form onSubmit={(e) => { e.preventDefault(); confirmar() }} className="contents">
+      <form onSubmit={(e) => { e.preventDefault(); void confirmar() }} className="contents">
         <div>
           <div className="text-sm text-[#C4C4C9] font-bold">Total</div>
           <div className="text-[52px] font-black tracking-[-0.02em] leading-[1.05] text-brand num" style={{ fontStretch: '100%' }}>{brlc(total)}</div>
@@ -176,10 +187,9 @@ export function Cobrar({ op, total, itens, desconto, pix, requestId, onClose, on
         </div>
         <div className="grid gap-2 grid-cols-2 tablet:grid-cols-5">
           {METODOS.map(([id, l, ic]) => {
-            const dis = id === 'fiado'
             return (
-              <button key={id} type="button" onClick={() => dis ? toast('Identifique um cliente com fiado liberado') : setMetodo(id)}
-                className={`h-[76px] rounded-[3px_11px_4px_10px] border-2 text-[15px] font-extrabold flex flex-col items-center justify-center gap-1.5 ${dis ? 'cursor-not-allowed text-[#5A5A60] border-line-2 bg-surface-2' : metodo === id ? 'border-brand bg-[rgba(251,192,9,.10)] text-brand cursor-pointer' : 'border-line-2 bg-surface-2 cursor-pointer'}`}>
+              <button key={id} type="button" onClick={() => setMetodo(id)}
+                className={`h-[76px] rounded-[3px_11px_4px_10px] border-2 text-[15px] font-extrabold flex flex-col items-center justify-center gap-1.5 ${metodo === id ? 'border-brand bg-[rgba(251,192,9,.10)] text-brand cursor-pointer' : 'border-line-2 bg-surface-2 cursor-pointer'}`}>
                 <Icon name={ic} size={22} />{l}
               </button>
             )
@@ -205,9 +215,93 @@ export function Cobrar({ op, total, itens, desconto, pix, requestId, onClose, on
             </div>
           </div>
         )}
+        {metodo === 'fiado' && <FiadoPara escolha={fiado} onEscolha={setFiado} />}
         {(metodo === 'credit' || metodo === 'debit') && <div className="p-4 rounded-[3px_11px_4px_10px] bg-surface-2 text-sm text-[#C4C4C9] leading-normal">Passe o cartão na maquininha e confirme aqui quando aprovar.</div>}
         <button type="submit" hidden />
       </form>
+      {pedirSenha && <Liberar subtotal={total + desconto} desconto={desconto} onClose={() => setPedirSenha(false)} onToken={(t) => { setPedirSenha(false); void confirmar(t) }} />}
+    </Sheet>
+  )
+}
+
+// Fiado para quem? (E23): busca por telefone ou nome; se não achar, nome e telefone na mesma tela.
+type FiadoEscolha = { id: string; name: string; balance: number; credit_limit: number | null } | { name: string; phone: string }
+type FiadoAchado = { fiado_account_id: string; name: string; phone: string | null; balance: number; credit_limit: number | null }
+
+function FiadoPara({ escolha, onEscolha }: { escolha: FiadoEscolha | null; onEscolha: (f: FiadoEscolha | null) => void }) {
+  const { storeId } = useAuth()
+  const [q, setQ] = useState('')
+  const [achados, setAchados] = useState<FiadoAchado[] | null>(null)
+  const [nova, setNova] = useState({ name: '', phone: '' })
+  const buscar = async () => {
+    if (q.trim().length < 2) return
+    try { setAchados(await rpc<FiadoAchado[]>('find_fiado', { p_store_id: storeId, p_query: q.trim() })) } catch { setAchados([]) }
+  }
+  const campo = 'h-12 px-3.5 rounded-[3px_10px_2px_9px] bg-surface border border-line-2 text-base outline-none focus:border-brand'
+  if (escolha) return (
+    <div className="flex items-center gap-3 p-4 rounded-[3px_11px_4px_10px] bg-surface-2 border border-brand">
+      <Icon name="book" />
+      <div className="flex-1 min-w-0">
+        <div className="text-[15px] font-extrabold">{escolha.name}</div>
+        <div className="text-sm text-[#C4C4C9] mt-0.5">{'id' in escolha ? `Deve ${brlc(escolha.balance)}${escolha.credit_limit ? ` · limite ${brlc(escolha.credit_limit)}` : ''}` : 'Fiado novo'}</div>
+      </div>
+      <button type="button" onClick={() => onEscolha(null)} className="h-9 px-3 rounded-[2px_7px_3px_6px] border border-line-2 text-[13px] font-bold cursor-pointer">Trocar</button>
+    </div>
+  )
+  return (
+    <div className="flex flex-col gap-2.5 p-4 rounded-[3px_11px_4px_10px] bg-surface-2">
+      <span className={label}>Fiado para quem?</span>
+      <div className="flex gap-2">
+        <input value={q} onChange={(e) => { setQ(e.target.value); setAchados(null) }} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); void buscar() } }}
+          placeholder="Telefone ou nome" autoFocus className={`${campo} flex-1 min-w-0`} />
+        <button type="button" onClick={buscar} className="h-12 px-4 rounded-[3px_10px_2px_9px] bg-brand text-brand-ink font-extrabold cursor-pointer">Buscar</button>
+      </div>
+      {achados?.map((a) => (
+        <button key={a.fiado_account_id} type="button" onClick={() => onEscolha({ id: a.fiado_account_id, name: a.name, balance: a.balance, credit_limit: a.credit_limit })}
+          className="flex items-center gap-3 p-3 rounded-[3px_10px_2px_9px] border border-line-2 bg-surface text-left cursor-pointer">
+          <span className="flex-1 min-w-0"><span className="block font-bold">{a.name}</span><span className="block text-[13px] text-[#ADADB4]">{a.phone ?? ''}</span></span>
+          <span className="text-sm font-extrabold num">{a.balance > 0 ? brlc(a.balance) : 'Em dia'}</span>
+        </button>
+      ))}
+      {achados && (
+        <div className="flex flex-col gap-2 pt-1">
+          <span className="text-[13px] text-[#ADADB4]">{achados.length ? 'Não é ninguém daqui? Cadastre na hora:' : 'Ninguém com esse nome ou telefone. Cadastre na hora:'}</span>
+          <div className="grid grid-cols-2 gap-2">
+            <input value={nova.name} onChange={(e) => setNova({ ...nova, name: e.target.value })} placeholder="Nome" className={campo} />
+            <input value={nova.phone} onChange={(e) => setNova({ ...nova, phone: e.target.value })} inputMode="tel" placeholder="Telefone com DDD" className={campo} />
+          </div>
+          <button type="button" disabled={!nova.name.trim() || nova.phone.replace(/\D/g, '').length < 10} onClick={() => onEscolha({ name: nova.name.trim(), phone: nova.phone.replace(/\D/g, '') })}
+            className="h-11 rounded-[3px_10px_2px_9px] border border-line-2 bg-surface font-bold cursor-pointer disabled:opacity-50">Usar este fiado novo</button>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// Desconto acima do limite: quem tem limite maior digita o PIN e libera só esta venda (token de 2 min, D05).
+function Liberar({ subtotal, desconto, onClose, onToken }: { subtotal: number; desconto: number; onClose: () => void; onToken: (t: string) => void }) {
+  const { storeId } = useAuth()
+  const { data: membros } = useOperadores(storeId)
+  const [quem, setQuem] = useState<string | null>(null)
+  const [pin, setPin] = useState('')
+  const [busy, setBusy] = useState(false)
+  const toast = useToast()
+  const pct = Math.round((desconto * 10000) / subtotal) / 100
+  const podem = (membros ?? []).filter((m) => m.role === 'owner' || m.role === 'manager')
+  const liberar = async () => {
+    if (!quem || pin.length !== 4) return
+    setBusy(true)
+    try {
+      const r = await rpc<{ override_token: string }>('authorize_override', { p_member_id: quem, p_pin: pin, p_action: 'discount', p_value: pct })
+      onToken(r.override_token)
+    } catch (e) { toast((e as Error).message); setPin(''); setBusy(false) }
+  }
+  return (
+    <Sheet title="Liberar desconto" onClose={onClose} footer={<button onClick={liberar} disabled={busy || !quem || pin.length !== 4} className={bigBtn}>{busy ? 'Conferindo…' : 'Liberar e cobrar'}</button>}>
+      <div className="text-sm text-[#C4C4C9]">{brlc(desconto)} de desconto ({String(pct).replace('.', ',')}%) passa do seu limite. Peça para o gerente ou o dono digitar o PIN.</div>
+      <div className="flex flex-wrap gap-2">{podem.map((m) => <button key={m.id} type="button" onClick={() => setQuem(m.id)} className={chipBtn(quem === m.id)}>{m.display_name}</button>)}</div>
+      {quem && <input value={pin} onChange={(e) => setPin(e.target.value.replace(/\D/g, '').slice(0, 4))} type="password" inputMode="numeric" autoFocus placeholder="PIN"
+        onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); void liberar() } }} className={`${moneyInput} tracking-[.5em] text-center`} />}
     </Sheet>
   )
 }
