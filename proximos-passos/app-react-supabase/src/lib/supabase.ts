@@ -35,3 +35,13 @@ export async function rpc<T = unknown>(fn: string, args?: Record<string, unknown
   }
   return r as T
 }
+
+/** Chama uma Edge Function (ex.: 'members/create') e desembrulha { ok, data }; em erro HTTP o corpo traz o código estável. */
+export async function funcao<T = unknown>(name: string, body: Record<string, unknown>): Promise<T> {
+  const { data, error } = await supabase.functions.invoke<Envelope<T>>(name, { body })
+  let r: Envelope<T> | null = data
+  if (error && 'context' in error && error.context instanceof Response) r = await error.context.json().catch(() => null)
+  if (!r) throw new AppError('INTERNAL')
+  if (!r.ok) throw new AppError(r.error.code, r.error.detail)
+  return r.data
+}
