@@ -1,6 +1,6 @@
 -- E41, E45, E47, E48, E49, E51 e E15.
 begin;
-select plan(30);
+select plan(31);
 
 create temp table k (n text primary key, v uuid);
 grant all on k to authenticated;
@@ -85,6 +85,10 @@ select is((select count(*)::int from private.outbox_claim('whatsapp') where temp
 select is((private.render_template('grace_started', 'whatsapp', '{"responsavel":"Marcos","nome_adega":"Adega Esquina","prazo_final":"05/11","link_regularizacao":"x"}')
   ->> 'body'), 'Oi Marcos, não identificamos o pagamento da Adega Esquina. Você tem até 05/11 para regularizar: x', 'modelo preenchido');
 select is(private.whatsapp_opt_out('5511986755103'), 1, 'resposta SAIR desliga os alertas do número');
+select private.enqueue_message('email', 'service', 'x@exemplo.com', 'grace_started', '{}'::jsonb, 'teste:desiste', pg_temp.k('acc'));
+update platform.outbox set attempts = 5 where dedupe_key = 'teste:desiste';
+select private.outbox_result((select id from platform.outbox where dedupe_key = 'teste:desiste'), false, null, 'recusado');
+select is((select status from platform.outbox where dedupe_key = 'teste:desiste'), 'dead', 'depois de 5 tentativas a fila desiste da mensagem');
 
 -- E47/E48/E49 · uso, leads e consentimento
 select ok(exists (select 1 from analytics.events where name = 'sale_finalized' and account_id = pg_temp.k('acc')),

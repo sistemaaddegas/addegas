@@ -68,11 +68,61 @@ Nunca altere uma migration que já foi aplicada no `addegas-dev` ou no `addegas-
 Helpers do `private` usados dentro de políticas de RLS precisam de `grant execute ... to authenticated`: o Postgres confere a permissão com o papel de quem consulta (provado em `001_esqueleto.test.sql`). Isso é seguro porque o `private` não é exposto pela API.
 
 ## Catálogo de códigos de erro
-Cada entrega acrescenta os seus. Formato: `ÁREA_MOTIVO`.
+O catálogo vive em **`src/lib/erros.ts`**: cada código com a mensagem em português que a tela mostra (`mensagem(code)`), agrupado por área. Formato do código: `ÁREA_MOTIVO`.
 
-| Código | Entrega | Quando acontece |
+`npm run check:erros` lê as migrations e as Edge Functions e **falha se algum código não tiver mensagem**; roda no CI antes do build. Ao criar um código novo, acrescente a mensagem no mesmo commit.
+
+Os mais comuns na operação:
+
+| Código | Quando acontece |
+| --- | --- |
+| `ACCESS_SUSPENDED` | assinatura suspensa; só bloqueia permissões marcadas com `blocked_when_suspended` (D11) |
+| `TERMINAL_REQUIRED` | o aparelho não é um caixa registrado ou foi revogado |
+| `OPERATOR_PIN_LOCKED` / `TERMINAL_PIN_LOCKED` | 5 PINs errados em 15 min no operador, ou 20 em 1 h no aparelho |
+| `SALE_CASH_CLOSED` | venda sem caixa aberto no aparelho |
+| `SALE_DISCOUNT_FORBIDDEN` | desconto acima do limite do perfil; a tela pede a autorização (override) |
+| `SALE_STOCK_INSUFFICIENT` | a loja bloqueia venda sem estoque |
+| `SALE_FIADO_LIMIT` / `FIADO_NAME_PHONE_REQUIRED` | fiado acima do limite, ou sem nome e telefone (D19, D55) |
+| `CASH_OPEN_TABS` | fechar o último caixa da loja com mesa ou comanda aberta |
+| `PLAN_LIMIT_STORES` | criar loja além das cobertas pela assinatura (D02, D03) |
+| `MFA_REQUIRED` | painel Addegas sem o segundo fator confirmado |
+
+## Edge Functions
+Ficam em `functions/`, com o código comum em `functions/_shared/`:
+
+| Função | O que faz | JWT |
 | --- | --- | --- |
-| _(vazio até a E03)_ | | |
+| `health` | responde se a função e o banco estão de pé (monitoramento, E52) | não |
+| `logs` | recebe erros do front e relatórios de CSP (`/api/logs`) | não |
+| `members` | cria pessoa da equipe com login, redefine senha provisória, desativa (D20) | sim |
+| `terminals` | registra o aparelho com o código de 6 dígitos e revoga | não¹ |
+| `billing` | checkout, portal e lojas adicionais no Stripe (D01–D03) | sim |
+| `admin` | ações do painel interno que precisam de Auth Admin (convite da equipe) | sim + MFA |
+| `hooks-stripe` | webhook do Stripe: confere a assinatura e põe na fila (`webhook_inbox`) | não² |
+| `hooks-wapi` | webhook da W-API: status de entrega e "SAIR" | não² |
+| `cron` | rotinas chamadas pelo `pg_cron`: cobrança, fila de webhooks, envio de mensagens | não³ |
+| `leads` | formulário da landing, com Turnstile | não |
+| `uploads` | URL assinada de envio e conferência do arquivo pelo conteúdo | sim |
+
+¹ o aparelho ainda não tem login; o código de registro é a credencial. ² valida a assinatura do parceiro. ³ exige `CRON_SECRET`.
+
+As funções falam com o `private.*` por conexão direta ao Postgres (`_shared/supabase.ts`, `priv()`/`privRows()`), dentro de uma transação que antes grava `request.jwt.claims` e `request.headers`; assim `auth.uid()`, a auditoria e o `correlation_id` funcionam como numa RPC. Objetos vão crus para o driver, nunca com `JSON.stringify`.
+
+Variáveis: `functions/.env.example` lista todas. Local, copie para `functions/.env` (fora do git). A CLI ignora nomes que começam com `SUPABASE_`, por isso o endereço público é `PUBLIC_API_URL`. Com `EMAIL_ENABLED=false` e `WHATSAPP_ENABLED=false`, nada sai: o envio só vai para o log.
+
+```bash
+npm run functions:serve     # sobe as funções em http://127.0.0.1:57321/functions/v1/<nome>
+```
+
+Na nuvem, as rotinas que chamam funções são agendadas por `cron/agendar-funcoes.sql`, que lê a URL e o `CRON_SECRET` do Vault (ver o runbook da E52 em `planejamento/`).
+
+## Testes
+| Comando | O que prova |
+| --- | --- |
+| `npm run db:test` | testes pgTAP de `tests/database/`, em ordem: `000_helpers` cria o schema `tests` (usuários, lojas, aparelhos, PINs) e `900_guardas` roda por último |
+| `bash tests/concorrencia/venda-paralela.sh [n]` | dois aparelhos vendendo o mesmo produto ao mesmo tempo (`n` vendas cada, padrão 300): sem deadlock, sem número de venda repetido, estoque = inicial − vendido. Deixa dados: rode `db:reset` depois |
+| `bash tests/funcoes/fluxo.sh` | ponta a ponta pelas Edge Functions (precisa do `functions:serve`): saúde e logs, cadastro, login criado pelo dono, registro e revogação do aparelho, PIN, admin com 2FA, webhook do Stripe, cron, fila de mensagens, lead e upload |
+| `npm run db:lint` e `npx supabase db advisors --local` | erros em funções, segurança e desempenho |
 
 ## Onde fica cada coisa
 ```
@@ -81,6 +131,9 @@ supabase/
   migrations/          uma por mudança, em ordem de timestamp
   seed.sql             dados de exemplo locais (os do index.html)
   tests/database/      testes pgTAP
-  functions/           Edge Functions (a partir da E04); _shared/ com código comum
+  tests/concorrencia/  carga de vendas em paralelo
+  tests/funcoes/       fluxo ponta a ponta pelas Edge Functions
+  functions/           Edge Functions; _shared/ com código comum
+  cron/                agendamento das rotinas que chamam funções (roda uma vez por projeto na nuvem)
   _referencia/         rascunho antigo da fase 2, só para consulta (não é aplicado)
 ```

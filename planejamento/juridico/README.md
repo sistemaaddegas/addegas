@@ -29,7 +29,7 @@ Tudo entre colchetes, por exemplo `[RAZÃO SOCIAL]`, `[CNPJ]`, `[ENDEREÇO]`, `[
 5. **Fiado.** O nome e o telefone de quem compra fiado são dados pessoais do cliente final, tratado pela adega como controladora. Confirmar se a base legal sugerida à adega (execução de contrato / exercício regular de direito de crédito) está adequada.
 6. **Venda de bebida a menores.** Cláusula reforçando que a adega é a única responsável pelo cumprimento da lei (ECA, art. 243).
 7. **Retenção de 6 meses** após o fim do acesso: escolha de produto, compatível com a LGPD (que não fixa prazo) e com o Marco Civil. Confirmar.
-8. **Google Fonts.** Carregar fontes do Google envia o IP do visitante ao Google. Recomendação técnica independente do advogado: hospedar a fonte Archivo no próprio site e retirar o Google da lista de suboperadores.
+8. **Google Fonts.** Carregar fontes do Google envia o IP do visitante ao Google. O app novo (sistema e painel) já serve a fonte Archivo pelo próprio domínio (E54). Falta conferir a landing (D64) e o protótipo que ainda está no ar; se nenhum dos dois usar o Google, retire a linha do Google da política.
 
 ## Versionamento
 Cada mudança gera nova versão (`v0.2`, `v1.0`...), com data. O sistema registra qual versão cada pessoa aceitou (E51, `platform.legal_acceptances`). Mudança relevante exige novo aceite ou aviso com 30 dias de antecedência, conforme os Termos.

@@ -1,7 +1,7 @@
 # Addegas · Plano de entregas do back-end
 
 Origem: [`docs/Addegas · Arquitetura do back-end.md`](../docs/Addegas%20·%20Arquitetura%20do%20back-end.md) (26/10/2026).
-Este plano **não inicia o desenvolvimento**. Ele quebra a arquitetura em entregas pequenas, cada uma testável sozinha, e registra o que foi acrescentado, o que foi questionado e o que ainda precisa de resposta.
+Este plano quebra a arquitetura em entregas pequenas, cada uma testável sozinha, e registra o que foi acrescentado, o que foi questionado e o que ainda precisa de resposta. O andamento do desenvolvimento está na tabela abaixo.
 
 **Situação em 28/10/2026:** dúvidas D01 a D63 respondidas e aplicadas nas fichas; domínio `addegas.com.br` e landing já existem; PWA na E54 e papéis da landing na E12; só a D64 em aberto (onde está o código da landing); integrações de delivery (E43, E44) em espera; minutas jurídicas e plano de domínio e e-mail criados.
 
@@ -12,13 +12,33 @@ Este plano **não inicia o desenvolvimento**. Ele quebra a arquitetura em entreg
 | [duvidas.md](duvidas.md) | Dúvidas em aberto e registro das decisões tomadas |
 | [juridico/](juridico/) | Minutas de Termos de Uso, Política de Privacidade e Acordo de Tratamento de Dados, para validar com advogado |
 | [dominio-e-email.md](dominio-e-email.md) | Subdomínios, registros DNS no Registro.br, e-mail de envio (Resend) e de recebimento, checklist dos serviços |
+| [runbook-producao.md](runbook-producao.md) | O que fazer quando algo cai, ações manuais na conta de uma adega, backup e restauração (E52) |
 
 ## Andamento
-| Entrega | Situação | Onde |
+Situação em 28/10/2026, branch `entregas-backend`. "Back-end pronto" quer dizer banco, regras, RPCs, Edge Functions e testes rodando no Supabase local; as **telas** de cada entrega entram no porte do front (D24), que ainda não começou.
+
+Verificação: 296 testes pgTAP, advisors sem aviso, 1000 vendas em paralelo sem conflito, fluxo ponta a ponta das funções 26/26, `check:erros` com 153 códigos traduzidos, typecheck e build do app.
+
+| Entrega | Situação | O que falta |
 | --- | --- | --- |
-| E01 · Estrutura do repositório e ambiente local | ✅ Concluída em 28/10/2026 | `proximos-passos/app-react-supabase/supabase/` |
-| E02 · Ambientes e segredos | ⏭️ Próxima (precisa criar os projetos no Supabase) | — |
-| E03 · Esqueleto do banco | ⏭️ Pode começar em paralelo (só local) | — |
+| E00 · Decisões bloqueantes | 🟡 Decisões tomadas | Pedido de ajuste ao design (plano único, permissões, apps "em breve") |
+| E01 · Estrutura e ambiente local | ✅ Pronta | — |
+| E02 · Ambientes e segredos | 🟡 Preparada | Criar `addegas-dev` e `addegas-prd` no Supabase, segredos no GitHub e nas funções; o CI (`banco.yml`) e o backup (`backup.yml`) já estão escritos |
+| E03 a E05 · Banco, borda Vercel, rastreio | ✅ Back-end pronto | Variáveis da Vercel ao criar o projeto do app |
+| E06 a E15 · Identidade, permissões, auditoria, admin-api, arquivos | ✅ Back-end pronto | Telas; captcha do cadastro ligado na nuvem |
+| E16 a E26 · Núcleo da adega | ✅ Back-end pronto | Telas (caixa, venda, comandas, fiado, relatórios) |
+| E27 a E31 · Gestão complementar | ✅ Back-end pronto | Telas |
+| E32, E33, E35 · Plano, ciclo da assinatura, e-mails | ✅ Back-end pronto | Domínio de envio no Resend (`dominio-e-email.md`) |
+| E34 · Stripe | 🟡 Código pronto | Conta Stripe, chaves e `scripts/stripe-sync.mjs` para criar os preços |
+| E36 a E40 · Painel Addegas | ✅ Back-end pronto | Telas do admin; cadastrar a equipe (`admin/staff/invite`) |
+| E41, E42, E45 · Pedidos, webhooks, WhatsApp | ✅ Back-end pronto | Instância da W-API e o webhook apontando para `/api/hooks/wapi` |
+| E43, E44 · iFood e outros apps | ⏸️ Em espera (D21) | — |
+| E46 a E49 · Monitoramento, uso, leads, campanhas | ✅ Back-end pronto | Agendar as rotinas na nuvem (`supabase/cron/agendar-funcoes.sql`) |
+| E50 · Brindes e mapa | ⏸️ Adiada | — |
+| E51 · LGPD e continuidade | 🟡 Back-end pronto | Minutas validadas por advogado e dados da empresa; primeiro teste de restauração |
+| E52 · Prontidão para produção | 🟡 Runbook escrito ([runbook-producao.md](runbook-producao.md)) | Matriz de acesso automatizada, teste de carga na nuvem, piloto, revisão do runbook por outra pessoa |
+| E53 · Landing | ⏳ Aguardando D64 | Acesso ao código da landing existente |
+| E54 · PWA | ✅ Pronta | Ícones finais vindos do design, se mudarem |
 
 ## Premissas de trabalho (decididas em 28/10/2026)
 - **Uma pessoa, com IA, sem compromisso de prazo** (D33). Os tamanhos das fichas medem complexidade, não agenda.

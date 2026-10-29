@@ -59,7 +59,7 @@ Compartilhamos dados apenas com fornecedores necessários para o serviço funcio
 | Resend | Envio de e-mails do sistema | EUA |
 | W-API [confirmar razão social e país] | Envio de mensagens de WhatsApp do Addegas ao dono da adega | [confirmar] |
 | Cloudflare (Turnstile) | Verificação anti-robô no cadastro e login | Rede global; EUA |
-| Google (Fonts) [retirar se a fonte passar a ser hospedada pelo Addegas] | Carregamento da fonte do site | EUA |
+| Google (Fonts) [só se a landing ainda carregar a fonte do Google; o sistema e o painel já hospedam a fonte] | Carregamento da fonte do site | EUA |
 
 Também podemos compartilhar dados com autoridades públicas quando a lei ou uma ordem judicial exigir, e com assessores jurídicos e contábeis sob sigilo.
 

@@ -15,7 +15,8 @@
     "db:lint": "supabase db lint --level warning --fail-on error",
     "db:types": "supabase gen types typescript --local > src/types/database.ts",
     "functions:serve": "supabase functions serve",
-    "icons": "node scripts/generate-icons.mjs"
+    "icons": "node scripts/generate-icons.mjs",
+    "check:erros": "node scripts/check-erros.mjs"
   },
   "dependencies": {
     "@fontsource-variable/archivo": "5.2.6",
