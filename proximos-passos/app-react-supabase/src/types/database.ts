@@ -1257,6 +1257,9 @@ isOneToOne: false
 "export_account_data":
 { Args: { "p_account_id": string }; Returns: Json
                            },
+"fiado_accounts_list":
+{ Args: { "p_store_id": string }; Returns: Json
+                           },
 "fiado_list":
 { Args: { "p_store_id": string }; Returns: Json
                            },
@@ -1313,6 +1316,9 @@ isOneToOne: false
                            },
 "purchase_suggestion":
 { Args: { "p_coverage_days"?: number,"p_lookback_days"?: number,"p_store_id": string }; Returns: Json
+                           },
+"receive_fiado_by_member":
+{ Args: { "p_amount": number,"p_fiado_account_id": string,"p_method": string,"p_store_id": string }; Returns: Json
                            },
 "receive_fiado_payment":
 { Args: { "p_amount": number,"p_fiado_account_id": string,"p_method": string,"p_operator_session_id": string }; Returns: Json
