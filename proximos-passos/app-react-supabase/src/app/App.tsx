@@ -2,6 +2,9 @@ import { BrowserRouter, Navigate, Outlet, Route, Routes } from 'react-router'
 import { useAuth } from '@/lib/auth'
 import { NAV } from './routes'
 import { AppShell } from './AppShell'
+import { InstallInvite } from '@/components/pwa/install-invite'
+import { IosInstallTutorial } from '@/components/pwa/ios-install-tutorial'
+import { UpdatePrompt } from '@/components/pwa/update-prompt'
 
 function RequireAuth() {
   const { session, loading, storeId } = useAuth()
@@ -17,6 +20,9 @@ const Placeholder = ({ title }: { title: string }) => <div className="p-8 displa
 export function App() {
   return (
     <BrowserRouter>
+      <UpdatePrompt />
+      <InstallInvite />
+      <IosInstallTutorial />
       <Routes>
         <Route path="/entrar" element={<Placeholder title="Entrar" />} />
         <Route path="/lojas" element={<Placeholder title="Escolha a loja" />} />
