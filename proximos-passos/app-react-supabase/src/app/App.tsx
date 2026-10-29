@@ -8,6 +8,7 @@ import { InstallInvite } from '@/components/pwa/install-invite'
 import { IosInstallTutorial } from '@/components/pwa/ios-install-tutorial'
 import { UpdatePrompt } from '@/components/pwa/update-prompt'
 import { Entrar } from '@/features/acesso/entrar'
+import { Cadastro } from '@/features/acesso/cadastro'
 import { Lojas } from '@/features/acesso/lojas'
 import { NovaSenha } from '@/features/acesso/nova-senha'
 import { Inicio } from '@/features/inicio/inicio'
@@ -63,7 +64,7 @@ export function App() {
         <Route element={<Gate stage="store" />}>
           <Route path="/lojas" element={<Lojas />} />
         </Route>
-        <Route path="/cadastro" element={<Placeholder title="Cadastrar adega" />} />
+        <Route path="/cadastro" element={<Cadastro />} />
         <Route element={<Gate stage="app" />}>
           {NAV.map((n) => <Route key={n.path} path={n.path} element={TELAS[n.path] ?? <Placeholder title={n.label} />} />)}
           <Route path="/mais" element={<Mais />} />

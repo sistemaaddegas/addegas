@@ -36,7 +36,7 @@ export function Lojas() {
         {isLoading ? 'Carregando suas lojas…'
           : error ? error.message
           : stores?.length ? `Você tem acesso a ${stores.length} ${stores.length === 1 ? 'loja' : 'lojas'}.`
-          : 'Você ainda não tem acesso a nenhuma loja. Peça ao dono da adega para liberar.'}
+          : 'Você ainda não tem acesso a nenhuma loja. Se é o dono, cadastre sua adega; se trabalha numa, peça ao dono para liberar.'}
       </div>
       {stores?.map((s) => {
         const atual = s.store_id === storeId
@@ -52,6 +52,9 @@ export function Lojas() {
           </button>
         )
       })}
+      {stores && !stores.length && !isLoading && (
+        <button onClick={() => navigate('/cadastro')} className="h-[52px] rounded-[3px_11px_4px_10px] bg-brand text-brand-ink text-[15px] font-extrabold cursor-pointer">Cadastrar minha adega</button>
+      )}
       {stores?.some((s) => s.role === 'owner') && (
         <button onClick={() => navigate('/cadastro')} className="h-[52px] rounded-[3px_11px_4px_10px] border border-dashed border-[#3A3A40] bg-transparent text-[#C4C4C9] text-[15px] font-bold flex items-center justify-center gap-2 cursor-pointer">
           <Icon name="plus" />Cadastrar nova loja
