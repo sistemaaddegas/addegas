@@ -1,10 +1,18 @@
 import type { ReactNode } from 'react'
 import { NavLink } from 'react-router'
 import { NAV } from './routes'
+import { useAuth } from '@/lib/auth'
+import { Icon } from '@/components/icon'
+import { useMyStores } from '@/features/acesso/lojas'
+
+const PAPEL = { owner: 'Dono', manager: 'Gerente', cashier: 'Caixa', stock_keeper: 'Estoquista', courier: 'Entregador' } as const
 
 /** desktop ≥1180: sidebar · tablet 720–1179: rail · celular <720: abas embaixo */
 export function AppShell({ children }: { children: ReactNode }) {
   const groups = ['Operação', 'Gestão', 'Análise', 'Ferramentas', 'Configurar'] as const
+  const { storeId, signOut } = useAuth()
+  const { data: stores } = useMyStores()
+  const loja = stores?.find((s) => s.store_id === storeId)
   return (
     <div className="flex h-dvh bg-bg text-ink">
       <aside className="hidden desktop:flex w-[236px] flex-col gap-4 bg-bg-nav border-r border-line p-3 overflow-y-auto">
@@ -17,6 +25,13 @@ export function AppShell({ children }: { children: ReactNode }) {
             ))}
           </nav>
         ))}
+        <div className="sticky bottom-0 mt-auto flex-none flex items-center gap-2.5 p-2.5 rounded-[3px_10px_2px_9px] bg-surface border border-line shadow-[0_-12px_16px_-6px_#060607]">
+          <NavLink to="/lojas" title="Trocar de loja" className="flex-1 min-w-0 hover:opacity-85">
+            <span className="block text-sm font-bold truncate">{loja?.name ?? '…'}</span>
+            <span className="block text-[13px] text-[#C4C4C9] mt-0.5">{loja ? PAPEL[loja.role] : ''}{stores && stores.length > 1 ? ` · ${stores.length} lojas` : ''}</span>
+          </NavLink>
+          <button onClick={signOut} title="Sair" className="w-9 h-9 flex items-center justify-center rounded-[2px_7px_3px_6px] bg-[#E5241B] hover:bg-[#FF3B30] active:bg-[#B81C15] active:scale-90 transition text-white cursor-pointer"><Icon name="logout" /></button>
+        </div>
       </aside>
       <aside className="hidden tablet:flex desktop:hidden w-[84px] flex-col items-center gap-1 bg-bg-nav border-r border-line py-4">
         <img src="/icons/dd-amarelo.png" alt="Addegas" className="w-10 mb-3" />

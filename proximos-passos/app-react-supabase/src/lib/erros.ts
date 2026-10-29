@@ -7,6 +7,11 @@ export const MENSAGENS: Record<string, string> = {
   // Acesso e sessão
   AUTH_REQUIRED: 'Entre de novo para continuar.',
   AUTH_ERROR: 'Não foi possível concluir o acesso. Tente de novo.',
+  LOGIN_INVALID: 'E-mail, usuário ou senha incorretos.',
+  LOGIN_NEEDS_STORE: 'Digite o usuário com a loja, por exemplo diego@adega-esquina.',
+  PASSWORD_WEAK: 'A senha precisa ter pelo menos 8 caracteres.',
+  PASSWORD_MISMATCH: 'As duas senhas não são iguais.',
+  PASSWORD_SAME: 'Escolha uma senha diferente da provisória.',
   FORBIDDEN: 'Você não tem permissão para fazer isso.',
   FORBIDDEN_ACTION: 'Seu perfil não permite essa ação.',
   ACCESS_SUSPENDED: 'O acesso da adega está suspenso. Regularize a assinatura para voltar a vender.',

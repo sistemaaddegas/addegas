@@ -6,6 +6,7 @@ import { App } from '@/app/App'
 import '@fontsource-variable/archivo/standard.css'
 import '@/styles/tokens.css'
 import { InstallProvider } from '@/components/pwa/install-provider'
+import { ToastProvider } from '@/components/toast'
 
 const queryClient = new QueryClient({ defaultOptions: { queries: { staleTime: 30_000, refetchOnWindowFocus: false } } })
 
@@ -14,7 +15,9 @@ createRoot(document.getElementById('root')!).render(
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <InstallProvider>
-          <App />
+          <ToastProvider>
+            <App />
+          </ToastProvider>
         </InstallProvider>
       </AuthProvider>
     </QueryClientProvider>
