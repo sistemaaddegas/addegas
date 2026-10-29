@@ -9,8 +9,9 @@ import { useToast } from '@/components/toast'
 import { chip, irr } from '@/lib/visual'
 import { useCaixaAberto, useCatalogo, type Operador, type Produto } from './dados'
 import { AbrirCaixa, Cobrar, Desconto, FecharCaixa, VendaFeita, type Venda } from './modais'
+import { ReceberPedidos, usePedidosAReceber, type PedidoCaixa } from './pedidos-caixa'
 
-type Modal = null | 'abrir' | 'fechar' | 'pagar' | 'desconto' | 'carrinho'
+type Modal = null | 'abrir' | 'fechar' | 'pagar' | 'desconto' | 'carrinho' | 'pedidos'
 
 export function Pdv({ op, onTrocar }: { op: Operador; onTrocar: () => void }) {
   const { terminal } = useAuth()
@@ -25,6 +26,8 @@ export function Pdv({ op, onTrocar }: { op: Operador; onTrocar: () => void }) {
   const [modal, setModal] = useState<Modal>(null)
   const [requestId, setRequestId] = useState(() => crypto.randomUUID())
   const [feita, setFeita] = useState<(Venda & { metodo: string }) | null>(null)
+  const [pedido, setPedido] = useState<PedidoCaixa | null>(null)
+  const { data: aReceber } = usePedidosAReceber(terminal!.storeId)
   const busca = useRef<HTMLInputElement>(null)
 
   const porKey = useMemo(() => new Map(cat?.itens.map((p) => [p.key, p])), [cat])
@@ -85,6 +88,7 @@ export function Pdv({ op, onTrocar }: { op: Operador; onTrocar: () => void }) {
   const atualizar = () => {
     qc.invalidateQueries({ queryKey: ['caixa'] })
     qc.invalidateQueries({ queryKey: ['inicio'] })
+    qc.invalidateQueries({ queryKey: ['pedidos'] })
   }
 
   const usadas = new Set(cat?.itens.map((p) => p.catId))
@@ -150,6 +154,11 @@ export function Pdv({ op, onTrocar }: { op: Operador; onTrocar: () => void }) {
           <button onClick={onTrocar} title="Trocar operador" className="h-[46px] px-3 rounded-[3px_10px_2px_9px] bg-surface border border-line flex items-center gap-2 text-sm font-bold cursor-pointer flex-none">
             <Icon name="user" size={18} />{op.name.split(' ')[0]}<span className="text-[#ADADB4] font-semibold">· trocar</span>
           </button>
+          {aberto && !!aReceber?.length && (
+            <button onClick={() => setModal('pedidos')} title="Receber pedido" className="h-[46px] px-3.5 rounded-[3px_10px_2px_9px] bg-surface border border-line text-sm font-bold cursor-pointer flex items-center gap-2 flex-none">
+              <Icon name="bag" size={18} />Pedidos<span className="min-w-[22px] h-[22px] px-1.5 rounded-full bg-brand text-brand-ink text-xs font-extrabold flex items-center justify-center">{aReceber.length}</span>
+            </button>
+          )}
           {aberto && (
             <button onClick={() => setModal('fechar')} className="h-[46px] px-3.5 rounded-[3px_10px_2px_9px] bg-[#E5241B] text-white text-sm font-extrabold cursor-pointer flex items-center gap-2 flex-none"><Icon name="wallet" size={18} />Fechar caixa</button>
           )}
@@ -213,6 +222,11 @@ export function Pdv({ op, onTrocar }: { op: Operador; onTrocar: () => void }) {
         <Cobrar op={op} total={total} desconto={desconto} pix={cat?.pix ?? null} requestId={requestId}
           itens={linhas.map(({ p, qty }) => ({ kind: p.kind, id: p.id, qty }))}
           onClose={() => setModal(null)} onDone={(v) => { setModal(null); setFeita(v); limpar(); atualizar() }} />
+      )}
+      {modal === 'pedidos' && <ReceberPedidos pedidos={aReceber ?? []} onClose={() => setModal(null)} onEscolher={(o) => { setPedido(o); setModal(null) }} />}
+      {pedido && (
+        <Cobrar op={op} total={pedido.total} desconto={0} pix={cat?.pix ?? null} requestId={pedido.id} itens={[]} pedido={{ id: pedido.id, number: pedido.number, itens: pedido.itens }}
+          onClose={() => setPedido(null)} onDone={(v) => { setPedido(null); setFeita({ ...v, metodo: `Pedido #${pedido.number} · ${v.metodo}` }); atualizar() }} />
       )}
       {feita && <VendaFeita venda={feita} onNext={() => { setFeita(null); busca.current?.focus() }} />}
     </div>

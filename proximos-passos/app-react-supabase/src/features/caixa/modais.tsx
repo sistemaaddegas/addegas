@@ -138,9 +138,11 @@ function QrPix({ texto }: { texto: string }) {
 
 export type Venda = { sale_id: string; number: number; total: number; change: number }
 
-export function Cobrar({ op, total, itens, desconto, pix, requestId, onClose, onDone }: {
+export function Cobrar({ op, total, itens, desconto, pix, requestId, pedido, onClose, onDone }: {
   op: Operador; total: number; itens: { kind: 'product' | 'bundle'; id: string; qty: number }[]; desconto: number
   pix: PixConfig | null; requestId: string; onClose: () => void; onDone: (v: Venda & { metodo: string }) => void
+  /** Recebimento de pedido: itens e taxa vêm do pedido (app.complete_order). */
+  pedido?: { id: string; number: number; itens: number }
 }) {
   const [metodo, setMetodo] = useState<Metodo>('pix')
   const [recebido, setRecebido] = useState('')
@@ -158,13 +160,14 @@ export function Cobrar({ op, total, itens, desconto, pix, requestId, onClose, on
     if (metodo === 'fiado' && !fiado) return toast('Diga para quem é o fiado')
     setBusy(true)
     try {
-      const v = await rpc<Venda>('finalize_sale', { p: {
+      const p = {
         operator_session_id: op.sessionId, client_request_id: requestId, discount: desconto,
         ...(overrideToken ? { override_token: overrideToken } : {}),
         ...(metodo === 'fiado' && fiado ? { fiado: 'id' in fiado ? { fiado_account_id: fiado.id } : { name: fiado.name, phone: fiado.phone } } : {}),
-        items: itens.map((i) => i.kind === 'product' ? { product_id: i.id, quantity: i.qty } : { bundle_id: i.id, quantity: i.qty }),
+        ...(pedido ? {} : { items: itens.map((i) => i.kind === 'product' ? { product_id: i.id, quantity: i.qty } : { bundle_id: i.id, quantity: i.qty }) }),
         payments: [{ method: metodo, amount: metodo === 'cash' && recebido.trim() ? rec : total }],
-      } })
+      }
+      const v = pedido ? await rpc<Venda>('complete_order', { p_order_id: pedido.id, p }) : await rpc<Venda>('finalize_sale', { p })
       onDone({ ...v, metodo: metodo === 'fiado' && fiado ? `Fiado de ${fiado.name.split(' ')[0]}` : METODOS.find((m) => m[0] === metodo)![1] })
     } catch (e) {
       setBusy(false)
@@ -175,7 +178,7 @@ export function Cobrar({ op, total, itens, desconto, pix, requestId, onClose, on
   }
 
   return (
-    <Sheet title="Cobrar · Balcão" onClose={onClose} footer={
+    <Sheet title={pedido ? `Receber pedido #${pedido.number}` : 'Cobrar · Balcão'} onClose={onClose} footer={
       <button onClick={() => confirmar()} disabled={busy} className={`${bigBtn} h-[62px] text-lg`}>
         {busy ? 'Registrando…' : 'Confirmar pagamento'}<span className="hidden desktop:inline text-xs font-bold border-[1.5px] border-black/35 rounded-md px-1.5 py-[3px]">Enter</span>
       </button>}>
@@ -183,7 +186,7 @@ export function Cobrar({ op, total, itens, desconto, pix, requestId, onClose, on
         <div>
           <div className="text-sm text-[#C4C4C9] font-bold">Total</div>
           <div className="text-[52px] font-black tracking-[-0.02em] leading-[1.05] text-brand num" style={{ fontStretch: '100%' }}>{brlc(total)}</div>
-          <div className="text-sm text-[#C4C4C9] mt-1.5">{itens.reduce((a, i) => a + i.qty, 0)} itens{desconto ? ` · desconto ${brlc(desconto)}` : ''}</div>
+          <div className="text-sm text-[#C4C4C9] mt-1.5">{pedido ? pedido.itens : itens.reduce((a, i) => a + i.qty, 0)} itens{desconto ? ` · desconto ${brlc(desconto)}` : ''}</div>
         </div>
         <div className="grid gap-2 grid-cols-2 tablet:grid-cols-5">
           {METODOS.map(([id, l, ic]) => {
