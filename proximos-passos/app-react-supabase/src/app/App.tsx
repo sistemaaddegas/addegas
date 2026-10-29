@@ -9,6 +9,7 @@ import { UpdatePrompt } from '@/components/pwa/update-prompt'
 import { Entrar } from '@/features/acesso/entrar'
 import { Lojas } from '@/features/acesso/lojas'
 import { NovaSenha } from '@/features/acesso/nova-senha'
+import { Inicio } from '@/features/inicio/inicio'
 
 type Stage = 'guest' | 'password' | 'store' | 'app'
 
@@ -46,7 +47,8 @@ export function App() {
         </Route>
         <Route path="/cadastro" element={<Placeholder title="Cadastrar adega" />} />
         <Route element={<Gate stage="app" />}>
-          {NAV.map((n) => <Route key={n.path} path={n.path} element={<Placeholder title={n.label} />} />)}
+          <Route path="/" element={<Inicio />} />
+          {NAV.filter((n) => n.path !== '/').map((n) => <Route key={n.path} path={n.path} element={<Placeholder title={n.label} />} />)}
           <Route path="/mais" element={<Mais />} />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
