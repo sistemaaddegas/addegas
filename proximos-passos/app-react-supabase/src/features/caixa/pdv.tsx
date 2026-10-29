@@ -10,8 +10,10 @@ import { chip, irr } from '@/lib/visual'
 import { useCaixaAberto, useCatalogo, type Operador, type Produto } from './dados'
 import { AbrirCaixa, Cobrar, Desconto, FecharCaixa, VendaFeita, type Venda } from './modais'
 import { ReceberPedidos, usePedidosAReceber, type PedidoCaixa } from './pedidos-caixa'
+import { BarraComandas, NovaComanda, TirarItem, linhasDaComanda, useComandas } from './comandas'
+import { rpc } from '@/lib/supabase'
 
-type Modal = null | 'abrir' | 'fechar' | 'pagar' | 'desconto' | 'carrinho' | 'pedidos'
+type Modal = null | 'abrir' | 'fechar' | 'pagar' | 'desconto' | 'carrinho' | 'pedidos' | 'comanda'
 
 export function Pdv({ op, onTrocar }: { op: Operador; onTrocar: () => void }) {
   const { terminal } = useAuth()
@@ -28,13 +30,19 @@ export function Pdv({ op, onTrocar }: { op: Operador; onTrocar: () => void }) {
   const [feita, setFeita] = useState<(Venda & { metodo: string }) | null>(null)
   const [pedido, setPedido] = useState<PedidoCaixa | null>(null)
   const { data: aReceber } = usePedidosAReceber(terminal!.storeId)
+  const { data: comandas } = useComandas(terminal!.storeId)
+  const [ticket, setTicket] = useState<string | null>(null)
+  const [tirar, setTirar] = useState<{ name: string; id: string } | null>(null)
+  const comanda = comandas?.find((c) => c.id === ticket) ?? null
+  const linhasTab = comanda ? linhasDaComanda(comanda) : null
   const busca = useRef<HTMLInputElement>(null)
 
   const porKey = useMemo(() => new Map(cat?.itens.map((p) => [p.key, p])), [cat])
   const linhas = carrinho.map(([k, qty]) => ({ p: porKey.get(k)!, qty })).filter((l) => l.p)
-  const subtotal = linhas.reduce((a, l) => a + l.p.price * l.qty, 0)
+  const subtotal = linhasTab ? linhasTab.reduce((a, l) => a + l.price * l.qty, 0) : linhas.reduce((a, l) => a + l.p.price * l.qty, 0)
   const total = Math.max(0, subtotal - desconto)
-  const nItens = linhas.reduce((a, l) => a + l.qty, 0)
+  const nItens = (linhasTab ?? linhas).reduce((a, l) => a + l.qty, 0)
+  const temItens = nItens > 0
   const aberto = !!sessao
 
   // A atualização do app (E54) espera a venda terminar.
@@ -51,12 +59,18 @@ export function Pdv({ op, onTrocar }: { op: Operador; onTrocar: () => void }) {
   })
   const add = (p: Produto) => {
     if (!aberto) { toast('Abra o caixa para começar a vender'); setModal('abrir'); return }
+    if (comanda) {
+      // Na comanda o item é lançado na hora e já sai do estoque (D41).
+      rpc('add_tab_item', { p_operator_session_id: op.sessionId, p_tab_id: comanda.id, p_product_id: p.kind === 'product' ? p.id : null, p_bundle_id: p.kind === 'bundle' ? p.id : null, p_quantity: 1 })
+        .then(() => atualizar(), (e: Error) => toast(e.message))
+      return
+    }
     mexer(p.key, 1)
   }
   const limpar = () => { setCarrinho([]); setDesconto(0) }
   const cobrar = () => {
     if (!aberto) return setModal('abrir')
-    if (!linhas.length) return toast('Adicione pelo menos um item')
+    if (!temItens) return toast('Adicione pelo menos um item')
     setModal('pagar')
   }
 
@@ -102,18 +116,31 @@ export function Pdv({ op, onTrocar }: { op: Operador; onTrocar: () => void }) {
     <>
       <div className="flex items-center gap-2.5 pt-4 px-5 pb-3 flex-none">
         <div className="flex-1 min-w-0">
-          <div className="text-[19px] font-extrabold truncate">Balcão</div>
+          <div className="text-[19px] font-extrabold truncate">{comanda ? comanda.label : 'Balcão'}{comanda?.nickname ? <span className="text-[#ADADB4] font-semibold"> · {comanda.nickname}</span> : null}</div>
           <div className="text-sm text-[#C4C4C9] mt-1">{nItens ? `${nItens} ${nItens === 1 ? 'item' : 'itens'}` : 'Venda vazia'} · {op.name.split(' ')[0]}</div>
         </div>
-        {linhas.length > 0 && <button onClick={limpar} className="h-9 px-3 rounded-[2px_7px_3px_6px] bg-[#FF2D2D] hover:bg-[#E01E1E] text-white text-[13px] font-bold cursor-pointer">Limpar</button>}
+        {!comanda && linhas.length > 0 && <button onClick={limpar} className="h-9 px-3 rounded-[2px_7px_3px_6px] bg-[#FF2D2D] hover:bg-[#E01E1E] text-white text-[13px] font-bold cursor-pointer">Limpar</button>}
       </div>
+      <BarraComandas comandas={comandas ?? []} atual={comanda?.id ?? null} nBalcao={linhas.reduce((a, l) => a + l.qty, 0)}
+        onEscolher={(id) => { setTicket(id); setDesconto(0) }} onNova={() => aberto ? setModal('comanda') : setModal('abrir')} />
       <div className="flex-1 min-h-0 overflow-y-auto px-5 py-1 border-t border-line">
-        {!linhas.length && (
+        {linhasTab?.map((l) => (
+          <div key={l.key} className="flex items-center gap-3 py-3 border-b border-[#1F1F22]">
+            <div className="flex-1 min-w-0"><div className="text-[15px] font-semibold leading-[1.3]">{l.name}</div><div className="text-sm text-[#C4C4C9] mt-[3px] num">{l.qty} × {brlc(l.price)}</div></div>
+            <div className="flex items-center bg-surface-2 rounded-[3px_10px_2px_9px] border border-line-2 flex-none">
+              <button onClick={() => { const u = l.lancamentos[l.lancamentos.length - 1]; setTirar({ name: u.quantity === 1 ? l.name : `${u.quantity}× ${l.name}`, id: u.id }) }} aria-label="Tirar um" className="w-11 h-11 flex items-center justify-center cursor-pointer"><Icon name="minus" /></button>
+              <span className="min-w-[26px] text-center font-extrabold num">{l.qty}</span>
+              <button onClick={() => { const p = porKey.get(l.key); if (p) add(p) }} aria-label="Mais um" className="w-11 h-11 flex items-center justify-center cursor-pointer"><Icon name="plus" /></button>
+            </div>
+            <div className="w-[82px] text-right font-bold num flex-none">{brlc(l.price * l.qty)}</div>
+          </div>
+        ))}
+        {!temItens && (
           <div className="flex flex-col items-center gap-3 py-14 px-2.5 text-center text-[#C4C4C9] text-sm">
             <img src="/icons/dd-amarelo.png" alt="" className="w-12 opacity-50" />Toque num produto ou passe o leitor.
           </div>
         )}
-        {linhas.map(({ p, qty }) => (
+        {!comanda && linhas.map(({ p, qty }) => (
           <div key={p.key} className="flex items-center gap-3 py-3 border-b border-[#1F1F22]">
             <div className="flex-1 min-w-0"><div className="text-[15px] font-semibold leading-[1.3]">{p.name}</div><div className="text-sm text-[#C4C4C9] mt-[3px] num">{brlc(p.price)}</div></div>
             <div className="flex items-center bg-surface-2 rounded-[3px_10px_2px_9px] border border-line-2 flex-none">
@@ -126,7 +153,7 @@ export function Pdv({ op, onTrocar }: { op: Operador; onTrocar: () => void }) {
         ))}
       </div>
       <div className="px-5 pt-3.5 pb-5 border-t border-line flex flex-col gap-3 flex-none">
-        <button onClick={() => linhas.length ? setModal('desconto') : toast('Adicione itens antes do desconto')} className="h-[46px] rounded-[2px_8px_3px_7px] border border-line-2 bg-surface-2 text-sm font-bold cursor-pointer flex items-center justify-center gap-2"><Icon name="tag" />Desconto</button>
+        <button onClick={() => temItens ? setModal('desconto') : toast('Adicione itens antes do desconto')} className="h-[46px] rounded-[2px_8px_3px_7px] border border-line-2 bg-surface-2 text-sm font-bold cursor-pointer flex items-center justify-center gap-2"><Icon name="tag" />Desconto</button>
         {desconto > 0 && (
           <div className="flex flex-col gap-1 text-sm text-[#C4C4C9]">
             <div className="flex justify-between"><span>Subtotal</span><span className="num">{brlc(subtotal)}</span></div>
@@ -134,7 +161,7 @@ export function Pdv({ op, onTrocar }: { op: Operador; onTrocar: () => void }) {
           </div>
         )}
         <div className="flex justify-between items-baseline"><span className="text-base font-bold">Total</span><span className="text-[36px] font-black num" style={{ fontStretch: '100%' }}>{brlc(total)}</span></div>
-        <button onClick={cobrar} className={`h-[62px] rounded-[3px_11px_4px_10px] text-lg font-extrabold flex items-center justify-center gap-2.5 cursor-pointer ${linhas.length && aberto ? 'bg-brand text-brand-ink' : 'bg-line-2 text-[#ADADB4]'}`}>
+        <button onClick={cobrar} className={`h-[62px] rounded-[3px_11px_4px_10px] text-lg font-extrabold flex items-center justify-center gap-2.5 cursor-pointer ${temItens && aberto ? 'bg-brand text-brand-ink' : 'bg-line-2 text-[#ADADB4]'}`}>
           {aberto ? 'Cobrar' : 'Abrir caixa'}<span className="hidden desktop:inline text-xs font-bold border-[1.5px] border-current/35 rounded-md px-1.5 py-[3px] opacity-70">F2</span>
         </button>
       </div>
@@ -208,7 +235,7 @@ export function Pdv({ op, onTrocar }: { op: Operador; onTrocar: () => void }) {
       <aside className="hidden tablet:flex w-[340px] desktop:w-[380px] flex-none flex-col bg-surface border-l border-line">{Carrinho}</aside>
 
       {/* Celular: a venda fica numa barra acima das abas e abre como folha. */}
-      {linhas.length > 0 && modal !== 'carrinho' && (
+      {temItens && modal !== 'carrinho' && (
         <button onClick={() => setModal('carrinho')} className="tablet:hidden fixed left-3 right-3 bottom-[76px] z-40 h-[58px] px-4 rounded-[3px_11px_4px_10px] bg-brand text-brand-ink flex items-center gap-3 font-extrabold shadow-[0_12px_30px_rgba(0,0,0,.5)] cursor-pointer">
           <Icon name="cart" /><span className="flex-1 text-left">Ver venda · {nItens} {nItens === 1 ? 'item' : 'itens'}</span><span className="num text-lg">{brlc(total)}</span>
         </button>
@@ -221,8 +248,18 @@ export function Pdv({ op, onTrocar }: { op: Operador; onTrocar: () => void }) {
       {modal === 'pagar' && (
         <Cobrar op={op} total={total} desconto={desconto} pix={cat?.pix ?? null} requestId={requestId}
           itens={linhas.map(({ p, qty }) => ({ kind: p.kind, id: p.id, qty }))}
-          onClose={() => setModal(null)} onDone={(v) => { setModal(null); setFeita(v); limpar(); atualizar() }} />
+          comanda={comanda ? { id: comanda.id, label: comanda.label, itens: nItens } : undefined}
+          onClose={() => setModal(null)} onDone={(v) => {
+            setModal(null); setFeita(comanda ? { ...v, metodo: `${comanda.label} · ${v.metodo}` } : v)
+            if (comanda) { setTicket(null); setDesconto(0) } else limpar()
+            atualizar()
+          }} />
       )}
+      {modal === 'comanda' && <NovaComanda op={op} existentes={comandas ?? []} onClose={() => setModal(null)} onCriada={(id) => { setModal(null); setTicket(id); atualizar() }} />}
+      {tirar && <TirarItem nome={tirar.name} onClose={() => setTirar(null)} onOk={async (motivo) => {
+        try { await rpc('remove_tab_item', { p_operator_session_id: op.sessionId, p_tab_item_id: tirar.id, p_reason: motivo }); setTirar(null); atualizar() }
+        catch (e) { toast((e as Error).message) }
+      }} />}
       {modal === 'pedidos' && <ReceberPedidos pedidos={aReceber ?? []} onClose={() => setModal(null)} onEscolher={(o) => { setPedido(o); setModal(null) }} />}
       {pedido && (
         <Cobrar op={op} total={pedido.total} desconto={0} pix={cat?.pix ?? null} requestId={pedido.id} itens={[]} pedido={{ id: pedido.id, number: pedido.number, itens: pedido.itens }}
