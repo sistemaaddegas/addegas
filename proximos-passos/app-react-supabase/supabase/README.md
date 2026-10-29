@@ -10,8 +10,8 @@ Banco, regras de acesso, funções e testes do sistema da adega e do painel inte
 ## Fluxo do dia a dia
 ```bash
 npm run db:start      # sobe Postgres, Auth, Storage, Realtime e Studio locais
-npm run db:reset      # recria o banco: aplica todas as migrations e o seed.sql
-npm run db:test       # roda os testes pgTAP de supabase/tests/database
+npm run db:reset      # recria o banco: aplica todas as migrations e o seed.sql (dados de exemplo)
+npm run db:test       # recria o banco SEM o seed e roda os testes pgTAP (depois, db:reset traz os dados de volta)
 npm run db:lint       # procura erros nas funções e no schema
 npm run db:types      # gera src/types/database.ts a partir do banco local
 npm run db:stop       # desliga os containers
@@ -25,6 +25,22 @@ Endereços locais depois do `db:start`:
 As portas são as **573xx** de propósito: as 543xx são do `lava-facil`, as 553xx do `nexum-pro`, e o Windows reserva a faixa 56245–56444 (`netsh int ipv4 show excludedportrange protocol=tcp`). Assim os três projetos rodam ao mesmo tempo.
 
 O `db:start` imprime as chaves locais; copie a URL e a chave `anon` (ou a `PUBLISHABLE_KEY`) para o `.env.local` do app. São chaves de demonstração do ambiente local, iguais para todo mundo; nunca use as do projeto na nuvem aqui.
+
+## Dados de exemplo (`seed.sql`)
+O `db:reset` carrega os dados do protótipo (`index.html`): Adega Esquina (Vila Madalena) e Adega Esquina 2 (Pinheiros), 20 produtos, 5 combos e promoções, equipe, fiado, mesas abertas, 9 pedidos em várias etapas, fornecedores, contas, drinks do Lucro no Copo, e 13 dias de vendas anteriores para os relatórios. Tudo entra pelas RPCs do sistema, então estoque, custo médio, saldos e auditoria batem. Os testes rodam sem o seed (`db:test`), porque partem do banco limpo.
+
+Senha de todos: `addegas123`.
+
+| Quem | Entra com | Papel |
+| --- | --- | --- |
+| Marcos Silva | `marcos@adega.test` · PIN 1937 | dono das duas lojas |
+| Rafa Costa | `rafa@adega.test` · PIN 6142 | gerente nas duas lojas |
+| Diego Alves / Kauã Lima | `diego@u.adega-esquina.addegas.invalid` / `kaua@u.adega-esquina.addegas.invalid` | entregadores (login por nome de usuário) |
+| Bia Santos, Léo Moura, Tati Rocha | PIN 4821, 7350, 5820 no caixa | caixa, caixa, estoquista |
+| Joana Prado | `joana@porto.test` | dona da Adega do Porto, outra conta, em carência (testar isolamento e aviso de cobrança) |
+| Admin Addegas | `admin@addegas.com.br` | equipe Addegas, perfil master (o painel pede o 2FA) |
+
+O seed usa a data de São Paulo, com a virada do dia às 05h: "hoje" tem caixa aberto, vendas das últimas 3 horas, mesa e comanda abertas e pedidos chegando.
 
 ## Criar uma mudança no banco
 1. `npx supabase migration new <assunto>` cria `supabase/migrations/<timestamp>_<assunto>.sql`.

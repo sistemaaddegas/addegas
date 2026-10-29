@@ -26,5 +26,7 @@ jobs:
       - uses: supabase/setup-cli@v1
         with: { version: 2.122.0 }
       - run: supabase db start
+      # Os testes partem do banco limpo; o seed é só para usar o app localmente.
+      - run: supabase db reset --no-seed
       - run: supabase db lint --level warning --fail-on error
       - run: supabase test db
