@@ -28,6 +28,7 @@ export async function stripe<T = Record<string, unknown>>(method: "GET" | "POST"
       ...(idempotencyKey ? { "Idempotency-Key": idempotencyKey } : {}),
     },
     body: method === "POST" ? body : undefined,
+    signal: AbortSignal.timeout(20_000), // Stripe lento não prende a tela: vira BILLING_ERROR
   });
   const json = await res.json();
   if (!res.ok) throw new Error(`stripe ${path}: ${json?.error?.message ?? res.status}`);

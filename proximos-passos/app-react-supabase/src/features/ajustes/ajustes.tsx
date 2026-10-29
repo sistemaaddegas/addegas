@@ -131,6 +131,7 @@ export function AjustesTela() {
             <Dado l="Lojas no plano" v={d.assinatura.stores_allowed} />
           </>
         ) : <Dado l="Assinatura" v="Só o dono vê" />}
+        {d.assinatura && <button onClick={() => navigate('/assinatura')} className="mt-2 h-[46px] rounded-[3px_10px_2px_9px] border border-line-2 bg-surface-2 text-[15px] font-bold cursor-pointer">Ver assinatura e pagamento</button>}
         <button onClick={signOut} className="mt-2 h-[46px] rounded-[3px_10px_2px_9px] bg-[#E5241B] hover:bg-[#FF3B30] active:scale-[.97] text-white text-[15px] font-extrabold flex items-center justify-center gap-2 cursor-pointer"><Icon name="logout" />Sair da conta</button>
       </div>
     </div>

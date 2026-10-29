@@ -4,6 +4,7 @@ import { NAV } from './routes'
 import { useAuth } from '@/lib/auth'
 import { Icon } from '@/components/icon'
 import { useMyStores } from '@/features/acesso/lojas'
+import { AvisoAssinatura } from '@/features/assinatura/assinatura'
 
 const PAPEL = { owner: 'Dono', manager: 'Gerente', cashier: 'Caixa', stock_keeper: 'Estoquista', courier: 'Entregador' } as const
 
@@ -43,7 +44,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         <NavLink to="/mais" className="w-[66px] py-2.5 rounded-xl text-[11px] font-bold text-center text-ink-2">Mais</NavLink>
       </aside>
       <div className="flex-1 min-w-0 flex flex-col">
-        <main className="flex-1 min-h-0 overflow-y-auto">{children}</main>
+        <main className="flex-1 min-h-0 overflow-y-auto">{!terminal && <AvisoAssinatura />}{children}</main>
         <nav className="tablet:hidden flex border-t border-line bg-bg px-1.5 pt-1 safe-bottom">
           {nav.filter((n) => n.tab).map((n) => (
             <NavLink key={n.path} to={n.path} end className={({ isActive }) => `flex-1 h-[58px] flex items-center justify-center text-[11px] font-bold ${isActive ? 'text-brand' : 'text-[#8E8E93]'}`}>{n.path === '/caixa' ? 'Vender' : n.label}</NavLink>

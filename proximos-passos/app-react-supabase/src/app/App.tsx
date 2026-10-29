@@ -9,6 +9,7 @@ import { IosInstallTutorial } from '@/components/pwa/ios-install-tutorial'
 import { UpdatePrompt } from '@/components/pwa/update-prompt'
 import { Entrar } from '@/features/acesso/entrar'
 import { Cadastro } from '@/features/acesso/cadastro'
+import { AssinaturaTela } from '@/features/assinatura/assinatura'
 import { Lojas } from '@/features/acesso/lojas'
 import { NovaSenha } from '@/features/acesso/nova-senha'
 import { Inicio } from '@/features/inicio/inicio'
@@ -68,6 +69,7 @@ export function App() {
         <Route element={<Gate stage="app" />}>
           {NAV.map((n) => <Route key={n.path} path={n.path} element={TELAS[n.path] ?? <Placeholder title={n.label} />} />)}
           <Route path="/mais" element={<Mais />} />
+          <Route path="/assinatura" element={<AssinaturaTela />} />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
