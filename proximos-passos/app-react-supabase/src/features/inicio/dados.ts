@@ -12,7 +12,7 @@ export type Pedido = {
   status: string; created_at: string; courier: string | null
 }
 
-export type Item = { key: string; name: string; price: number; color: string | null; image: string | null }
+export type Item = { key: string; kind: 'product' | 'bundle'; name: string; price: number; color: string | null; image: string | null }
 
 /** Lê a resposta do PostgREST; a RLS já limita ao que a pessoa pode ver. */
 function rows<T>(r: { data: T[] | null; error: { message: string } | null }): T[] {
@@ -58,11 +58,11 @@ async function carregar(storeId: string, userId: string) {
   const sb = new Map(rows(lojaCombos).map((x) => [x.bundle_id, x]))
 
   const prods = new Map(rows(produtos).filter((p) => sp.get(p.id)?.active !== false).map((p) => [p.id, {
-    key: p.id, name: p.name, price: sp.get(p.id)?.price ?? p.price, color: p.category_id ? corCat.get(p.category_id) ?? null : null,
+    key: p.id, kind: 'product' as const, name: p.name, price: sp.get(p.id)?.price ?? p.price, color: p.category_id ? corCat.get(p.category_id) ?? null : null,
     image: p.image_path, min: Number(sp.get(p.id)?.min_stock ?? p.min_stock), stock: qtd.get(p.id) ?? 0,
   }]))
   const bunds = new Map(rows(combos).filter((b) => sb.get(b.id)?.active !== false).map((b) => [b.id, {
-    key: b.id, name: b.name, price: sb.get(b.id)?.price ?? b.price, color: null, image: b.image_path,
+    key: b.id, kind: 'bundle' as const, name: b.name, price: sb.get(b.id)?.price ?? b.price, color: null, image: b.image_path,
   }]))
 
   // Mais vendidos hoje: soma por produto ou combo.
@@ -84,10 +84,12 @@ async function carregar(storeId: string, userId: string) {
     fiado: { total: rows(fiado).reduce((a, f) => a + f.balance, 0), clientes: rows(fiado).length },
     semanaPassada: { dia: semanaPassada, total: rows(semana).reduce((a, s) => a + s.total, 0) },
     top: [...soma.values()].sort((a, b) => b.qty - a.qty).slice(0, 5),
-    rapido: rows(rapido).map((q) => {
+    rapido: rows(rapido).map((q): Item | null => {
       const it = q.product_id ? prods.get(q.product_id) : q.bundle_id ? bunds.get(q.bundle_id) : undefined
       return it ? { ...it, color: q.color ?? it.color } : null
     }).filter((x): x is Item => !!x),
+    // Tudo que pode entrar no acesso rápido (para o "Adicionar produto").
+    opcoes: [...bunds.values(), ...prods.values()].map<Item>((x) => ({ key: x.key, kind: x.kind, name: x.name, price: x.price, color: x.color, image: x.image })),
   }
 }
 

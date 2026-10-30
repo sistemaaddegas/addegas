@@ -13,7 +13,7 @@ type Relatorio = {
   by_method: Record<string, number>
   top_products: { name: string; quantity: number; revenue: number; margin: number | null }[]
   gross_margin: number | null
-  cash_closings: { closed_at: string; expected: number; counted: number; difference: number; terminal: string }[]
+  cash_closings: { closed_at: string; expected: number; counted: number; difference: number; terminal: string; operator: string | null }[]
 }
 
 const PERIODOS = [['hoje', 'Hoje', 0], ['7d', '7 dias', 6], ['30d', '30 dias', 29]] as const
@@ -117,7 +117,7 @@ export function Relatorios() {
                 <div key={c.closed_at} className="flex items-center gap-3 py-3 border-t border-line text-sm">
                   <div className="flex-1 min-w-0">
                     <div className="font-bold">{new Date(c.closed_at).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</div>
-                    <div className="text-[#C4C4C9] mt-[3px]">{c.terminal}</div>
+                    <div className="text-[#C4C4C9] mt-[3px]">{c.operator ? `Operador: ${c.operator} · ` : ''}{c.terminal}</div>
                   </div>
                   <div className="flex flex-col items-end gap-[3px]">
                     <span className="font-extrabold num">{brlc(c.counted)}</span>

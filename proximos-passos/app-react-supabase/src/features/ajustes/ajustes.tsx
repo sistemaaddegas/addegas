@@ -6,6 +6,7 @@ import { rpc, supabase } from '@/lib/supabase'
 import { brlc, centavos, reais } from '@/lib/format'
 import { Icon } from '@/components/icon'
 import { useToast } from '@/components/toast'
+import { usePref } from '@/lib/prefs'
 import { card } from '@/lib/visual'
 
 type Ajustes = {
@@ -17,7 +18,7 @@ type Loja = { store_id: string; name: string; neighborhood: string | null; city:
 type Assinatura = { status: string; access: string; price: number; trial_ends_at: string | null; current_period_end: string | null; stores_allowed: number }
 
 const campo = 'h-12 px-3.5 rounded-[3px_10px_2px_9px] bg-surface-2 border border-line-2 text-[15px] w-full outline-none focus:border-brand'
-const STATUS: Record<string, string> = { trialing: 'Teste grátis', active: 'Ativa', past_due: 'Pagamento pendente', canceled: 'Cancelada', suspended: 'Suspensa' }
+const STATUS: Record<string, string> = { trial: 'Teste grátis', active: 'Ativa', past_due: 'Pagamento pendente', canceled: 'Cancelada', expired: 'Encerrada' }
 const data = (iso: string | null) => (iso ? new Date(iso).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }) : '')
 
 function Toggle({ on, onClick }: { on: boolean; onClick: () => void }) {
@@ -44,6 +45,7 @@ export function AjustesTela() {
   const navigate = useNavigate()
   const qc = useQueryClient()
   const toast = useToast()
+  const [calc, setCalc] = usePref('calculadora', true)
   const { data: d, error, isLoading } = useQuery({
     queryKey: ['ajustes', storeId],
     enabled: !!storeId,
@@ -70,10 +72,18 @@ export function AjustesTela() {
     } catch (e) { toast((e as Error).message) }
   }
   const a = d.ajustes
+  const dono = d.lojas.find((x) => x.store_id === storeId)?.role === 'owner'
   const endereco = [d.loja.address, d.loja.neighborhood, d.loja.city].filter(Boolean).join(' · ')
 
   return (
     <div className="p-4 tablet:p-8 grid gap-3 items-start max-w-[1400px] mx-auto w-full grid-cols-[repeat(auto-fit,minmax(min(100%,380px),1fr))]">
+      <div className={`${card} p-5`}>
+        <div className="text-[17px] font-extrabold mb-2">Preferências</div>
+        <Linha titulo="Calculadora no menu lateral" sub="Aparece abaixo de Ajustes no computador">
+          <Toggle on={calc} onClick={() => { setCalc(!calc); toast(calc ? 'Calculadora ocultada' : 'Calculadora visível no menu') }} />
+        </Linha>
+      </div>
+
       <div className={`${card} p-5 border-brand`}>
         <div className="text-[17px] font-extrabold mb-2">Caixa e estoque</div>
         <Linha titulo="Contagem cega no fechamento" sub="Quem fecha não vê quanto deveria ter na gaveta">
@@ -100,7 +110,10 @@ export function AjustesTela() {
       <div className={`${card} p-5 gap-2.5`}>
         <div className="flex items-center justify-between">
           <div className="text-[17px] font-extrabold">Lojas</div>
-          <button onClick={() => navigate('/lojas')} className="h-[38px] px-3 rounded-[2px_8px_3px_7px] border border-line-2 bg-surface-2 text-[13px] font-bold flex items-center gap-1.5 cursor-pointer">Trocar de loja</button>
+          <span className="flex gap-2">
+            <button onClick={() => navigate('/lojas')} className="h-[38px] px-3 rounded-[2px_8px_3px_7px] border border-line-2 bg-surface-2 text-[13px] font-bold flex items-center gap-1.5 cursor-pointer">Trocar de loja</button>
+            {dono && <button onClick={() => navigate('/cadastro?nova=1')} className="h-[38px] px-3 rounded-[2px_8px_3px_7px] border border-brand text-brand text-[13px] font-bold flex items-center gap-1.5 cursor-pointer"><Icon name="plus" size={16} />Nova loja</button>}
+          </span>
         </div>
         {d.lojas.map((x) => (
           <div key={x.store_id} className="flex items-center gap-3 p-3 rounded-[3px_10px_2px_9px] border" style={{ borderColor: x.store_id === storeId ? '#FBC009' : '#2A2A2E', background: x.store_id === storeId ? 'rgba(251,192,9,.06)' : 'transparent' }}>
@@ -121,11 +134,21 @@ export function AjustesTela() {
       </div>
 
       <div className={`${card} p-5`}>
+        <div className="text-[17px] font-extrabold mb-2">Equipamentos</div>
+        <Linha titulo="Leitor de código de barras" sub="Funciona como teclado: no caixa, passe o código com a busca aberta (atalho /)">
+          <span className="text-[13px] font-bold text-ok">Pronto</span>
+        </Linha>
+        <Linha titulo="Impressora de cupom" sub="O cupom não fiscal sai pela impressão do navegador, na tela de venda registrada">
+          <span className="text-[13px] font-bold text-[#ADADB4]">Do navegador</span>
+        </Linha>
+      </div>
+
+      <div className={`${card} p-5`}>
         <div className="text-[17px] font-extrabold mb-2">Conta</div>
         {d.assinatura ? (
           <>
             <Dado l="Assinatura" v={STATUS[d.assinatura.status] ?? d.assinatura.status} />
-            {d.assinatura.trial_ends_at && d.assinatura.status === 'trialing' && <Dado l="Teste grátis até" v={data(d.assinatura.trial_ends_at)} />}
+            {d.assinatura.trial_ends_at && d.assinatura.status === 'trial' && <Dado l="Teste grátis até" v={data(d.assinatura.trial_ends_at)} />}
             {d.assinatura.current_period_end && <Dado l="Renova em" v={data(d.assinatura.current_period_end)} />}
             <Dado l="Valor" v={brlc(d.assinatura.price)} />
             <Dado l="Lojas no plano" v={d.assinatura.stores_allowed} />

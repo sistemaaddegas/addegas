@@ -29,7 +29,8 @@ const tecla = (l: string) => (l === '×' ? '*' : l === '÷' ? '/' : l === '−' 
 /** Calculadora do menu lateral (computador), como no protótipo. */
 export function Calculadora() {
   const [c, setC] = useState(INICIO)
-  const [aberta, setAberta] = useState(true)
+  // Em tela baixa começa recolhida, para o menu inteiro caber sem rolar.
+  const [aberta, setAberta] = useState(() => window.innerHeight >= 820)
   return (
     <div className="flex-none flex flex-col gap-1.5 p-2 rounded-[3px_10px_2px_9px] border border-[rgba(251,192,9,.28)] shadow-[inset_0_1px_0_rgba(251,192,9,.12)]"
       style={{ background: 'linear-gradient(180deg,rgba(251,192,9,.07),rgba(251,192,9,.02) 60%),#0E0E10' }}>

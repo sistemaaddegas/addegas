@@ -97,7 +97,7 @@ export function Equipe() {
       <div className={`${card} p-5`}>
         <div className="flex items-center justify-between mb-2">
           <div className="text-[17px] font-extrabold">Pessoas</div>
-          {gere && <button onClick={() => setSheet('novo')} className="h-10 px-3.5 rounded-[2px_8px_3px_7px] bg-brand text-brand-ink text-sm font-extrabold flex items-center gap-1.5 cursor-pointer"><Icon name="plus" size={18} />Adicionar</button>}
+          {gere && <button onClick={() => setSheet('novo')} className="h-10 px-3.5 rounded-[2px_8px_3px_7px] bg-brand text-brand-ink text-sm font-extrabold flex items-center gap-1.5 cursor-pointer"><Icon name="plus" size={18} />Convidar</button>}
         </div>
         {lista.map((p) => {
           const [l, c, bg] = PAPEL[p.role]

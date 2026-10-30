@@ -7,6 +7,7 @@ import { brCode, type PixConfig } from '@/lib/pix'
 import { Icon, type IconName } from '@/components/icon'
 import { Sheet, bigBtn, chipBtn, moneyInput } from '@/components/sheet'
 import { useToast } from '@/components/toast'
+import { imprimirCupom } from './cupom'
 import { useOperadores, type Operador } from './dados'
 
 const label = 'text-sm font-bold text-[#C4C4C9]'
@@ -314,6 +315,7 @@ function Liberar({ subtotal, desconto, onClose, onToken }: { subtotal: number; d
 }
 
 export function VendaFeita({ venda, onNext }: { venda: Venda & { metodo: string }; onNext: () => void }) {
+  const toast = useToast()
   return (
     <Sheet onClose={onNext} footer={<button onClick={onNext} autoFocus className={`${bigBtn} h-[62px] text-lg`}>Próxima venda</button>}>
       <div className="flex flex-col items-center text-center gap-3.5 pt-8">
@@ -326,6 +328,8 @@ export function VendaFeita({ venda, onNext }: { venda: Venda & { metodo: string 
             <div className="text-[40px] font-black text-brand num" style={{ fontStretch: '100%' }}>{brlc(venda.change)}</div>
           </div>
         )}
+        <button onClick={() => imprimirCupom(venda.sale_id).catch((e) => toast((e as Error).message))}
+          className="h-11 px-4 rounded-[3px_10px_2px_9px] border border-line-2 bg-surface-2 text-sm font-bold flex items-center gap-2 cursor-pointer"><Icon name="receipt" size={18} />Imprimir cupom</button>
       </div>
     </Sheet>
   )

@@ -22,7 +22,7 @@ export function useCatalogo(storeId: string | null) {
     enabled: !!storeId,
     staleTime: 60_000,
     queryFn: async () => {
-      const [produtos, lojaProd, estoque, categorias, combos, lojaCombos, ajustes] = await Promise.all([
+      const [produtos, lojaProd, estoque, categorias, combos, lojaCombos, ajustes, rapido] = await Promise.all([
         supabase.from('products').select('id, name, price, min_stock, category_id, image_path, ean').eq('active', true).order('name'),
         supabase.from('store_products').select('product_id, price, min_stock, active').eq('store_id', storeId!),
         supabase.from('product_stock').select('product_id, quantity').eq('store_id', storeId!),
@@ -30,6 +30,7 @@ export function useCatalogo(storeId: string | null) {
         supabase.from('bundles').select('id, name, price, image_path').eq('active', true).order('name'),
         supabase.from('store_bundles').select('bundle_id, price, active').eq('store_id', storeId!),
         supabase.from('store_settings').select('pix_key, pix_receiver_name, pix_city, blind_cash_count').eq('store_id', storeId!),
+        supabase.from('quick_access').select('product_id, bundle_id').eq('store_id', storeId!).order('position'),
       ])
       const cats = rows(categorias).map<Categoria>((c) => ({ id: c.id, name: c.name, color: c.color ?? '#FBC009' }))
       const cat = new Map(cats.map((c) => [c.id, c]))
@@ -52,7 +53,9 @@ export function useCatalogo(storeId: string | null) {
       ]
       const a = rows(ajustes)[0]
       const pix: PixConfig | null = a?.pix_key ? { key: a.pix_key, name: a.pix_receiver_name ?? '', city: a.pix_city ?? '' } : null
-      return { itens, cats, pix, contagemCega: !!a?.blind_cash_count }
+      // "Minha adega": o acesso rápido montado no Início, na ordem escolhida.
+      const meus = rows(rapido).map((r) => (r.product_id ? 'p:' + r.product_id : 'b:' + r.bundle_id))
+      return { itens, cats, pix, contagemCega: !!a?.blind_cash_count, meus }
     },
   })
 }

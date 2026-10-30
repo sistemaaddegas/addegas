@@ -5,10 +5,13 @@ import { brlc } from '@/lib/format'
 import { Icon, type IconName } from '@/components/icon'
 import { canal, CanalLogo } from '@/components/canal'
 import { card, hora, irr, pill, pillCls } from '@/lib/visual'
-import { useInicio } from './dados'
+import { useInicio, type Item } from './dados'
+import { useState } from 'react'
+import { useToast } from '@/components/toast'
+import { Sheet, bigBtn } from '@/components/sheet'
 import { useQueryClient } from '@tanstack/react-query'
 import { rpc } from '@/lib/supabase'
-import { useAtencao, type Aviso } from '@/app/shell-dados'
+import { useAtencao, usePermissoes, type Aviso } from '@/app/shell-dados'
 import { LinhaAviso } from '@/app/AppShell'
 
 const KC = ['#4ADE80', '#FBC009', '#7CB3FF', '#FF8A5B']
@@ -43,6 +46,17 @@ export function Inicio() {
   const navigate = useNavigate()
   const { data: d, error, isLoading } = useInicio(storeId, session?.user.id)
   const { data: atencao } = useAtencao()
+  const { data: perm } = usePermissoes()
+  const toast = useToast()
+  const [editando, setEditando] = useState(false)
+  const [escolher, setEscolher] = useState(false)
+  const podeEditar = !!perm?.pode('precos')
+  const salvarRapido = async (lista: Item[]) => {
+    try {
+      await rpc('set_quick_access', { p_store_id: storeId, p_items: lista.map((x, position) => ({ position, product_id: x.kind === 'product' ? x.key : null, bundle_id: x.kind === 'bundle' ? x.key : null, color: null })) })
+      await Promise.all(['inicio', 'caixa'].map((k) => qc.invalidateQueries({ queryKey: [k] })))
+    } catch (e) { toast((e as Error).message) }
+  }
   const qc = useQueryClient()
   const alerts = atencao?.itens ?? []
   const agir = async (a: Aviso) => {
@@ -116,8 +130,10 @@ export function Inicio() {
         <div className="flex flex-wrap items-center gap-2.5">
           <div className="flex-[1_1_220px] min-w-0">
             <div className="text-[17px] font-extrabold">Acesso rápido</div>
-            <div className="text-sm text-[#C4C4C9] mt-1">{d.rapido.length} de 10 produtos · toque para lançar na venda do Balcão</div>
+            <div className="text-sm text-[#C4C4C9] mt-1">{d.rapido.length} de 10 produtos · {editando ? 'toque no X para tirar' : 'aparecem em “Minha adega” no caixa'}</div>
           </div>
+          {podeEditar && <button onClick={() => setEscolher(true)} className="h-10 px-3.5 rounded-[3px_10px_2px_9px] border border-line-2 bg-surface-2 text-sm font-bold cursor-pointer flex items-center gap-1.5"><Icon name="plus" size={18} />Adicionar produto</button>}
+          {podeEditar && d.rapido.length > 0 && <button onClick={() => setEditando(!editando)} className="h-10 px-3.5 rounded-[3px_10px_2px_9px] border text-sm font-bold cursor-pointer" style={editando ? { background: '#FBC009', color: '#0A0A0B', borderColor: '#FBC009' } : { borderColor: '#2A2A2E' }}>{editando ? 'Concluir' : 'Editar'}</button>}
           <button onClick={() => navigate('/caixa')} className="h-10 px-3.5 rounded-[3px_10px_2px_9px] bg-brand text-brand-ink text-sm font-extrabold cursor-pointer flex items-center gap-1.5">
             <Icon name="cart" size={18} />{d.caixa ? 'Ir para o caixa' : 'Abrir caixa'}
           </button>
@@ -126,19 +142,27 @@ export function Inicio() {
           {d.rapido.map((p, i) => {
             const c = p.color ?? '#FBC009'
             return (
-              <div key={p.key} onClick={() => navigate('/caixa')} className="relative self-end flex flex-col gap-1.5 p-2.5 bg-surface-2 border border-line-2 cursor-pointer select-none transition hover:-translate-y-[3px] hover:brightness-110 active:translate-y-0.5 active:scale-[.97]" style={{ borderRadius: irr(i) }}>
+              <div key={p.key} onClick={() => !editando && navigate('/caixa')} className="relative self-end flex flex-col gap-1.5 p-2.5 bg-surface-2 border border-line-2 cursor-pointer select-none transition hover:-translate-y-[3px] hover:brightness-110 active:translate-y-0.5 active:scale-[.97]" style={{ borderRadius: irr(i) }}>
                 <div className="h-[52px] rounded-[2px_9px_3px_8px] flex items-center justify-center"
                   style={p.image ? { background: `#F5F5F2 url("${p.image}") center/contain no-repeat`, border: `1px solid ${c}2E` } : { background: `radial-gradient(120% 85% at 50% 100%,${c}30,transparent 62%),#101012`, border: `1px solid ${c}2E` }}>
                   <Arte image={p.image} size={46} />
                 </div>
+                {editando && <button onClick={(e) => { e.stopPropagation(); salvarRapido(d.rapido.filter((x) => x.key !== p.key)) }} title="Tirar do acesso rápido"
+                  className="absolute top-1.5 left-1.5 z-[2] w-[30px] h-[30px] rounded-[2px_7px_3px_6px] bg-[#E5241B] text-white flex items-center justify-center cursor-pointer"><Icon name="x" size={16} /></button>}
                 <div className="text-[13px] font-bold leading-[1.2] line-clamp-2 min-h-[31px]">{p.name}</div>
                 <div className="text-[15px] font-extrabold num">{brlc(p.price)}</div>
               </div>
             )
           })}
-          {d.rapido.length === 0 && <div className="col-span-full self-center text-sm text-[#C4C4C9]">Nenhum produto no acesso rápido ainda.</div>}
+          {podeEditar && d.rapido.length < 10 && (
+            <button onClick={() => setEscolher(true)} className="self-end h-full flex flex-col items-center justify-center gap-2 rounded-[3px_11px_4px_10px] border border-dashed border-[#3A3A40] text-[#C4C4C9] text-sm font-bold cursor-pointer hover:border-brand hover:text-ink">
+              <Icon name="plus" size={22} />Adicionar
+            </button>
+          )}
+          {d.rapido.length === 0 && !podeEditar && <div className="col-span-full self-center text-sm text-[#C4C4C9]">Nenhum produto no acesso rápido ainda.</div>}
         </div>
       </div>
+      {escolher && <EscolherRapido atuais={d.rapido} opcoes={d.opcoes} onClose={() => setEscolher(false)} onSalvar={async (l) => { await salvarRapido(l); setEscolher(false) }} />}
 
       <div className="grid gap-3 items-start grid-cols-[repeat(auto-fit,minmax(min(100%,380px),1fr))]">
         <div className={`${card} p-5 gap-3.5`}>
@@ -189,5 +213,37 @@ export function Inicio() {
         </div>
       </div>
     </div>
+  )
+}
+
+/** "Produtos do acesso rápido" do protótipo (m.quickPick): até 10, na ordem em que foram marcados. */
+function EscolherRapido({ atuais, opcoes, onClose, onSalvar }: { atuais: Item[]; opcoes: Item[]; onClose: () => void; onSalvar: (l: Item[]) => Promise<void> }) {
+  const [sel, setSel] = useState<Item[]>(atuais)
+  const [q, setQ] = useState('')
+  const [busy, setBusy] = useState(false)
+  const t = q.trim().toLowerCase()
+  const lista = opcoes.filter((o) => !t || o.name.toLowerCase().includes(t)).slice(0, 80)
+  const marcar = (o: Item) => setSel((s) => (s.some((x) => x.key === o.key) ? s.filter((x) => x.key !== o.key) : s.length >= 10 ? s : [...s, o]))
+  return (
+    <Sheet title={<>Produtos do acesso rápido<div className="text-sm text-[#C4C4C9] font-normal mt-[3px]">{sel.length} de 10 · aparecem no Início e em “Minha adega” no caixa</div></>} onClose={onClose}
+      footer={<button onClick={async () => { setBusy(true); await onSalvar(sel); setBusy(false) }} disabled={busy} className={bigBtn}>{busy ? 'Salvando…' : 'Concluir'}</button>}>
+      <div className="flex items-center gap-2.5 h-12 px-3.5 rounded-[3px_10px_2px_9px] bg-surface-2 border border-line-2 text-[#C4C4C9]">
+        <Icon name="search" /><input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar produto" className="flex-1 min-w-0 h-full bg-transparent outline-none text-base text-ink" />
+      </div>
+      <div className="-mt-1">
+        {lista.map((o) => {
+          const n = sel.findIndex((x) => x.key === o.key)
+          const cheio = n < 0 && sel.length >= 10
+          return (
+            <div key={o.key} onClick={() => !cheio && marcar(o)} className={`flex items-center gap-3 py-3 border-b border-line ${cheio ? 'opacity-40' : 'cursor-pointer'}`}>
+              <span className="w-6 h-6 flex-none rounded-[2px_7px_3px_6px] border flex items-center justify-center text-xs font-extrabold"
+                style={n >= 0 ? { background: '#FBC009', borderColor: '#FBC009', color: '#0A0A0B' } : { borderColor: '#3A3A40' }}>{n >= 0 ? n + 1 : ''}</span>
+              <div className="flex-1 min-w-0"><div className="text-[15px] font-bold truncate">{o.name}</div><div className="text-[13px] text-[#C4C4C9] mt-0.5">{o.kind === 'bundle' ? 'Promoção' : 'Produto'}</div></div>
+              <span className="font-extrabold num">{brlc(o.price)}</span>
+            </div>
+          )
+        })}
+      </div>
+    </Sheet>
   )
 }

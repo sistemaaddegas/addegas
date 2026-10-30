@@ -12,8 +12,9 @@ import { AbrirCaixa, Cobrar, Desconto, FecharCaixa, VendaFeita, type Venda } fro
 import { ReceberPedidos, usePedidosAReceber, type PedidoCaixa } from './pedidos-caixa'
 import { BarraComandas, NovaComanda, TirarItem, linhasDaComanda, useComandas } from './comandas'
 import { rpc } from '@/lib/supabase'
+import { Gaveta, UltimasVendas } from './vendas-caixa'
 
-type Modal = null | 'abrir' | 'fechar' | 'pagar' | 'desconto' | 'carrinho' | 'pedidos' | 'comanda'
+type Modal = null | 'abrir' | 'fechar' | 'pagar' | 'desconto' | 'carrinho' | 'pedidos' | 'comanda' | 'vendas' | 'gaveta'
 
 export function Pdv({ op, onTrocar }: { op: Operador; onTrocar: () => void }) {
   const { terminal } = useAuth()
@@ -76,10 +77,11 @@ export function Pdv({ op, onTrocar }: { op: Operador; onTrocar: () => void }) {
 
   const visiveis = useMemo(() => {
     const t = q.trim().toLowerCase()
-    return (cat?.itens ?? []).filter((p) =>
-      (filtro === 'todos' || (filtro === 'promo' ? p.kind === 'bundle' : p.catId === filtro)) &&
+    const base = filtro === 'meus' ? (cat?.meus ?? []).map((k) => porKey.get(k)).filter((p): p is Produto => !!p) : cat?.itens ?? []
+    return base.filter((p) =>
+      (filtro === 'todos' || filtro === 'meus' || (filtro === 'promo' ? p.kind === 'bundle' : p.catId === filtro)) &&
       (!t || p.name.toLowerCase().includes(t) || p.ean === t))
-  }, [cat, q, filtro])
+  }, [cat, q, filtro, porKey])
 
   // Atalhos do balcão: / busca, F2 cobra.
   useEffect(() => {
@@ -110,6 +112,7 @@ export function Pdv({ op, onTrocar }: { op: Operador; onTrocar: () => void }) {
     { id: 'todos', label: 'Todos' },
     ...(cat?.itens.some((p) => p.kind === 'bundle') ? [{ id: 'promo', label: 'Promoções' }] : []),
     ...(cat?.cats.filter((c) => usadas.has(c.id)).map((c) => ({ id: c.id, label: c.name })) ?? []),
+    ...(cat?.meus.length ? [{ id: 'meus', label: 'Minha adega' }] : []),
   ]
 
   const Carrinho = (
@@ -186,6 +189,8 @@ export function Pdv({ op, onTrocar }: { op: Operador; onTrocar: () => void }) {
               <Icon name="bag" size={18} />Pedidos<span className="min-w-[22px] h-[22px] px-1.5 rounded-full bg-brand text-brand-ink text-xs font-extrabold flex items-center justify-center">{aReceber.length}</span>
             </button>
           )}
+          <button onClick={() => setModal('vendas')} title="Últimas vendas: cupom e cancelamento" className="h-[46px] px-3.5 rounded-[3px_10px_2px_9px] bg-surface border border-line text-sm font-bold cursor-pointer flex items-center gap-2 flex-none"><Icon name="receipt" size={18} />Vendas</button>
+          {aberto && <button onClick={() => setModal('gaveta')} title="Sangria, reforço e pagar entregador" className="h-[46px] px-3.5 rounded-[3px_10px_2px_9px] bg-surface border border-line text-sm font-bold cursor-pointer flex items-center gap-2 flex-none"><Icon name="cash" size={18} />Gaveta</button>}
           {aberto && (
             <button onClick={() => setModal('fechar')} className="h-[46px] px-3.5 rounded-[3px_10px_2px_9px] bg-[#E5241B] text-white text-sm font-extrabold cursor-pointer flex items-center gap-2 flex-none"><Icon name="wallet" size={18} />Fechar caixa</button>
           )}
@@ -265,6 +270,8 @@ export function Pdv({ op, onTrocar }: { op: Operador; onTrocar: () => void }) {
         <Cobrar op={op} total={pedido.total} desconto={0} pix={cat?.pix ?? null} requestId={pedido.id} itens={[]} pedido={{ id: pedido.id, number: pedido.number, itens: pedido.itens }}
           onClose={() => setPedido(null)} onDone={(v) => { setPedido(null); setFeita({ ...v, metodo: `Pedido #${pedido.number} · ${v.metodo}` }); atualizar() }} />
       )}
+      {modal === 'vendas' && <UltimasVendas op={op} onClose={() => setModal(null)} onCancelada={atualizar} />}
+      {modal === 'gaveta' && <Gaveta op={op} onClose={() => setModal(null)} onDone={() => { setModal(null); atualizar() }} />}
       {feita && <VendaFeita venda={feita} onNext={() => { setFeita(null); busca.current?.focus() }} />}
     </div>
   )

@@ -21,9 +21,12 @@ type Faixa = { min: number; max: number; passo: number; padrao: number }
 type SlotK = (typeof SLOTS)[number]['k']
 type Item = { id: string; name: string; volume: number | null; custo: number | null; estoque: number; slot: SlotK }
 type Escolha = Partial<Record<SlotK, { pid: string; q: number }>>
-type Receita = { id: string; name: string; sale_price: number; drink_recipe_items: { product_id: string; amount: number; unit: string }[] }
+type Receita = { id: string; name: string; sale_price: number; color: string | null; drink_recipe_items: { product_id: string; amount: number; unit: string }[] }
 
 const CAPACIDADE = 500 // ml do copo desenhado
+// Cores de fundo dos drinks salvos (DC do protótipo): [fundo, nome, texto].
+const CORES: [string, string, string][] = [['#FBC009', 'Amarelo', '#0A0A0B'], ['#FF2D55', 'Pink', '#FFFFFF'], ['#00B8FF', 'Azul', '#0A0A0B'], ['#1ED760', 'Verde', '#0A0A0B'], ['#9B5CFF', 'Roxo', '#FFFFFF'], ['#FF6A00', 'Laranja', '#0A0A0B']]
+const tinta = (c: string) => CORES.find((x) => x[0] === c)?.[2] ?? '#0A0A0B'
 
 export function LucroNoCopo() {
   const { storeId } = useAuth()
@@ -35,6 +38,12 @@ export function LucroNoCopo() {
   const [receita, setReceita] = useState<string | null>(null)
   const [escolher, setEscolher] = useState<SlotK | null>(null)
   const [salvando, setSalvando] = useState<string | null>(null)
+  const [corNova, setCorNova] = useState(CORES[0][0])
+  // Preparo do copo: simulação visual (D09: Lucro no Copo é calculadora na v1; não baixa o estoque).
+  const [servido, setServido] = useState<Partial<Record<SlotK, true>>>({})
+  const [preparado, setPreparado] = useState(false)
+  const [fb, setFb] = useState<{ nm: string; dl: string; fr: string; to: string }[] | null>(null)
+  const novoCopo = () => { setServido({}); setPreparado(false); setFb(null) }
 
   const extra = useQuery({
     queryKey: ['lucro-no-copo', storeId],
@@ -42,7 +51,7 @@ export function LucroNoCopo() {
     queryFn: async () => {
       const [prods, receitas] = await Promise.all([
         supabase.from('products').select('id, volume_ml').eq('active', true),
-        supabase.from('drink_recipes').select('id, name, sale_price, drink_recipe_items(product_id, amount, unit)').eq('active', true).order('name'),
+        supabase.from('drink_recipes').select('id, name, sale_price, color, drink_recipe_items(product_id, amount, unit)').eq('active', true).order('name'),
       ])
       if (prods.error) throw new Error(prods.error.message)
       return { volume: new Map((prods.data ?? []).map((p) => [p.id, p.volume_ml as number | null])), receitas: (receitas.data ?? []) as unknown as Receita[] }
@@ -84,38 +93,61 @@ export function LucroNoCopo() {
     setEsc((x) => { const n = { ...x }; if (pid) n[k] = { pid, q: x[k]?.q || s.padrao || s.passo }; else delete n[k]; return n })
     setReceita(null)
     setEscolher(null)
+    novoCopo()
   }
   const mudarQ = (k: SlotK, d: number) => {
     const s: Faixa = SLOTS.find((x) => x.k === k)!
     setEsc((x) => (x[k] ? { ...x, [k]: { ...x[k]!, q: Math.min(s.max, Math.max(s.min || s.passo, x[k]!.q + d * s.passo)) } } : x))
     setReceita(null)
+    novoCopo()
   }
   const abrir = (r: Receita) => {
     const n: Escolha = {}
     for (const i of r.drink_recipe_items) { const it = porId.get(i.product_id); if (it) n[it.slot] = { pid: it.id, q: Number(i.amount) } }
-    setEsc(n); setPreco(r.sale_price); setReceita(r.id)
+    setEsc(n); setPreco(r.sale_price); setReceita(r.id); novoCopo()
   }
   const salvar = async () => {
     if (!salvando?.trim()) return toast('Dê um título ao drink')
     if (!linhas.length) return toast('Escolha pelo menos um ingrediente')
     try {
       const r = await rpc<{ recipe_id: string }>('save_drink_recipe', { p_account_id: est.data!.accountId, p_recipe: {
-        id: receita, name: salvando.trim(), sale_price: preco, items: linhas.map((l) => ({ product_id: l.it.id, amount: l.q, unit: l.s.unidade })),
+        id: receita, name: salvando.trim(), sale_price: preco, ...(receita ? {} : { color: corNova }), items: linhas.map((l) => ({ product_id: l.it.id, amount: l.q, unit: l.s.unidade })),
       } })
       setReceita(r.recipe_id); setSalvando(null)
       toast(`“${salvando.trim()}” salvo`)
       await qc.invalidateQueries({ queryKey: ['lucro-no-copo'] })
     } catch (e) { toast((e as Error).message) }
   }
+  const pintar = async (cor: string) => {
+    try {
+      await rpc('save_drink_recipe', { p_account_id: est.data!.accountId, p_recipe: { id: receita, color: cor } })
+      await qc.invalidateQueries({ queryKey: ['lucro-no-copo'] })
+    } catch (e) { toast((e as Error).message) }
+  }
+  const liquidos = linhas.filter((l) => l.s.unidade === 'ml')
+  const gelo = linhas.find((l) => l.s.k === 'gelo')
+  const servidoMl = liquidos.reduce((a, l) => a + (servido[l.s.k] ? l.q : 0), 0)
+  const pronto = liquidos.length > 0 && liquidos.every((l) => servido[l.s.k]) && (!gelo || !!servido.gelo)
+  const fmtEst = (l: (typeof linhas)[number], v: number) => (l.s.unidade === 'ml' ? `${qtd(v / 1000)} L` : `${qtd(v)} un`)
+  const preparar = () => {
+    if (preparado || !linhas.length) return
+    const falta = linhas.find((l) => l.copos < 1)
+    if (falta) return toast(`Estoque insuficiente: ${falta.s.label}`)
+    setServido(Object.fromEntries(linhas.map((l) => [l.s.k, true])))
+    setPreparado(true)
+    setFb(linhas.map((l) => ({ nm: l.it.name, dl: `−${l.q} ${l.s.unidade}`, fr: fmtEst(l, l.disponivel), to: fmtEst(l, l.disponivel - l.q) })))
+    toast(verCusto ? `Copo preparado · lucro de ${brlc(lucro)}` : 'Copo preparado')
+  }
+  const atual = extra.data?.receitas.find((r) => r.id === receita)
 
   const ctrl = 'w-[38px] h-[38px] rounded-[2px_8px_3px_7px] border border-line-2 bg-surface-2 flex items-center justify-center cursor-pointer flex-none active:scale-[.92]'
   let base = 0
   const camadas = linhas.filter((l) => l.s.unidade === 'ml').map((l) => {
-    const h = (l.q / CAPACIDADE) * 100, st: CSSProperties = { position: 'absolute', left: 0, right: 0, bottom: `${base}%`, height: `${h}%`, background: `linear-gradient(180deg, ${l.s.cor}EE, ${l.s.cor}AA)`, transition: 'all .35s ease' }
+    const h = servido[l.s.k] ? (l.q / CAPACIDADE) * 100 : 0, st: CSSProperties = { position: 'absolute', left: 0, right: 0, bottom: `${base}%`, height: `${h}%`, background: `linear-gradient(180deg, ${l.s.cor}EE, ${l.s.cor}AA)`, transition: 'all .35s ease' }
     base += h
     return <div key={l.s.k} style={st} />
   })
-  const cubos = esc.gelo?.q ?? 0
+  const cubos = servido.gelo ? esc.gelo?.q ?? 0 : 0
 
   return (
     <div className="p-4 tablet:p-8 flex flex-col gap-3 max-w-[1400px] mx-auto w-full">
@@ -131,14 +163,29 @@ export function LucroNoCopo() {
         </div>
         <div className="flex flex-wrap gap-1.5 items-center">
           <span className="text-xs font-extrabold text-[#ADADB4] uppercase tracking-[.08em] mr-1">Drinks</span>
-          {(extra.data?.receitas ?? []).map((r, k) => <button key={r.id} onClick={() => abrir(r)} className={chipCls} style={chip(receita === r.id, k)}>{r.name}</button>)}
-          <button onClick={() => setSalvando(salvando === null ? (extra.data?.receitas.find((r) => r.id === receita)?.name ?? '') : null)} className="h-10 px-4 ml-auto rounded-[3px_10px_2px_9px] bg-brand text-brand-ink text-sm font-extrabold cursor-pointer">{receita ? 'Salvar alterações' : 'Salvar drink'}</button>
+          {(extra.data?.receitas ?? []).map((r, k) => (
+            <button key={r.id} onClick={() => abrir(r)} className={chipCls}
+              style={r.color ? { ...chip(false, k), background: r.color, color: tinta(r.color), border: `2px solid ${receita === r.id ? '#F5F5F2' : r.color}`, transform: receita === r.id ? 'rotate(-1deg)' : 'none' } : chip(receita === r.id, k)}>{r.name}</button>
+          ))}
+          <button onClick={() => setSalvando(salvando === null ? (atual?.name ?? '') : null)} className="h-10 px-4 ml-auto rounded-[3px_10px_2px_9px] bg-brand text-brand-ink text-sm font-extrabold cursor-pointer flex items-center gap-1.5">{receita ? 'Salvar alterações' : <><Icon name="plus" size={16} />Salvar como drink</>}</button>
         </div>
         {salvando !== null && (
           <div className="flex flex-wrap gap-2 items-center p-3 rounded-[3px_10px_2px_9px] bg-surface-2 border border-line-2">
             <input value={salvando} onChange={(e) => setSalvando(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && salvar()} placeholder="Título do drink · ex.: Combo da Casa" autoFocus
               className="flex-[1_1_220px] min-w-0 h-[46px] px-3.5 rounded-[3px_10px_2px_9px] bg-surface border border-line-2 text-[15px] outline-none focus:border-brand" />
-            <button onClick={salvar} className="h-[46px] px-4 rounded-[3px_10px_2px_9px] bg-brand text-brand-ink text-sm font-extrabold cursor-pointer">Salvar</button>
+            {!receita && (
+              <span className="flex items-center gap-1.5">
+                <span className="text-[13px] font-bold text-[#C4C4C9] mr-0.5">Cor</span>
+                {CORES.map(([c, nome]) => <button key={c} onClick={() => setCorNova(c)} title={nome} className="w-7 h-7 rounded-[3px_8px_3px_7px] cursor-pointer flex-none" style={{ background: c, border: `2px solid ${corNova === c ? '#F5F5F2' : 'transparent'}`, boxShadow: corNova === c ? '0 0 0 2px #0A0A0B inset' : 'none' }} />)}
+              </span>
+            )}
+            <button onClick={salvar} className="h-[46px] px-4 rounded-[3px_10px_2px_9px] bg-brand text-brand-ink text-sm font-extrabold cursor-pointer">Salvar drink</button>
+          </div>
+        )}
+        {atual && salvando === null && (
+          <div className="flex flex-wrap items-center gap-1.5">
+            <span className="text-[13px] font-bold text-[#C4C4C9] mr-0.5">Cor de fundo de “{atual.name}”</span>
+            {CORES.map(([c, nome]) => <button key={c} onClick={() => pintar(c)} title={nome} className="w-[26px] h-[26px] rounded-[3px_8px_3px_7px] cursor-pointer flex-none" style={{ background: c, border: `2px solid ${atual.color === c ? '#F5F5F2' : 'transparent'}`, boxShadow: atual.color === c ? '0 0 0 2px #0A0A0B inset' : 'none' }} />)}
           </div>
         )}
         <div className="grid gap-2.5 grid-cols-[repeat(auto-fit,minmax(150px,1fr))]">
@@ -175,7 +222,7 @@ export function LucroNoCopo() {
         <div className={`${card} p-5 gap-3.5`}>
           <div className="flex items-center justify-between gap-2.5">
             <div className="text-[17px] font-extrabold">Copo</div>
-            {linhas.length > 0 && <span className="inline-flex items-center gap-1.5 h-7 px-2.5 rounded-[2px_8px_3px_7px] bg-[rgba(74,222,128,.12)] text-ok text-[13px] font-extrabold"><Icon name="check" size={16} />{liquido} ml no copo</span>}
+            {pronto && <span className="inline-flex items-center gap-1.5 h-7 px-2.5 rounded-[2px_8px_3px_7px] bg-[rgba(74,222,128,.12)] text-ok text-[13px] font-extrabold"><Icon name="check" size={16} />Copo pronto</span>}
           </div>
           <div className="relative w-[176px] h-[236px] mx-auto mt-1.5 mb-1">
             <div className="absolute inset-0" style={{ clipPath: 'polygon(0 0,100% 0,86% 100%,14% 100%)', background: 'linear-gradient(90deg,rgba(255,255,255,.30),rgba(255,255,255,.12) 28%,rgba(255,255,255,.08) 72%,rgba(255,255,255,.26))' }} />
@@ -189,9 +236,39 @@ export function LucroNoCopo() {
             <div className="absolute left-[10%] right-[10%] -bottom-2.5 h-3.5 rounded-full" style={{ background: 'radial-gradient(closest-side,rgba(0,0,0,.8),rgba(0,0,0,0))' }} />
           </div>
           <div className="flex flex-col gap-2">
-            <div className="flex justify-between text-sm font-bold num"><span>{liquido} de {CAPACIDADE} ml</span><span className="text-[#C4C4C9]">{Math.round((liquido / CAPACIDADE) * 100)}%</span></div>
-            <div className="h-2 rounded-full bg-line overflow-hidden"><div className="h-full rounded-full bg-brand transition-all" style={{ width: `${Math.min(100, (liquido / CAPACIDADE) * 100)}%` }} /></div>
+            <div className="flex justify-between text-sm font-bold num"><span>{servidoMl} / {liquido} ml</span><span className="text-[#C4C4C9]">{liquido ? Math.round((servidoMl / liquido) * 100) : 0}%</span></div>
+            <div className="h-2 rounded-full bg-line overflow-hidden"><div className="h-full rounded-full transition-all duration-500" style={{ width: `${liquido ? (servidoMl / liquido) * 100 : 0}%`, background: pronto ? '#4ADE80' : '#FBC009' }} /></div>
           </div>
+          {linhas.length > 0 && (
+            <div className="flex flex-wrap gap-1.5">
+              {[...liquidos.map((l) => ({ k: l.s.k, label: `${l.q} ml ${l.it.name}` })), ...(gelo ? [{ k: gelo.s.k, label: `${gelo.q} gelo` }] : [])].map((x) => {
+                const feito = !!servido[x.k]
+                return (
+                  <button key={x.k} onClick={() => !feito && !preparado && setServido((v) => ({ ...v, [x.k]: true }))}
+                    className="flex-[1_1_120px] min-w-0 h-11 px-2.5 rounded-[2px_9px_3px_8px] border text-[13px] font-extrabold truncate"
+                    style={feito ? { borderColor: 'rgba(74,222,128,.4)', background: 'rgba(74,222,128,.10)', color: '#4ADE80' } : { borderColor: '#2A2A2E', background: '#1C1C1F', color: preparado ? '#5A5A60' : '#F5F5F2', cursor: 'pointer' }}>
+                    {feito ? '✓ ' : '+'}{x.label}
+                  </button>
+                )
+              })}
+            </div>
+          )}
+          <button onClick={preparado ? novoCopo : preparar} disabled={!linhas.length}
+            className="w-full h-[60px] rounded-[3px_12px_4px_10px] text-[17px] font-extrabold flex items-center justify-center gap-2.5 cursor-pointer active:scale-[.98] disabled:opacity-50"
+            style={preparado ? { border: '1px solid #2A2A2E', background: '#1C1C1F', color: '#F5F5F2' } : { background: '#FBC009', color: '#0A0A0B' }}>
+            <Icon name={preparado ? 'plus' : 'glass'} />{preparado ? 'Novo copo' : 'Preparar copo'}
+          </button>
+          {fb && (
+            <div className="flex flex-col gap-1.5">
+              {fb.map((f) => (
+                <div key={f.nm} className="py-2 px-3 rounded-[2px_8px_3px_7px] bg-surface-2">
+                  <div className="flex justify-between gap-2 text-[13px] font-bold"><span className="truncate">{f.nm}</span><span className="text-[#FF6B5E] flex-none">{f.dl}</span></div>
+                  <div className="text-xs text-[#ADADB4] mt-0.5 num">{f.fr} → {f.to}</div>
+                </div>
+              ))}
+              <div className="text-xs text-[#ADADB4]">Simulação: o estoque só baixa quando o copo é vendido no caixa.</div>
+            </div>
+          )}
         </div>
 
         <div className={`${card} p-5 gap-3.5`}>
@@ -206,6 +283,7 @@ export function LucroNoCopo() {
               <span className="text-[32px] font-black num" style={{ color: !verCusto ? '#F5F5F2' : lucro >= 0 ? '#FBC009' : '#FF6B5E', fontStretch: '100%' }}>{verCusto ? brlc(lucro) : '—'}</span>
               {verCusto && <span className="h-8 px-3 rounded-[2px_8px_3px_7px] flex items-center text-[15px] font-extrabold" style={{ background: margem >= 50 ? 'rgba(74,222,128,.14)' : margem >= 30 ? 'rgba(251,192,9,.14)' : 'rgba(255,107,94,.14)', color: margem >= 50 ? '#4ADE80' : margem >= 30 ? '#FBC009' : '#FF6B5E' }}>{margem}% de margem</span>}
             </div>
+            <div className="text-xs text-[#ADADB4] mt-2">Margem = lucro bruto ÷ preço de venda</div>
           </div>
           <div className="flex flex-col">
             {linhas.map((l) => (
@@ -224,15 +302,21 @@ export function LucroNoCopo() {
           <div className="flex flex-col gap-2.5 p-4 rounded-[3px_11px_4px_10px] bg-[rgba(251,192,9,.07)] border-[1.5px] border-[rgba(251,192,9,.5)]">
             <div className="text-xs font-extrabold text-brand uppercase tracking-[.08em]">Com o estoque de hoje</div>
             <div className="flex items-baseline gap-2.5 flex-wrap"><span className="text-[clamp(30px,3vw,40px)] font-black leading-none text-brand num">{possiveis}</span><span className="text-[15px] font-bold">{possiveis === 1 ? 'copo' : 'copos'}</span></div>
-            <div className="text-[13px] text-[#C4C4C9]">{limitante ? `${limitante.it.name} acaba primeiro.` : 'Monte o copo para ver quanto rende.'}</div>
+            <div className="text-[13px] text-[#C4C4C9]">{!limitante ? 'Monte o copo para ver quanto rende.' : !dest || limitante === dest ? 'A garrafa é o limite: os outros itens têm estoque de sobra.' : `Limitado por ${limitante.s.label.toLowerCase()}. Reponha para liberar mais ${Math.max(0, dest.copos - possiveis)} ${dest.copos - possiveis === 1 ? 'combo' : 'combos'}.`}</div>
             <div className="flex justify-between gap-2.5 pt-2.5 border-t border-[rgba(251,192,9,.25)] text-[15px]"><span>Faturamento possível</span><span className="font-extrabold num">{brlc(possiveis * preco)}</span></div>
             {verCusto && <div className="flex justify-between gap-2.5 text-[15px]"><span>Lucro bruto possível</span><span className="font-black text-brand num">{brlc(possiveis * lucro)}</span></div>}
           </div>
           {dest && (
-            <div className="grid grid-cols-3 gap-2">
-              {[['Restante', `${qtd(dest.disponivel / 1000)} L`], ['Dose', `${dest.q} ml`], ['Combos', String(dest.copos)]].map(([l, v]) => (
-                <div key={l} className="p-3 rounded-[2px_9px_3px_8px] bg-surface-2"><div className="text-xs font-extrabold text-[#ADADB4] uppercase tracking-[.08em]">{l}</div><div className="text-[17px] font-extrabold mt-1.5 num">{v}</div></div>
-              ))}
+            <div className="flex flex-col gap-2.5">
+              <div className="text-xs font-extrabold text-[#ADADB4] uppercase tracking-[.08em]">Rendimento total da garrafa</div>
+              <div className="grid grid-cols-3 gap-2">
+                {[['Restante', `${qtd(dest.disponivel / 1000)} L`], ['Dose', `${dest.q} ml`], ['Combos', String(dest.copos)]].map(([l, v]) => (
+                  <div key={l} className="p-3 rounded-[2px_9px_3px_8px] bg-surface-2"><div className="text-xs font-extrabold text-[#ADADB4] uppercase tracking-[.08em]">{l}</div><div className="text-[17px] font-extrabold mt-1.5 num">{v}</div></div>
+                ))}
+              </div>
+              <div className="flex justify-between gap-2.5 text-sm"><span className="text-[#C4C4C9]">Faturamento da garrafa inteira</span><span className="font-bold text-[#C4C4C9] num">{brlc(dest.copos * preco)}</span></div>
+              {verCusto && <div className="flex justify-between gap-2.5 text-sm"><span className="text-[#C4C4C9]">Lucro bruto da garrafa inteira</span><span className="font-bold text-[#C4C4C9] num">{brlc(dest.copos * lucro)}</span></div>}
+              <div className="text-xs text-[#ADADB4]">{limitante === dest ? 'Igual ao possível com o estoque de hoje.' : 'Capacidade teórica: só vale se todos os itens tiverem estoque.'}</div>
             </div>
           )}
         </div>

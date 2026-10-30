@@ -2,7 +2,7 @@ import { useState, type ReactNode } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '@/lib/auth'
 import { rpc, supabase } from '@/lib/supabase'
-import { brlc, centavos, parseBRL } from '@/lib/format'
+import { brlc, centavos, parseBRL, reais } from '@/lib/format'
 import { Icon } from '@/components/icon'
 import { Sheet, bigBtn } from '@/components/sheet'
 import { useToast } from '@/components/toast'
@@ -12,6 +12,7 @@ import { card, chip, chipCls, pill, pillCls, qtd, seg, segBar, segCls } from '@/
 type Aba = 'fornecedores' | 'sugestao' | 'contas'
 type Fornecedor = { id: string; name: string; kind: string | null; phone: string | null; lead_time: string | null }
 type Sugestao = { product_id: string; name: string; stock: number; min_stock: number; daily_avg: number; suggested: number }
+type PedidoCompra = { id: string; supplier_id: string | null; status: string; created_at: string; purchase_order_items: { product_id: string; quantity: number; unit_cost_estimate: number | null; received_qty: number }[] }
 type Conta = { id: string; description: string; category: string | null; amount: number; due_on: string; days_late: number; amount_due_today: number; paid_at: string | null; paid_amount: number | null }
 
 const campo = 'h-[52px] px-3.5 rounded-[3px_10px_2px_9px] bg-surface-2 border border-line-2 text-base w-full outline-none focus:border-brand'
@@ -42,28 +43,32 @@ export function Compras({ contas = false }: { contas?: boolean }) {
   const toast = useToast()
   const [abaCompras, setAba] = useState<Aba>('fornecedores')
   const aba: Aba = contas ? 'contas' : abaCompras
-  const [modal, setModal] = useState<null | 'forn' | 'conta' | Conta>(null)
+  const [modal, setModal] = useState<null | 'forn' | 'conta' | 'enviar' | Conta | { receber: PedidoCompra }>(null)
   const accountId = est.data?.accountId
 
   const { data, error, isLoading } = useQuery({
-    queryKey: ['compras', storeId],
+    queryKey: ['compras', storeId, contas],
     enabled: !!storeId,
     queryFn: async () => {
-      const [forn, sug, contas] = await Promise.all([
+      const [forn, sug, bills, pedidos] = await Promise.all([
         supabase.from('suppliers').select('id, name, kind, phone, lead_time').eq('active', true).order('name'),
-        rpc<Sugestao[]>('purchase_suggestion', { p_store_id: storeId }),
+        contas ? Promise.resolve([] as Sugestao[]) : rpc<Sugestao[]>('purchase_suggestion', { p_store_id: storeId }),
         rpc<Conta[]>('bills_list', { p_store_id: storeId, p_only_open: false }),
+        supabase.from('purchase_orders').select('id, supplier_id, status, created_at, purchase_order_items(product_id, quantity, unit_cost_estimate, received_qty)')
+          .eq('store_id', storeId!).in('status', ['sent', 'partially_received']).order('created_at', { ascending: false }),
       ])
       if (forn.error) throw new Error(forn.error.message)
-      return { fornecedores: (forn.data ?? []) as Fornecedor[], sugestao: sug, contas }
+      return { fornecedores: (forn.data ?? []) as Fornecedor[], sugestao: sug, contas: bills, pedidos: (pedidos.data ?? []) as unknown as PedidoCompra[] }
     },
   })
-  const recarregar = () => Promise.all(['compras', 'inicio'].map((k) => qc.invalidateQueries({ queryKey: [k] })))
+  const recarregar = () => Promise.all(['compras', 'inicio', 'atencao', 'estoque'].map((k) => qc.invalidateQueries({ queryKey: [k] })))
 
   if (isLoading || est.isLoading) return <div className="p-4 tablet:p-8 text-[#C4C4C9]">Carregando…</div>
   if (error || !data) return <div className="p-4 tablet:p-8 text-bad">Não deu para carregar compras e contas. {error?.message}</div>
 
   const custo = new Map((est.data?.produtos ?? []).map((p) => [p.product_id, p.avg_cost]))
+  const nomeProd = new Map((est.data?.produtos ?? []).map((p) => [p.product_id, p.name]))
+  const nomeForn = new Map(data.fornecedores.map((f) => [f.id, f.name]))
   const total = data.sugestao.reduce((a, g) => a + (custo.get(g.product_id) ?? 0) * Number(g.suggested), 0)
   const lista = data.sugestao.map((g) => `${qtd(Number(g.suggested))} un · ${g.name}`).join('\n')
 
@@ -130,10 +135,34 @@ export function Compras({ contas = false }: { contas?: boolean }) {
               <div className="flex flex-wrap items-center gap-3 py-4 px-[18px]">
                 <div className="flex-1 text-[15px] font-bold">Total estimado <span className="num text-brand">{brlc(total)}</span></div>
                 <button onClick={() => navigator.clipboard.writeText(lista).then(() => toast('Lista copiada: cole no WhatsApp do fornecedor'), () => toast('Não deu para copiar'))}
-                  className="h-[46px] px-[18px] rounded-[3px_10px_2px_9px] bg-brand text-brand-ink text-[15px] font-extrabold flex items-center gap-2 cursor-pointer"><Icon name="copy" size={18} />Copiar lista</button>
+                  className="h-[46px] px-[18px] rounded-[3px_10px_2px_9px] border border-line-2 bg-surface-2 text-[15px] font-bold flex items-center gap-2 cursor-pointer"><Icon name="copy" size={18} />Copiar lista</button>
+                <button onClick={() => setModal('enviar')}
+                  className="h-[46px] px-[18px] rounded-[3px_10px_2px_9px] bg-brand text-brand-ink text-[15px] font-extrabold flex items-center gap-2 cursor-pointer"><Icon name="send" size={18} />Enviar aos fornecedores</button>
               </div>
             )}
           </div>
+          {data.pedidos.length > 0 && (
+            <>
+              <div className="text-[17px] font-extrabold mt-2">Pedidos enviados</div>
+              <div className={`${card} overflow-hidden`}>
+                {data.pedidos.map((pc) => {
+                  const falta = pc.purchase_order_items.filter((i) => Number(i.received_qty) < Number(i.quantity))
+                  return (
+                    <div key={pc.id} className="flex flex-wrap items-center gap-x-3.5 gap-y-2.5 py-3.5 px-[18px] border-b border-[#1F1F22]">
+                      <div className="flex-[1_1_220px] min-w-0">
+                        <div className="text-[15px] font-bold">{pc.supplier_id ? nomeForn.get(pc.supplier_id) ?? 'Fornecedor' : 'Sem fornecedor'}</div>
+                        <div className="text-sm text-[#C4C4C9] mt-[3px] truncate">{falta.map((i) => `${qtd(Number(i.quantity) - Number(i.received_qty))}× ${nomeProd.get(i.product_id) ?? 'Produto'}`).join(' · ')}</div>
+                      </div>
+                      <span className={pillCls} style={pc.status === 'sent' ? pill('#7CB3FF', 'rgba(124,179,255,.12)') : pill('#FBC009', 'rgba(251,192,9,.12)')}>
+                        {pc.status === 'sent' ? `Enviado ${new Date(pc.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}` : 'Chegou em parte'}
+                      </span>
+                      <button onClick={() => setModal({ receber: pc })} className="h-10 px-3.5 rounded-[2px_8px_3px_7px] bg-brand text-brand-ink text-[13px] font-extrabold cursor-pointer flex items-center gap-1.5"><Icon name="down" size={16} />Chegou</button>
+                    </div>
+                  )
+                })}
+              </div>
+            </>
+          )}
         </>
       )}
 
@@ -172,9 +201,11 @@ export function Compras({ contas = false }: { contas?: boolean }) {
         </>
       )}
 
-      {modal === 'forn' && accountId && <NovoFornecedor accountId={accountId} onClose={() => setModal(null)} onDone={recarregar} />}
-      {modal === 'conta' && <NovaConta storeId={storeId!} fornecedores={data.fornecedores} onClose={() => setModal(null)} onDone={recarregar} />}
-      {modal && typeof modal === 'object' && <Pagar conta={modal} onClose={() => setModal(null)} onDone={recarregar} />}
+      {modal === 'forn' && accountId && <NovoFornecedor accountId={accountId} tipos={[...new Set([...TIPOS_FORN, ...data.fornecedores.flatMap((f) => (f.kind ?? '').split(', ').filter(Boolean))])]} onClose={() => setModal(null)} onDone={recarregar} />}
+      {modal === 'conta' && <NovaConta storeId={storeId!} fornecedores={data.fornecedores} tipos={[...new Set([...TIPOS_CONTA, ...data.contas.map((b) => b.category ?? '').filter(Boolean)])]} onClose={() => setModal(null)} onDone={recarregar} />}
+      {modal === 'enviar' && <EnviarPedido storeId={storeId!} fornecedores={data.fornecedores} sugestao={data.sugestao} custo={custo} onClose={() => setModal(null)} onDone={recarregar} />}
+      {modal && typeof modal === 'object' && 'receber' in modal && <ReceberPedido pedido={modal.receber} nomeProd={nomeProd} onClose={() => setModal(null)} onDone={recarregar} />}
+      {modal && typeof modal === 'object' && 'due_on' in modal && <Pagar conta={modal} onClose={() => setModal(null)} onDone={recarregar} />}
     </div>
   )
 }
@@ -189,9 +220,24 @@ function useSalvar(onDone: () => Promise<unknown>, onClose: () => void) {
   return [busy, run] as const
 }
 
-function NovoFornecedor({ accountId, onClose, onDone }: { accountId: string; onClose: () => void; onDone: () => Promise<unknown> }) {
+/** "+ Novo tipo" do protótipo: acrescenta uma opção às que já existem. */
+function NovoTipo({ onAdd }: { onAdd: (t: string) => void }) {
+  const [on, setOn] = useState(false)
+  const [t, setT] = useState('')
+  const add = () => { if (t.trim()) onAdd(t.trim().slice(0, 30)); setT(''); setOn(false) }
+  if (!on) return <button onClick={() => setOn(true)} className={`${chipCls} text-[#C4C4C9]`} style={{ ...chip(false, 5), borderStyle: 'dashed' }}><Icon name="plus" size={16} />Novo tipo</button>
+  return (
+    <span className="flex gap-1.5">
+      <input value={t} onChange={(e) => setT(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') add() }} autoFocus placeholder="Nome do tipo" className="h-10 w-36 px-3 rounded-[2px_8px_3px_7px] bg-bg border border-brand text-sm outline-none" />
+      <button onClick={add} className="h-10 px-3 rounded-[2px_8px_3px_7px] bg-brand text-brand-ink text-[13px] font-extrabold cursor-pointer">Adicionar</button>
+    </span>
+  )
+}
+
+function NovoFornecedor({ accountId, tipos: base, onClose, onDone }: { accountId: string; tipos: string[]; onClose: () => void; onDone: () => Promise<unknown> }) {
   const [f, setF] = useState({ name: '', phone: '', lead: '' })
   const [tipos, setTipos] = useState<string[]>([])
+  const [opcoes, setOpcoes] = useState(base)
   const [busy, run] = useSalvar(onDone, onClose)
   const salvar = () => run(async () => {
     if (!f.name.trim()) throw new Error('Informe o nome do fornecedor')
@@ -204,7 +250,8 @@ function NovoFornecedor({ accountId, onClose, onDone }: { accountId: string; onC
       <div className="flex flex-col gap-2">
         <span className="text-sm font-bold text-[#C4C4C9]">O que fornece · pode marcar mais de um</span>
         <div className="flex flex-wrap gap-2">
-          {TIPOS_FORN.map((t, k) => <button key={t} onClick={() => setTipos((x) => x.includes(t) ? x.filter((y) => y !== t) : [...x, t])} className={chipCls} style={chip(tipos.includes(t), k)}>{t}</button>)}
+          {opcoes.map((t, k) => <button key={t} onClick={() => setTipos((x) => x.includes(t) ? x.filter((y) => y !== t) : [...x, t])} className={chipCls} style={chip(tipos.includes(t), k)}>{t}</button>)}
+          <NovoTipo onAdd={(t) => { setOpcoes((o) => o.includes(t) ? o : [...o, t]); setTipos((x) => x.includes(t) ? x : [...x, t]) }} />
         </div>
       </div>
       <div className="grid grid-cols-2 gap-2.5">
@@ -215,7 +262,8 @@ function NovoFornecedor({ accountId, onClose, onDone }: { accountId: string; onC
   )
 }
 
-function NovaConta({ storeId, fornecedores, onClose, onDone }: { storeId: string; fornecedores: Fornecedor[]; onClose: () => void; onDone: () => Promise<unknown> }) {
+function NovaConta({ storeId, fornecedores, tipos, onClose, onDone }: { storeId: string; fornecedores: Fornecedor[]; tipos: string[]; onClose: () => void; onDone: () => Promise<unknown> }) {
+  const [opcoes, setOpcoes] = useState(tipos)
   const [b, setB] = useState({ desc: '', valor: '', venc: '', forn: '', cat: '', juros: '', jurosTipo: 'pct_month' as 'pct_month' | 'fixed', recorrente: false })
   const [jurosOn, setJurosOn] = useState(false)
   const [busy, run] = useSalvar(onDone, onClose)
@@ -242,7 +290,10 @@ function NovaConta({ storeId, fornecedores, onClose, onDone }: { storeId: string
       </Campo>
       <div className="flex flex-col gap-2">
         <span className="text-sm font-bold text-[#C4C4C9]">Tipo</span>
-        <div className="flex flex-wrap gap-2">{TIPOS_CONTA.map((t, k) => <button key={t} onClick={() => setB({ ...b, cat: b.cat === t ? '' : t })} className={chipCls} style={chip(b.cat === t, k)}>{t}</button>)}</div>
+        <div className="flex flex-wrap gap-2">
+          {opcoes.map((t, k) => <button key={t} onClick={() => setB({ ...b, cat: b.cat === t ? '' : t })} className={chipCls} style={chip(b.cat === t, k)}>{t}</button>)}
+          <NovoTipo onAdd={(t) => { setOpcoes((o) => o.includes(t) ? o : [...o, t]); setB({ ...b, cat: t }) }} />
+        </div>
       </div>
       <div className="flex flex-col gap-3 p-3.5 rounded-[3px_10px_2px_9px] bg-surface-2">
         <button onClick={() => setJurosOn(!jurosOn)} className="flex items-center justify-between gap-3 text-left cursor-pointer">
@@ -283,6 +334,80 @@ function Pagar({ conta, onClose, onDone }: { conta: Conta; onClose: () => void; 
           ))}
         </div>
       </div>
+    </Sheet>
+  )
+}
+
+/** Sugestão de compra → pedido de compra enviado (E27) e a lista no WhatsApp do fornecedor. */
+function EnviarPedido({ storeId, fornecedores, sugestao, custo, onClose, onDone }: {
+  storeId: string; fornecedores: Fornecedor[]; sugestao: Sugestao[]; custo: Map<string, number | null>; onClose: () => void; onDone: () => Promise<unknown>
+}) {
+  const [forn, setForn] = useState(fornecedores[0]?.id ?? '')
+  const [q, setQ] = useState<Record<string, number>>(() => Object.fromEntries(sugestao.map((g) => [g.product_id, Number(g.suggested)])))
+  const [busy, run] = useSalvar(onDone, onClose)
+  const f = fornecedores.find((x) => x.id === forn)
+  const itens = sugestao.filter((g) => (q[g.product_id] ?? 0) > 0)
+  const enviar = () => run(async () => {
+    if (!itens.length) throw new Error('Escolha ao menos um produto')
+    // Abre a aba antes do await: depois dele o navegador bloqueia o pop-up.
+    const aba = f?.phone ? window.open('', '_blank') : null
+    try {
+      await rpc('save_purchase_order', { p_store_id: storeId, p_supplier_id: forn || null, p_status: 'sent',
+        p_items: itens.map((g) => ({ product_id: g.product_id, quantity: q[g.product_id], unit_cost_estimate: custo.get(g.product_id) ?? null })) })
+    } catch (e) { aba?.close(); throw e }
+    const texto = `Olá! Quero fazer um pedido:\n${itens.map((g) => `${qtd(q[g.product_id])} un · ${g.name}`).join('\n')}`
+    if (aba && f?.phone) aba.location.href = `https://wa.me/55${tel(f.phone)}?text=${encodeURIComponent(texto)}`
+    return f ? `Pedido enviado para ${f.name}` : 'Pedido registrado'
+  })
+  return (
+    <Sheet title="Enviar aos fornecedores" onClose={onClose} footer={<button onClick={enviar} disabled={busy || !itens.length} className={bigBtn}><Icon name="send" />{busy ? 'Enviando…' : f?.phone ? 'Enviar no WhatsApp' : 'Registrar pedido'}</button>}>
+      <div className="flex flex-col gap-2">
+        <span className="text-sm font-bold text-[#C4C4C9]">Fornecedor</span>
+        <div className="flex flex-wrap gap-2">
+          {fornecedores.map((x, k) => <button key={x.id} onClick={() => setForn(x.id)} className={chipCls} style={chip(forn === x.id, k)}>{x.name}</button>)}
+          {!fornecedores.length && <span className="text-sm text-[#ADADB4]">Cadastre um fornecedor na aba Fornecedores.</span>}
+        </div>
+      </div>
+      <div className="text-sm text-[#C4C4C9] -mb-2">Zere o que não for pedir a este fornecedor. O que sobrar continua na sugestão.</div>
+      {sugestao.map((g) => (
+        <div key={g.product_id} className="flex items-center gap-3 py-2 border-b border-line">
+          <span className="flex-1 min-w-0 text-sm font-semibold">{g.name}</span>
+          <div className="flex items-center bg-surface-2 rounded-[2px_8px_3px_7px] border border-line-2">
+            <button onClick={() => setQ((x) => ({ ...x, [g.product_id]: Math.max(0, (x[g.product_id] ?? 0) - 1) }))} className="w-10 h-10 flex items-center justify-center cursor-pointer"><Icon name="minus" /></button>
+            <span className="min-w-8 text-center font-extrabold num">{qtd(q[g.product_id] ?? 0)}</span>
+            <button onClick={() => setQ((x) => ({ ...x, [g.product_id]: (x[g.product_id] ?? 0) + 1 }))} className="w-10 h-10 flex items-center justify-center cursor-pointer"><Icon name="plus" /></button>
+          </div>
+        </div>
+      ))}
+      <div className="text-[13px] text-[#ADADB4]">O pedido fica em “Pedidos enviados”. Quando a mercadoria chegar, toque em Chegou para dar entrada no estoque.</div>
+    </Sheet>
+  )
+}
+
+/** Mercadoria do pedido chegou: confere quantidade e custo e dá entrada no estoque (receive_purchase_order). */
+function ReceberPedido({ pedido, nomeProd, onClose, onDone }: { pedido: PedidoCompra; nomeProd: Map<string, string>; onClose: () => void; onDone: () => Promise<unknown> }) {
+  const falta = pedido.purchase_order_items.filter((i) => Number(i.received_qty) < Number(i.quantity))
+  const [v, setV] = useState<Record<string, { q: string; c: string }>>(() => Object.fromEntries(falta.map((i) => [i.product_id, { q: String(Number(i.quantity) - Number(i.received_qty)).replace('.', ','), c: reais(i.unit_cost_estimate) }])))
+  const [busy, run] = useSalvar(onDone, onClose)
+  const receber = () => run(async () => {
+    const itens = falta.map((i) => ({ product_id: i.product_id, quantity: parseBRL(v[i.product_id].q), unit_cost: centavos(v[i.product_id].c) })).filter((i) => i.quantity > 0)
+    if (!itens.length) throw new Error('Informe o que chegou')
+    if (itens.some((i) => !i.unit_cost)) throw new Error('Informe o custo de cada item')
+    await rpc('receive_purchase_order', { p_purchase_order_id: pedido.id, p_items: itens })
+    return 'Entrada lançada no estoque'
+  })
+  const mini = 'h-11 px-3 rounded-[2px_8px_3px_7px] bg-surface-2 border border-line-2 text-[15px] font-bold outline-none focus:border-brand w-full'
+  return (
+    <Sheet title="Chegou a mercadoria" onClose={onClose} footer={<button onClick={receber} disabled={busy} className={bigBtn}>{busy ? 'Lançando…' : 'Lançar entrada'}</button>}>
+      <div className="grid grid-cols-[1fr_88px_110px] gap-2 text-[13px] font-bold text-[#ADADB4]"><span>Produto</span><span>Chegou (un)</span><span>Custo un. (R$)</span></div>
+      {falta.map((i) => (
+        <div key={i.product_id} className="grid grid-cols-[1fr_88px_110px] gap-2 items-center">
+          <span className="text-sm font-semibold min-w-0">{nomeProd.get(i.product_id) ?? 'Produto'}</span>
+          <input value={v[i.product_id].q} onChange={(e) => setV({ ...v, [i.product_id]: { ...v[i.product_id], q: e.target.value.replace(/[^\d,]/g, '') } })} inputMode="decimal" className={mini} />
+          <input value={v[i.product_id].c} onChange={(e) => setV({ ...v, [i.product_id]: { ...v[i.product_id], c: e.target.value.replace(/[^\d,]/g, '') } })} inputMode="decimal" placeholder="0,00" className={mini} />
+        </div>
+      ))}
+      <div className="text-[13px] text-[#ADADB4]">Se chegou só uma parte, o pedido continua aberto com o que falta.</div>
     </Sheet>
   )
 }

@@ -4,7 +4,8 @@ import { useAuth } from '@/lib/auth'
 import { rpc } from '@/lib/supabase'
 import { brlc, centavos, reais } from '@/lib/format'
 import { Icon } from '@/components/icon'
-import { Sheet } from '@/components/sheet'
+import { Sheet, bigBtn } from '@/components/sheet'
+import { usePermissoes } from '@/app/shell-dados'
 import { useToast } from '@/components/toast'
 import { card, chip, chipCls } from '@/lib/visual'
 import { useCaderneta, useFiados, type Fiado, type Lancamento } from './dados'
@@ -35,6 +36,8 @@ export function Clientes() {
   const { data, error, isLoading } = useFiados(storeId)
   const [q, setQ] = useState('')
   const [sel, setSel] = useState<string | null>(null)
+  const [novo, setNovo] = useState(false)
+  const { data: perm } = usePermissoes()
 
   if (isLoading) return <div className="p-4 tablet:p-8 text-[#C4C4C9]">Carregando…</div>
   if (error || !data) return <div className="p-4 tablet:p-8 text-bad">Não deu para carregar o fiado. {error?.message}</div>
@@ -67,7 +70,7 @@ export function Clientes() {
           <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar por nome ou telefone" className="flex-1 min-w-0 h-full bg-transparent border-none text-[15px] text-ink outline-none" />
         </div>
         <span className="flex-1" />
-        <span className="text-sm text-[#ADADB4]">O fiado nasce na venda: no caixa, escolha Fiado e informe nome e telefone.</span>
+        {perm?.pode('fiado_ajustar') && <button onClick={() => setNovo(true)} className="h-12 px-[18px] rounded-[3px_10px_2px_9px] bg-brand text-brand-ink text-[15px] font-extrabold flex items-center gap-2 cursor-pointer"><Icon name="plus" />Novo cliente</button>}
       </div>
 
       <div className={`${card} overflow-hidden`}>
@@ -96,7 +99,40 @@ export function Clientes() {
       </div>
 
       {atual && <Detalhe c={atual} storeId={storeId!} onClose={() => setSel(null)} />}
+      {novo && <NovoCliente storeId={storeId!} onClose={() => setNovo(false)} onCriado={(id) => { setNovo(false); setSel(id) }} />}
     </div>
+  )
+}
+
+/** "Novo cliente" do protótipo: só nome e WhatsApp (D55), limite opcional (D55b) e data combinada. */
+function NovoCliente({ storeId, onClose, onCriado }: { storeId: string; onClose: () => void; onCriado: (id: string) => void }) {
+  const qc = useQueryClient()
+  const toast = useToast()
+  const [nome, setNome] = useState('')
+  const [fone, setFone] = useState('')
+  const [limite, setLimite] = useState('')
+  const [data, setData] = useState('')
+  const [busy, setBusy] = useState(false)
+  const ok = nome.trim().length > 1 && [10, 11].includes(fone.replace(/\D/g, '').length) && !busy
+  const salvar = async () => {
+    setBusy(true)
+    try {
+      const r = await rpc<{ fiado_account_id: string }>('create_fiado_account', { p_store_id: storeId, p_name: nome.trim(), p_phone: fone, p_credit_limit: centavos(limite) || null, p_promised_date: data || null })
+      toast(`${nome.trim()} cadastrado`)
+      await qc.invalidateQueries({ queryKey: ['clientes', storeId] })
+      onCriado(r.fiado_account_id)
+    } catch (e) { toast((e as Error).message); setBusy(false) }
+  }
+  const campo = 'h-[52px] px-3.5 rounded-[3px_10px_2px_9px] bg-surface-2 border border-line-2 text-base w-full outline-none focus:border-brand'
+  const rot = (l: string) => <span className="text-sm font-bold text-[#C4C4C9]">{l}</span>
+  return (
+    <Sheet title="Novo cliente" onClose={onClose} footer={<button onClick={salvar} disabled={!ok} className={bigBtn}>{busy ? 'Cadastrando…' : 'Cadastrar cliente'}</button>}>
+      <label className="flex flex-col gap-2">{rot('Nome')}<input value={nome} onChange={(e) => setNome(e.target.value)} autoFocus placeholder="Como o cliente é chamado" className={campo} /></label>
+      <label className="flex flex-col gap-2">{rot('WhatsApp')}<input value={fone} onChange={(e) => setFone(e.target.value)} inputMode="tel" placeholder="(11) 98765-4321" className={campo} /></label>
+      <label className="flex flex-col gap-2">{rot('Limite de fiado (R$) · 0 para não liberar')}<input value={limite} onChange={(e) => setLimite(e.target.value.replace(/[^\d,]/g, ''))} inputMode="decimal" placeholder="0,00" className={campo} /></label>
+      <label className="flex flex-col gap-2">{rot('Data de pagamento do fiado (opcional)')}<input type="date" value={data} onChange={(e) => setData(e.target.value)} className={campo} style={{ colorScheme: 'dark' }} /></label>
+      <div className="text-[13px] text-[#ADADB4]">Só nome e WhatsApp, sem outros dados. O fiado também pode nascer direto na venda, no caixa.</div>
+    </Sheet>
   )
 }
 

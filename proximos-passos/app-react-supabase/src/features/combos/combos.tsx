@@ -27,7 +27,7 @@ function useCombos(storeId: string | null) {
     queryFn: async () => {
       const desde = new Date(Date.now() - 7 * 864e5).toISOString()
       const [combos, loja, vendidos] = await Promise.all([
-        supabase.from('bundles').select('id, kind, name, price, active, show_in_catalog, starts_at, ends_at, weekdays, start_time, end_time, bundle_items(product_id, quantity)').order('name'),
+        supabase.from('bundles').select('id, kind, name, price, active, show_in_catalog, starts_at, ends_at, weekdays, start_time, end_time, bundle_items(product_id, quantity)').is('archived_at', null).order('name'),
         supabase.from('store_bundles').select('bundle_id, price, active').eq('store_id', storeId!),
         supabase.from('sale_items').select('bundle_id, quantity, sales!inner(status, created_at)').eq('store_id', storeId!)
           .not('bundle_id', 'is', null).eq('sales.status', 'paid').gte('sales.created_at', desde),
@@ -131,6 +131,7 @@ function Editor({ combo, produtos, accountId, verCusto, onClose, onDone }: {
   const [itens, setItens] = useState<Record<string, number>>(() => Object.fromEntries((combo?.bundle_items ?? []).map((i) => [i.product_id, Number(i.quantity)])))
   const [q, setQ] = useState('')
   const [busy, setBusy] = useState(false)
+  const [excluir, setExcluir] = useState(false)
   const prod = new Map(produtos.map((p) => [p.product_id, p]))
   const sel = Object.entries(itens).filter(([, n]) => n > 0)
   const cu = sel.reduce((a, [id, n]) => a + (prod.get(id)?.avg_cost ?? 0) * n, 0)
@@ -153,6 +154,19 @@ function Editor({ combo, produtos, accountId, verCusto, onClose, onDone }: {
         items: sel.map(([product_id, quantity]) => ({ product_id, quantity })),
       } })
       toast(combo ? 'Promoção salva' : `“${nome.trim()}” criada`)
+      await onDone()
+      onClose()
+    } catch (e) {
+      toast((e as Error).message)
+      setBusy(false)
+    }
+  }
+
+  const apagar = async () => {
+    setBusy(true)
+    try {
+      await rpc('archive_bundle', { p_account_id: accountId, p_bundle_id: combo!.id })
+      toast(`“${combo!.name}” excluída`)
       await onDone()
       onClose()
     } catch (e) {
@@ -207,6 +221,16 @@ function Editor({ combo, produtos, accountId, verCusto, onClose, onDone }: {
         <span className="w-6 h-6 rounded-[2px_7px_3px_6px] flex items-center justify-center flex-none" style={{ ...chip(catalogo), transform: 'none' }}>{catalogo && <Icon name="check" size={16} />}</span>
         <span className="text-sm font-semibold">Mostrar também no catálogo do WhatsApp</span>
       </button>
+      {combo && !excluir && (
+        <button onClick={() => setExcluir(true)} className="self-start h-11 px-3.5 rounded-[2px_8px_3px_7px] border border-[#FF2D2D] text-[#FF6B5E] text-sm font-bold flex items-center gap-2 cursor-pointer"><Icon name="x" size={16} />Excluir promoção</button>
+      )}
+      {combo && excluir && (
+        <div className="flex flex-wrap items-center gap-2.5 p-3.5 rounded-[3px_10px_2px_9px] bg-[rgba(255,45,45,.08)] border border-[rgba(255,45,45,.35)]">
+          <span className="flex-[1_1_160px] text-[15px] font-bold">Excluir esta promoção?</span>
+          <button onClick={() => setExcluir(false)} className="h-10 px-3.5 rounded-[2px_8px_3px_7px] border border-line-2 text-sm font-bold cursor-pointer">Cancelar</button>
+          <button onClick={apagar} disabled={busy} className="h-10 px-3.5 rounded-[2px_8px_3px_7px] bg-[#E5241B] text-white text-sm font-extrabold cursor-pointer disabled:opacity-60">Excluir</button>
+        </div>
+      )}
     </Sheet>
   )
 }

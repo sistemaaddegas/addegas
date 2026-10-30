@@ -277,14 +277,14 @@ isOneToOne: false
                   ]
                 },"drink_recipes": {
                   Row: {
-                    "account_id": string,"active": boolean,"created_at": string,"id": string,"image_path": string | null,"name": string,"sale_price": number
+                    "account_id": string,"active": boolean,"color": string | null,"created_at": string,"id": string,"image_path": string | null,"name": string,"sale_price": number
                   }
                   ComputedFields: never
                   Insert: {
-                    "account_id": string,"active"?: boolean,"created_at"?: string,"id"?: string,"image_path"?: string | null,"name": string,"sale_price"?: number
+                    "account_id": string,"active"?: boolean,"color"?: string | null,"created_at"?: string,"id"?: string,"image_path"?: string | null,"name": string,"sale_price"?: number
                   }
                   Update: {
-                    "account_id"?: string,"active"?: boolean,"created_at"?: string,"id"?: string,"image_path"?: string | null,"name"?: string,"sale_price"?: number
+                    "account_id"?: string,"active"?: boolean,"color"?: string | null,"created_at"?: string,"id"?: string,"image_path"?: string | null,"name"?: string,"sale_price"?: number
                   }
                   Relationships: [
                     {
