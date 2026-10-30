@@ -37,7 +37,7 @@ export function Lojas() {
       <div className="text-[15px] text-[#C4C4C9] -mt-1.5">
         {isLoading ? 'Carregando suas lojas…'
           : error ? error.message
-          : equipe && !stores?.length ? 'Esta é uma conta da equipe Addegas. Ela entra no painel interno da Addegas, não no sistema da adega, e o painel ainda não está no app novo.'
+          : equipe && !stores?.length ? 'Esta é uma conta da equipe Addegas. Ela entra no painel da equipe, não no sistema da adega.'
           : stores?.length ? `Você tem acesso a ${stores.length} ${stores.length === 1 ? 'loja' : 'lojas'}.`
           : 'Você ainda não tem acesso a nenhuma loja. Se é o dono, cadastre sua adega; se trabalha numa, peça ao dono para liberar.'}
       </div>
@@ -62,6 +62,9 @@ export function Lojas() {
         <button onClick={() => navigate('/cadastro')} className="h-[52px] rounded-[3px_11px_4px_10px] border border-dashed border-[#3A3A40] bg-transparent text-[#C4C4C9] text-[15px] font-bold flex items-center justify-center gap-2 cursor-pointer">
           <Icon name="plus" />Cadastrar nova loja
         </button>
+      )}
+      {equipe && (
+        <button onClick={() => { void signOut(); location.assign(import.meta.env.VITE_ADMIN_URL ?? '/admin/') }} className="h-[52px] rounded-[3px_11px_4px_10px] bg-brand text-brand-ink text-[15px] font-extrabold cursor-pointer">Ir para o painel da equipe</button>
       )}
       <button onClick={signOut} className={btnText}>{equipe ? 'Sair' : 'Voltar'}</button>
     </AuthLayout>
