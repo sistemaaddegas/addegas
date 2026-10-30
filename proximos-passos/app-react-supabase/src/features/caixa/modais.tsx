@@ -105,9 +105,16 @@ export function Desconto({ subtotal, atual, onClose, onApply }: { subtotal: numb
   return (
     <Sheet title="Desconto" onClose={onClose} footer={
       <div className="flex gap-2">
-        {atual > 0 && <button onClick={() => onApply(0)} className="h-[58px] px-5 rounded-[3px_11px_4px_10px] border border-line-2 text-[15px] font-bold cursor-pointer">Tirar</button>}
+        {atual > 0 && <button onClick={() => onApply(0)} className="h-[58px] px-5 rounded-[3px_11px_4px_10px] border border-line-2 text-[15px] font-bold cursor-pointer">Sem desconto</button>}
         <button onClick={() => ok && onApply(valor)} disabled={!ok} className={bigBtn}>Aplicar {valor > 0 ? brlc(valor) : ''}</button>
       </div>}>
+      {/* Atalhos do protótipo: aplicam na hora. */}
+      <div className="grid grid-cols-3 gap-2">
+        {([['%', 5, '5%'], ['%', 10, '10%'], ['%', 15, '15%'], ['R$', 500, 'R$ 5,00'], ['R$', 1000, 'R$ 10,00']] as const).map(([t, n, l]) => {
+          const c = t === '%' ? Math.round(subtotal * n / 100) : Math.min(n, subtotal)
+          return <button key={l} onClick={() => onApply(c)} className={chipBtn(atual > 0 && atual === c)} style={{ height: 52 }}>{l}</button>
+        })}
+      </div>
       <div className="flex gap-2">{(['R$', '%'] as const).map((m) => <button key={m} onClick={() => setModo(m)} className={chipBtn(modo === m)}>{m === 'R$' ? 'Em reais' : 'Em %'}</button>)}</div>
       <input value={v} onChange={(e) => setV(e.target.value)} inputMode="decimal" placeholder={modo === 'R$' ? '0,00' : '10'} className={moneyInput} autoFocus />
       <div className="text-sm text-[#C4C4C9]">Subtotal {brlc(subtotal)} · fica {brlc(Math.max(0, subtotal - valor))}. O limite de desconto depende do seu papel na loja.</div>

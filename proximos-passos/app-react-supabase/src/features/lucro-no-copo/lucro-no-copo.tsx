@@ -347,7 +347,7 @@ export function LucroNoCopo() {
             </button>
           ))}
           {!itens.some((i) => i.slot === escolher) && <div className="text-sm text-[#C4C4C9]">Nenhum produto dessa categoria no estoque.</div>}
-          {esc[escolher] && <button onClick={() => escolherProduto(escolher, null)} className="self-start p-0 bg-transparent text-[#FF6B5E] text-sm font-bold cursor-pointer">Tirar do copo</button>}
+          {esc[escolher] && <button onClick={() => escolherProduto(escolher, null)} className="self-start p-0 bg-transparent text-[#FF6B5E] text-sm font-bold cursor-pointer">Tirar do combo</button>}
         </Sheet>
       )}
     </div>
