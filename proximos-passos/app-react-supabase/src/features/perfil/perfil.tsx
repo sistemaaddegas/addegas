@@ -1,9 +1,8 @@
 import { useState, type ReactNode } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '@/lib/auth'
-import { rpc, supabase } from '@/lib/supabase'
+import { supabase } from '@/lib/supabase'
 import { Icon } from '@/components/icon'
-import { Sheet, bigBtn } from '@/components/sheet'
 import { useToast } from '@/components/toast'
 import { useMyStores } from '@/features/acesso/lojas'
 import { usePerfil, usePermissoes } from '@/app/shell-dados'
@@ -52,7 +51,6 @@ export function Perfil() {
   const qc = useQueryClient()
   const toast = useToast()
   const [ed, setEd] = useState<{ nome: string; tel: string; email: string } | null>(null)
-  const [pin, setPin] = useState(false)
   const { data: nomesPerm } = useQuery({
     queryKey: ['permissoes-nomes'], staleTime: Infinity,
     queryFn: async () => { const { data } = await supabase.from('permissions').select('code, name').order('sort'); return new Map((data ?? []).map((x) => [x.code, x.name])) },
@@ -139,42 +137,9 @@ export function Perfil() {
           <div className="flex flex-wrap gap-2">
             {perms.map((x) => <span key={x} className="h-[34px] px-3 rounded-[2px_8px_3px_7px] bg-surface-2 border border-line text-[13px] font-bold flex items-center gap-1.5"><span className="text-ok flex"><Icon name="check" size={16} /></span>{x}</span>)}
           </div>
-          <div className="flex items-center gap-3 pt-3 border-t border-line">
-            <div className="flex-1 min-w-0"><div className="text-[15px] font-bold">PIN do caixa</div><div className="text-[13px] text-[#C4C4C9] mt-0.5">Usado para entrar no caixa, abrir e fechar e liberar desconto.</div></div>
-            <button onClick={() => setPin(true)} className="h-[42px] px-3.5 rounded-[2px_8px_3px_7px] border border-[#3A3A40] text-sm font-bold cursor-pointer flex-none">Trocar PIN</button>
-          </div>
         </div>
         <button onClick={signOut} className="h-[52px] rounded-[3px_11px_4px_10px] bg-[#E5241B] hover:bg-[#FF3B30] active:scale-[.98] text-white text-base font-extrabold flex items-center justify-center gap-2.5 cursor-pointer"><Icon name="logout" size={18} />Sair da conta</button>
       </div>
-      {pin && <TrocarPin onClose={() => setPin(false)} />}
     </div>
-  )
-}
-
-function TrocarPin({ onClose }: { onClose: () => void }) {
-  const { session, storeId } = useAuth()
-  const toast = useToast()
-  const [a, setA] = useState('')
-  const [b, setB] = useState('')
-  const [busy, setBusy] = useState(false)
-  const ok = /^\d{4}$/.test(a) && a === b && !busy
-  const salvar = async () => {
-    setBusy(true)
-    try {
-      const { data: m, error } = await supabase.from('store_members').select('id').eq('store_id', storeId!).eq('user_id', session!.user.id).eq('active', true).maybeSingle()
-      if (error || !m) throw new Error('Você não está na equipe desta loja.')
-      await rpc('set_member_pin', { p_member_id: m.id, p_pin: a })
-      toast('PIN trocado.')
-      onClose()
-    } catch (e) { toast((e as Error).message); setBusy(false) }
-  }
-  const pinCampo = 'h-[60px] px-4 rounded-[3px_10px_2px_9px] bg-surface-2 border border-line-2 text-[28px] font-extrabold tracking-[.4em] text-center outline-none focus:border-brand'
-  return (
-    <Sheet title="Trocar PIN do caixa" onClose={onClose} footer={<button onClick={salvar} disabled={!ok} className={bigBtn}>{busy ? 'Salvando…' : 'Salvar PIN'}</button>}>
-      <div className="text-sm text-[#C4C4C9] -mt-2">4 dígitos, sem sequência nem repetição (nada de 1234 ou 0000).</div>
-      <Campo label="Novo PIN"><input value={a} onChange={(e) => setA(digitos(e.target.value).slice(0, 4))} inputMode="numeric" type="password" autoFocus className={pinCampo} /></Campo>
-      <Campo label="Repita o PIN"><input value={b} onChange={(e) => setB(digitos(e.target.value).slice(0, 4))} onKeyDown={(e) => { if (e.key === 'Enter' && ok) salvar() }} inputMode="numeric" type="password" className={pinCampo} /></Campo>
-      {b.length === 4 && a !== b && <div className="text-sm font-bold text-bad">Os dois PINs não são iguais.</div>}
-    </Sheet>
   )
 }

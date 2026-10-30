@@ -106,7 +106,7 @@ export function Equipe() {
               <span className="w-[42px] h-[42px] rounded-full bg-line-2 text-sm font-extrabold flex items-center justify-center flex-none">{iniciais(p.display_name)}</span>
               <div className="flex-1 min-w-0">
                 <div className="text-[15px] font-bold">{p.display_name}</div>
-                <div className="text-sm text-[#C4C4C9] mt-[3px]">{!p.active ? 'Desativado' : p.user_id ? 'Entra com login e PIN' : 'Só PIN no caixa'}</div>
+                <div className="text-sm text-[#C4C4C9] mt-[3px]">{!p.active ? 'Desativado' : p.user_id ? 'Entra com login' : 'Só no caixa'}</div>
               </div>
               <span className={pillCls} style={pill(c, bg)}>{l}</span>
             </div>
@@ -121,7 +121,7 @@ export function Equipe() {
 
       <div className={`${card} p-5`}>
         <div className="text-[17px] font-extrabold">Permissões por função</div>
-        <div className="text-sm text-[#C4C4C9] mt-1.5 mb-2.5">O dono tem acesso a tudo. Cada pessoa entra no caixa com PIN próprio.{!dono && ' Só o dono muda esta tabela.'}</div>
+        <div className="text-sm text-[#C4C4C9] mt-1.5 mb-2.5">O dono tem acesso a tudo. No caixa, cada pessoa toca no próprio nome e as vendas ficam registradas nele.{!dono && ' Só o dono muda esta tabela.'}</div>
         <div className="flex items-center gap-3 py-2 text-[13px] font-extrabold text-[#C4C4C9] uppercase tracking-[.05em]">
           <span className="flex-1">Permissão</span><span className="w-16 text-center">Gerente</span><span className="w-16 text-center">Caixa</span>
         </div>
@@ -162,7 +162,7 @@ function PapelChips({ value, onChange, dono }: { value: Papel; onChange: (p: Pap
 
 function Novo({ storeId, slug, dono, onClose, onDone }: { storeId: string; slug: string; dono: boolean; onClose: () => void; onDone: () => Promise<unknown> }) {
   const toast = useToast()
-  const [f, setF] = useState({ nome: '', papel: 'cashier' as Papel, acesso: 'pin' as 'pin' | 'email' | 'usuario', pin: '', email: '', usuario: '' })
+  const [f, setF] = useState({ nome: '', papel: 'cashier' as Papel, acesso: 'caixa' as 'caixa' | 'email' | 'usuario', email: '', usuario: '' })
   const [busy, setBusy] = useState(false)
   const [criado, setCriado] = useState<{ login: string; password: string | null } | null>(null)
 
@@ -170,9 +170,9 @@ function Novo({ storeId, slug, dono, onClose, onDone }: { storeId: string; slug:
     if (!f.nome.trim()) return toast('Informe o nome da pessoa')
     setBusy(true)
     try {
-      if (f.acesso === 'pin') {
-        await rpc('create_pin_member', { p_store_id: storeId, p_display_name: f.nome.trim(), p_role: f.papel, p_pin: f.pin })
-        toast(`${f.nome.trim()} já pode entrar no caixa com o PIN`)
+      if (f.acesso === 'caixa') {
+        await rpc('create_counter_member', { p_store_id: storeId, p_display_name: f.nome.trim(), p_role: f.papel })
+        toast(`${f.nome.trim()} já aparece no caixa`)
         await onDone()
         onClose()
       } else {
@@ -210,16 +210,15 @@ function Novo({ storeId, slug, dono, onClose, onDone }: { storeId: string; slug:
       <div className="flex flex-col gap-2">
         <span className="text-sm font-bold text-[#C4C4C9]">Como entra</span>
         <div className="flex flex-wrap gap-2">
-          {([['pin', 'Só PIN no caixa'], ['usuario', 'Usuário e senha'], ['email', 'E-mail']] as const).map(([id, l], k) => (
+          {([['caixa', 'Só no caixa'], ['usuario', 'Usuário e senha'], ['email', 'E-mail']] as const).map(([id, l], k) => (
             <button key={id} onClick={() => setF({ ...f, acesso: id })} className={chipCls} style={chip(f.acesso === id, k)}>{l}</button>
           ))}
         </div>
         <div className="text-[13px] text-[#ADADB4]">
-          {f.acesso === 'pin' ? 'Para quem só vende no balcão: não acessa o sistema fora do caixa.'
+          {f.acesso === 'caixa' ? 'Para quem só vende no balcão: aparece na lista do caixa e não acessa o sistema fora dele.'
             : f.acesso === 'usuario' ? 'Para quem não tem e-mail: você recebe a senha provisória agora.' : 'A pessoa recebe o acesso no e-mail.'}
         </div>
       </div>
-      {f.acesso === 'pin' && <Campo label="PIN de 4 dígitos"><input value={f.pin} onChange={(e) => setF({ ...f, pin: e.target.value.replace(/\D/g, '').slice(0, 4) })} inputMode="numeric" placeholder="Sem sequência nem repetição" className={`${campo} num tracking-[.3em] font-bold`} /></Campo>}
       {f.acesso === 'usuario' && <Campo label="Usuário"><input value={f.usuario} onChange={(e) => setF({ ...f, usuario: e.target.value.toLowerCase().replace(/[^a-z0-9._-]/g, '') })} autoCapitalize="none" placeholder="Ex.: bia" className={campo} /></Campo>}
       {f.acesso === 'email' && <Campo label="E-mail"><input value={f.email} onChange={(e) => setF({ ...f, email: e.target.value })} type="email" autoCapitalize="none" className={campo} /></Campo>}
     </Sheet>
@@ -229,17 +228,15 @@ function Novo({ storeId, slug, dono, onClose, onDone }: { storeId: string; slug:
 function Pessoa({ m, dono, onClose, onDone }: { m: Membro; dono: boolean; onClose: () => void; onDone: () => Promise<unknown> }) {
   const toast = useToast()
   const [papel, setPapel] = useState<Papel>(m.role)
-  const [pin, setPin] = useState('')
   const [busy, setBusy] = useState(false)
   const run = async (fn: () => Promise<string>, fechar = true) => {
     setBusy(true)
     try { toast(await fn()); await onDone(); if (fechar) onClose() } catch (e) { toast((e as Error).message) } finally { setBusy(false) }
   }
   const salvarPapel = () => run(async () => { await rpc('update_member', { p_member_id: m.id, p_role: papel }); return `${m.display_name} agora é ${PAPEL[papel][0].toLowerCase()}` })
-  const salvarPin = () => run(async () => { await rpc('set_member_pin', { p_member_id: m.id, p_pin: pin }); setPin(''); return 'PIN trocado' }, false)
   const ativar = () => run(async () => {
     if (!m.active) { await rpc('update_member', { p_member_id: m.id, p_active: true }); return `${m.display_name} reativado` }
-    // Quem tem login sai de todos os aparelhos na hora (Edge Function); quem só tem PIN, só no banco.
+    // Quem tem login sai de todos os aparelhos na hora (Edge Function); quem é só do caixa, só no banco.
     if (m.user_id) await funcao('members/deactivate', { member_id: m.id })
     else await rpc('update_member', { p_member_id: m.id, p_active: false })
     return `${m.display_name} desativado`
@@ -255,13 +252,6 @@ function Pessoa({ m, dono, onClose, onDone }: { m: Membro; dono: boolean; onClos
         <span className="text-sm font-bold text-[#C4C4C9]">Função</span>
         <PapelChips value={papel} onChange={setPapel} dono={dono} />
         {papel !== m.role && <button onClick={salvarPapel} disabled={busy} className={bigBtn}>Salvar função</button>}
-      </div>
-      <div className="flex flex-col gap-2">
-        <span className="text-sm font-bold text-[#C4C4C9]">PIN do caixa</span>
-        <div className="flex gap-2">
-          <input value={pin} onChange={(e) => setPin(e.target.value.replace(/\D/g, '').slice(0, 4))} inputMode="numeric" placeholder="Novo PIN" className={`${campo} flex-1 min-w-0 num tracking-[.3em] font-bold`} />
-          <button onClick={salvarPin} disabled={busy || pin.length !== 4} className="h-[52px] px-4 rounded-[3px_10px_2px_9px] border border-line-2 bg-surface-2 text-[15px] font-extrabold cursor-pointer disabled:opacity-50 flex-none">Trocar PIN</button>
-        </div>
       </div>
       {m.user_id && (
         <button onClick={novaSenha} disabled={busy} className="h-12 rounded-[3px_10px_2px_9px] border border-line-2 bg-transparent text-[15px] font-bold cursor-pointer">Gerar nova senha provisória</button>

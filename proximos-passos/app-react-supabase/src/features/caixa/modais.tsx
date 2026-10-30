@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import qrcode from 'qrcode-generator'
-import { AppError, rpc } from '@/lib/supabase'
+import { rpc } from '@/lib/supabase'
 import { useAuth } from '@/lib/auth'
 import { brlc, centavos, parseBRL } from '@/lib/format'
 import { brCode, type PixConfig } from '@/lib/pix'
@@ -8,7 +8,7 @@ import { Icon, type IconName } from '@/components/icon'
 import { Sheet, bigBtn, chipBtn, moneyInput } from '@/components/sheet'
 import { useToast } from '@/components/toast'
 import { imprimirCupom } from './cupom'
-import { useOperadores, type Operador } from './dados'
+import type { Operador } from './dados'
 
 const label = 'text-sm font-bold text-[#C4C4C9]'
 
@@ -158,21 +158,19 @@ export function Cobrar({ op, total, itens, desconto, pix, requestId, pedido, com
   const [recebido, setRecebido] = useState('')
   const [busy, setBusy] = useState(false)
   const [fiado, setFiado] = useState<FiadoEscolha | null>(null)
-  const [pedirSenha, setPedirSenha] = useState(false)
   const toast = useToast()
   const rec = centavos(recebido)
   const troco = rec - total
   const codigoPix = useMemo(() => pix ? brCode(pix, total, requestId) : null, [pix, total, requestId])
   const notas = [...new Set([total, ...[1000, 2000, 5000, 10000, 20000].map((n) => Math.ceil(total / n) * n)])].filter((v) => v >= total).slice(0, 5)
 
-  const confirmar = async (overrideToken?: string) => {
+  const confirmar = async () => {
     if (metodo === 'cash' && recebido.trim() && rec < total) return toast('O valor recebido é menor que o total')
     if (metodo === 'fiado' && !fiado) return toast('Diga para quem é o fiado')
     setBusy(true)
     try {
       const p = {
         operator_session_id: op.sessionId, client_request_id: requestId, discount: desconto,
-        ...(overrideToken ? { override_token: overrideToken } : {}),
         ...(metodo === 'fiado' && fiado ? { fiado: 'id' in fiado ? { fiado_account_id: fiado.id } : { name: fiado.name, phone: fiado.phone } } : {}),
         ...(pedido || comanda ? {} : { items: itens.map((i) => i.kind === 'product' ? { product_id: i.id, quantity: i.qty } : { bundle_id: i.id, quantity: i.qty }) }),
         payments: [{ method: metodo, amount: metodo === 'cash' && recebido.trim() ? rec : total }],
@@ -183,8 +181,7 @@ export function Cobrar({ op, total, itens, desconto, pix, requestId, pedido, com
       onDone({ ...v, metodo: metodo === 'fiado' && fiado ? `Fiado de ${fiado.name.split(' ')[0]}` : METODOS.find((m) => m[0] === metodo)![1] })
     } catch (e) {
       setBusy(false)
-      // Desconto acima do limite do papel: pede o PIN de quem pode liberar e tenta de novo.
-      if (e instanceof AppError && e.code === 'SALE_DISCOUNT_FORBIDDEN') return setPedirSenha(true)
+      // Desconto acima do limite da função: a mensagem diz o limite; vende quem tem limite maior.
       toast((e as Error).message)
     }
   }
@@ -234,7 +231,6 @@ export function Cobrar({ op, total, itens, desconto, pix, requestId, pedido, com
         {(metodo === 'credit' || metodo === 'debit') && <div className="p-4 rounded-[3px_11px_4px_10px] bg-surface-2 text-sm text-[#C4C4C9] leading-normal">Passe o cartão na maquininha e confirme aqui quando aprovar.</div>}
         <button type="submit" hidden />
       </form>
-      {pedirSenha && <Liberar subtotal={total + desconto} desconto={desconto} onClose={() => setPedirSenha(false)} onToken={(t) => { setPedirSenha(false); void confirmar(t) }} />}
     </Sheet>
   )
 }
@@ -290,34 +286,6 @@ function FiadoPara({ escolha, onEscolha }: { escolha: FiadoEscolha | null; onEsc
         </div>
       )}
     </div>
-  )
-}
-
-// Desconto acima do limite: quem tem limite maior digita o PIN e libera só esta venda (token de 2 min, D05).
-function Liberar({ subtotal, desconto, onClose, onToken }: { subtotal: number; desconto: number; onClose: () => void; onToken: (t: string) => void }) {
-  const { storeId } = useAuth()
-  const { data: membros } = useOperadores(storeId)
-  const [quem, setQuem] = useState<string | null>(null)
-  const [pin, setPin] = useState('')
-  const [busy, setBusy] = useState(false)
-  const toast = useToast()
-  const pct = Math.round((desconto * 10000) / subtotal) / 100
-  const podem = (membros ?? []).filter((m) => m.role === 'owner' || m.role === 'manager')
-  const liberar = async () => {
-    if (!quem || pin.length !== 4) return
-    setBusy(true)
-    try {
-      const r = await rpc<{ override_token: string }>('authorize_override', { p_member_id: quem, p_pin: pin, p_action: 'discount', p_value: pct })
-      onToken(r.override_token)
-    } catch (e) { toast((e as Error).message); setPin(''); setBusy(false) }
-  }
-  return (
-    <Sheet title="Liberar desconto" onClose={onClose} footer={<button onClick={liberar} disabled={busy || !quem || pin.length !== 4} className={bigBtn}>{busy ? 'Conferindo…' : 'Liberar e cobrar'}</button>}>
-      <div className="text-sm text-[#C4C4C9]">{brlc(desconto)} de desconto ({String(pct).replace('.', ',')}%) passa do seu limite. Peça para o gerente ou o dono digitar o PIN.</div>
-      <div className="flex flex-wrap gap-2">{podem.map((m) => <button key={m.id} type="button" onClick={() => setQuem(m.id)} className={chipBtn(quem === m.id)}>{m.display_name}</button>)}</div>
-      {quem && <input value={pin} onChange={(e) => setPin(e.target.value.replace(/\D/g, '').slice(0, 4))} type="password" inputMode="numeric" autoFocus placeholder="PIN"
-        onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); void liberar() } }} className={`${moneyInput} tracking-[.5em] text-center`} />}
-    </Sheet>
   )
 }
 

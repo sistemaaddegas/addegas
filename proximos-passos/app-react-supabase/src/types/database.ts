@@ -1209,9 +1209,6 @@ isOneToOne: false
 "attach_ticket_file":
 { Args: { "p_name"?: string,"p_path": string,"p_ticket_id": string }; Returns: Json
                            },
-"authorize_override":
-{ Args: { "p_action": string,"p_member_id": string,"p_pin": string,"p_value": number }; Returns: Json
-                           },
 "bills_list":
 { Args: { "p_only_open"?: boolean,"p_store_id": string }; Returns: Json
                            },
@@ -1242,6 +1239,9 @@ isOneToOne: false
 "courier_update":
 { Args: { "p_order_id": string,"p_status": string }; Returns: Json
                            },
+"create_counter_member":
+{ Args: { "p_display_name": string,"p_role": Database["app"]['Enums']["member_role"],"p_store_id": string }; Returns: Json
+                           },
 "create_fiado_account":
 { Args: { "p_credit_limit"?: number,"p_name": string,"p_phone": string,"p_promised_date"?: string,"p_store_id": string }; Returns: Json
                            },
@@ -1250,9 +1250,6 @@ isOneToOne: false
                            },
 "create_pairing_code":
 { Args: { "p_store_id": string,"p_terminal_name": string }; Returns: Json
-                           },
-"create_pin_member":
-{ Args: { "p_display_name": string,"p_pin": string,"p_role": Database["app"]['Enums']["member_role"],"p_store_id": string }; Returns: Json
                            },
 "create_store":
 { Args: { "p_account_id": string,"p_city"?: string,"p_name": string,"p_neighborhood"?: string,"p_whatsapp"?: string }; Returns: Json
@@ -1315,7 +1312,7 @@ isOneToOne: false
 { Args: { "p_account_id": string,"p_correlation_ids"?: (string)[],"p_description": string,"p_kind": string,"p_store_id": string,"p_subject": string,"p_urgency"?: string }; Returns: Json
                            },
 "operator_login":
-{ Args: { "p_member_id": string,"p_pin": string }; Returns: Json
+{ Args: { "p_member_id": string }; Returns: Json
                            },
 "operator_logout":
 { Args: Record<PropertyKey, never>; Returns: Json
@@ -1403,9 +1400,6 @@ isOneToOne: false
                            },
 "set_marketing_consent":
 { Args: { "p_account_id": string,"p_channel": string,"p_granted": boolean }; Returns: Json
-                           },
-"set_member_pin":
-{ Args: { "p_member_id": string,"p_pin": string }; Returns: Json
                            },
 "set_order_status":
 { Args: { "p_operator_session_id"?: string,"p_order_id": string,"p_reason"?: string,"p_status": string }; Returns: Json

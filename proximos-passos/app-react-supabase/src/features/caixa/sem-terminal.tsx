@@ -11,7 +11,7 @@ const card = 'p-5 rounded-[4px_13px_5px_11px] bg-surface border border-line flex
 const input = 'h-[52px] px-3.5 rounded-[3px_10px_2px_9px] bg-surface-2 border border-line-2 text-base w-full outline-none focus:border-brand'
 
 /**
- * O caixa só funciona num aparelho registrado (E09): quem vende entra com PIN, sem e-mail nem senha.
+ * O caixa só funciona num aparelho registrado (E09): quem vende toca no próprio nome, sem e-mail nem senha.
  * Dono e gerente registram o aparelho aqui mesmo, ou geram o código para digitar em outro.
  */
 export function SemTerminal() {
@@ -53,7 +53,7 @@ export function SemTerminal() {
         <div>
           <div className="text-[22px] font-black" style={{ fontStretch: '100%' }}>Este aparelho ainda não é um caixa</div>
           <div className="text-[15px] text-[#C4C4C9] mt-1.5 leading-[1.45]">
-            No caixa, cada pessoa entra com o PIN de 4 dígitos, e as vendas ficam registradas no nome dela.
+            No caixa, cada pessoa toca no próprio nome, e as vendas ficam registradas nele.
             {pode ? ' Registre este aparelho como caixa, ou gere um código para registrar outro (tablet do balcão, celular).' : ' Peça ao dono ou ao gerente para registrar este aparelho.'}
           </div>
         </div>
@@ -78,7 +78,7 @@ export function SemTerminal() {
           <div className="text-[17px] font-extrabold">Código para registrar “{nome.trim()}”</div>
           <div className="text-[44px] font-black tracking-[.18em] num text-brand leading-none">{codigo}</div>
           <div className="text-[15px] text-[#C4C4C9] leading-[1.5]">
-            No outro aparelho, abra o Addegas, toque em <b className="text-ink">Entrar no caixa com PIN</b> e informe a loja <b className="text-ink">{loja.slug}</b> e este código. Vale por 10 minutos e só uma vez.
+            No outro aparelho, abra o Addegas, toque em <b className="text-ink">Usar este aparelho como caixa</b> e informe a loja <b className="text-ink">{loja.slug}</b> e este código. Vale por 10 minutos e só uma vez.
           </div>
         </div>
       )}

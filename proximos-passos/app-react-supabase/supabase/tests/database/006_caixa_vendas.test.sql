@@ -1,6 +1,6 @@
 -- E19, E20, E21, E22 e E23.
 begin;
-select plan(50);
+select plan(48);
 
 create temp table k (n text primary key, v uuid);
 grant all on k to authenticated;
@@ -29,7 +29,7 @@ insert into k select 'acc', account_id from app.stores where slug = 'adega-esqui
 insert into k values ('gerente', tests.add_member(pg_temp.k('loja'), 'gerente@x.com', 'manager'));
 insert into k values ('estoq', tests.add_member(pg_temp.k('loja'), 'estoque@x.com', 'stock_keeper'));
 select tests.act_as(pg_temp.k('marcos'));
-insert into k select 'm_bruno', (app.create_pin_member(pg_temp.k('loja'), 'Bruno', 'cashier', '4821') -> 'data' ->> 'member_id')::uuid;
+insert into k select 'm_bruno', (app.create_counter_member(pg_temp.k('loja'), 'Bruno', 'cashier') -> 'data' ->> 'member_id')::uuid;
 insert into k select 'heineken', (app.save_product(pg_temp.k('acc'), '{"name":"Heineken Long Neck","price":1000}') -> 'data' ->> 'product_id')::uuid;
 insert into k select 'gelo', (app.save_product(pg_temp.k('acc'), '{"name":"Gelo 5kg","price":1400}') -> 'data' ->> 'product_id')::uuid;
 select app.receive_goods(pg_temp.k('loja'), jsonb_build_array(
@@ -40,14 +40,12 @@ insert into k select 'balde', (app.save_bundle(pg_temp.k('acc'), jsonb_build_obj
 reset role;
 insert into k select 'm_gerente', tests.member_id(pg_temp.k('loja'), pg_temp.k('gerente'));
 insert into k select 'm_estoq', tests.member_id(pg_temp.k('loja'), pg_temp.k('estoq'));
-select tests.set_pin(pg_temp.k('m_gerente'), '6142');
-select tests.set_pin(pg_temp.k('m_estoq'), '5820');
 insert into k values ('term', tests.new_terminal(pg_temp.k('loja')));
 
 select tests.act_as(pg_temp.k('term'));
-insert into k select 's_estoq', (app.operator_login(pg_temp.k('m_estoq'), '5820') -> 'data' ->> 'operator_session_id')::uuid;
+insert into k select 's_estoq', (app.operator_login(pg_temp.k('m_estoq')) -> 'data' ->> 'operator_session_id')::uuid;
 select is(app.open_cash(pg_temp.k('s_estoq'), 10000) -> 'error' ->> 'code', 'FORBIDDEN', 'estoquista não abre caixa');
-insert into k select 's_bruno', (app.operator_login(pg_temp.k('m_bruno'), '4821') -> 'data' ->> 'operator_session_id')::uuid;
+insert into k select 's_bruno', (app.operator_login(pg_temp.k('m_bruno')) -> 'data' ->> 'operator_session_id')::uuid;
 select is(pg_temp.sale('s_bruno', jsonb_build_array(pg_temp.item('heineken', 1)), jsonb_build_array(pg_temp.pay('cash', 1000))) -> 'error' ->> 'code',
   'SALE_CASH_CLOSED', 'sem caixa aberto não vende');
 
@@ -72,18 +70,12 @@ select is((select count(*)::int from app.sales), 1, 'repetição não criou vend
 select is(pg_temp.stock('heineken'), 38.000, 'estoque baixou 2');
 select tests.act_as(pg_temp.k('term'));
 
--- Desconto (D05, D63): caixa até 5%; acima, PIN de quem tem limite
+-- Desconto (D05, D63): caixa até 5%; acima do limite da função a venda é recusada (vende quem tem limite)
 select is(pg_temp.sale('s_bruno', jsonb_build_array(pg_temp.item('heineken', 2)), jsonb_build_array(pg_temp.pay('pix', 1900)), '{"discount":100}') ->> 'ok',
   'true', 'caixa dá 5%');
 select is(pg_temp.sale('s_bruno', jsonb_build_array(pg_temp.item('heineken', 2)), jsonb_build_array(pg_temp.pay('pix', 1800)), '{"discount":200}') -> 'error' ->> 'code',
   'SALE_DISCOUNT_FORBIDDEN', '10% sem autorização é recusado');
-insert into k select 'ov', (app.authorize_override(pg_temp.k('m_gerente'), '6142', 'discount', 10) -> 'data' ->> 'override_token')::uuid;
-create temp table v2 as select pg_temp.sale('s_bruno', jsonb_build_array(pg_temp.item('heineken', 2)), jsonb_build_array(pg_temp.pay('pix', 1800)),
-  jsonb_build_object('discount', 200, 'override_token', pg_temp.k('ov'))) r;
-select is((select r ->> 'ok' from v2), 'true', 'com o PIN do gerente, 10% passa');
 reset role;
-select is((select discount_authorized_by from app.sales where id = (select (r -> 'data' ->> 'sale_id')::uuid from v2)), pg_temp.k('m_gerente'),
-  'venda guarda quem autorizou');
 select is((select count(*)::int from audit.store_actions where action = 'sale.discount' and outcome = 'denied'), 1, 'tentativa fora da regra auditada');
 select tests.act_as(pg_temp.k('term'));
 
@@ -127,7 +119,7 @@ select is(app.finalize_sale(jsonb_build_object('operator_session_id', pg_temp.k(
   'payments', jsonb_build_array(pg_temp.pay('debit', 4800)))) ->> 'ok', 'true', 'combo vendido');
 reset role;
 select is(pg_temp.stock('gelo'), -7.000, 'estoque do gelo ficou negativo (5 - 1 - 1 - 10 = -7)');
-select is(pg_temp.stock('heineken'), 24.000, 'combo baixou 6 Heineken (40 - 2 - 2 - 2 - 3 - 1 - 6 = 24)');
+select is(pg_temp.stock('heineken'), 26.000, 'combo baixou 6 Heineken (40 - 2 - 2 - 3 - 1 - 6 = 26)');
 select ok((select bool_and(ps.quantity = (select coalesce(sum(m.quantity), 0) from app.stock_movements m
   where m.store_id = ps.store_id and m.product_id = ps.product_id)) from app.product_stock ps), 'saldo = livro-razão depois das vendas');
 
@@ -135,33 +127,33 @@ select ok((select bool_and(ps.quantity = (select coalesce(sum(m.quantity), 0) fr
 select tests.act_as(pg_temp.k('term'));
 select is(app.cancel_sale(pg_temp.k('s_bruno'), (select (r -> 'data' ->> 'sale_id')::uuid from v3), 'cliente desistiu') -> 'error' ->> 'code',
   'FORBIDDEN', 'caixa não cancela');
-insert into k select 's_gerente', (app.operator_login(pg_temp.k('m_gerente'), '6142') -> 'data' ->> 'operator_session_id')::uuid;
+insert into k select 's_gerente', (app.operator_login(pg_temp.k('m_gerente')) -> 'data' ->> 'operator_session_id')::uuid;
 select is(app.cancel_sale(pg_temp.k('s_gerente'), (select (r -> 'data' ->> 'sale_id')::uuid from v3), 'cliente desistiu') -> 'data' ->> 'refund_cash',
   '2400', 'gerente cancela; devolve só a parte em dinheiro (R$ 30 - R$ 6 de troco)');
 select is(app.cancel_sale(pg_temp.k('s_gerente'), (select (r -> 'data' ->> 'sale_id')::uuid from v3), 'de novo') -> 'error' ->> 'code',
   'SALE_ALREADY_CANCELED', 'não cancela duas vezes');
 reset role;
-select is(pg_temp.stock('heineken'), 27.000, 'cancelamento devolveu 3 Heineken');
+select is(pg_temp.stock('heineken'), 29.000, 'cancelamento devolveu 3 Heineken');
 
 -- Comandas (E22, D41, D11)
 select tests.act_as(pg_temp.k('term'));
-insert into k select 's_bruno2', (app.operator_login(pg_temp.k('m_bruno'), '4821') -> 'data' ->> 'operator_session_id')::uuid;
+insert into k select 's_bruno2', (app.operator_login(pg_temp.k('m_bruno')) -> 'data' ->> 'operator_session_id')::uuid;
 insert into k select 'mesa4', (app.open_tab(pg_temp.k('s_bruno2'), 'table', 'Mesa 4') -> 'data' ->> 'tab_id')::uuid;
 select is(app.open_tab(pg_temp.k('s_bruno2'), 'table', 'mesa 4') -> 'error' ->> 'code', 'TAB_ALREADY_OPEN', 'Mesa 4 não abre duas vezes');
 insert into k select 'item_a', (app.add_tab_item(pg_temp.k('s_bruno2'), pg_temp.k('mesa4'), pg_temp.k('heineken'), null, 3) -> 'data' ->> 'tab_item_id')::uuid;
 select app.add_tab_item(pg_temp.k('s_bruno2'), pg_temp.k('mesa4'), pg_temp.k('heineken'), null, 2);
 reset role;
-select is(pg_temp.stock('heineken'), 22.000, 'item lançado na comanda já baixa o estoque (D41)');
+select is(pg_temp.stock('heineken'), 24.000, 'item lançado na comanda já baixa o estoque (D41)');
 select tests.act_as(pg_temp.k('term'));
 select is(app.remove_tab_item(pg_temp.k('s_bruno2'), pg_temp.k('item_a'), 'lançado errado') ->> 'ok', 'true', 'tira item da comanda');
 reset role;
-select is(pg_temp.stock('heineken'), 25.000, 'tirar item devolve o estoque');
+select is(pg_temp.stock('heineken'), 27.000, 'tirar item devolve o estoque');
 select tests.act_as(pg_temp.k('term'));
 select is(app.close_cash(pg_temp.k('s_bruno2'), 0) -> 'error' ->> 'code', 'CASH_OPEN_TABS', 'comanda aberta bloqueia o fechamento (D11)');
 select is(app.close_tab(pg_temp.k('mesa4'), jsonb_build_object('operator_session_id', pg_temp.k('s_bruno2'), 'client_request_id', gen_random_uuid(),
   'payments', jsonb_build_array(pg_temp.pay('cash', 2000)))) -> 'data' ->> 'total', '2000', 'fechar a comanda vira venda com os itens dela');
 reset role;
-select is(pg_temp.stock('heineken'), 25.000, 'fechar a comanda não baixa o estoque de novo');
+select is(pg_temp.stock('heineken'), 27.000, 'fechar a comanda não baixa o estoque de novo');
 select ok((select bool_and(stock_from_tab) from app.sale_items si join app.sales s on s.id = si.sale_id where s.tab_id = pg_temp.k('mesa4')),
   'itens da venda marcados como vindos da comanda');
 

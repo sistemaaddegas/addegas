@@ -3,7 +3,7 @@ import type { Session } from '@supabase/supabase-js'
 import { useQueryClient } from '@tanstack/react-query'
 import { rpc, supabase } from './supabase'
 
-/** Aparelho pareado como caixa (E09): entra com um usuário técnico, e quem opera entra com o PIN. */
+/** Aparelho pareado como caixa (E09): entra com um usuário técnico, e quem opera escolhe o próprio nome. */
 export type Terminal = { id: string; storeId: string; name: string }
 
 type AuthCtx = {

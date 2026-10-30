@@ -10,13 +10,13 @@
 -- Por cima disso entram 13 dias de vendas anteriores, para os relatórios terem o que mostrar.
 --
 -- Acessos (senha de todos: addegas123):
---   marcos@adega.test     dono da Adega Esquina (as duas lojas)         PIN 1937
---   rafa@adega.test       gerente nas duas lojas                        PIN 6142
+--   marcos@adega.test     dono da Adega Esquina (as duas lojas)
+--   rafa@adega.test       gerente nas duas lojas
 --   diego / kaua          entregadores, entram pelo nome de usuário (ver o fim do arquivo)
 --   joana@porto.test      dona da Adega do Porto (outra conta, em carência: serve para testar isolamento)
 --   admin@addegas.com.br  equipe Addegas, perfil mestre (o painel exige cadastrar o 2FA no primeiro acesso)
 --   caio@, lia@, rafael@, nina@addegas.com.br  equipe: financeiro, suporte, comercial e analista
--- Operadores só com PIN, no caixa: Bia Santos 4821 · Léo Moura 7350 · Tati Rocha (estoquista) 5820.
+-- Só no caixa (sem login): Bia Santos · Léo Moura · Tati Rocha (estoquista). No caixa, cada um toca no próprio nome.
 
 begin;
 
@@ -86,11 +86,11 @@ begin
     'payments', jsonb_build_array(jsonb_build_object('method', p_method, 'amount', v_pay))) || p_extra));
 end $$;
 
--- Operador entra com o PIN no aparelho; devolve a sessão de operador.
-create function pg_temp.login(p_terminal text, p_member text, p_pin text) returns uuid language plpgsql as $$
+-- Operador escolhe o próprio nome no aparelho; devolve a sessão de operador.
+create function pg_temp.login(p_terminal text, p_member text) returns uuid language plpgsql as $$
 begin
   perform pg_temp.as_user(pg_temp.k(p_terminal));
-  return (pg_temp.ok('PIN ' || p_member, app.operator_login(pg_temp.k(p_member), p_pin)) ->> 'operator_session_id')::uuid;
+  return (pg_temp.ok('caixa ' || p_member, app.operator_login(pg_temp.k(p_member))) ->> 'operator_session_id')::uuid;
 end $$;
 
 -- Sorteia uma venda de balcão, com o peso de cada produto parecido com o de uma adega de verdade.
@@ -116,12 +116,12 @@ create function pg_temp.random_method() returns text language sql as $$
 $$;
 
 -- Um dia de caixa já fechado: abre, vende n vezes, fecha e leva tudo para a data e o horário do dia.
-create function pg_temp.past_day(p_store text, p_terminal text, p_member text, p_pin text, p_day date, p_n int)
+create function pg_temp.past_day(p_store text, p_terminal text, p_member text, p_day date, p_n int)
 returns void language plpgsql as $$
 declare
   v_s uuid; v_cash uuid; v_expected bigint; v_diff bigint;
 begin
-  v_s := pg_temp.login(p_terminal, p_member, p_pin);
+  v_s := pg_temp.login(p_terminal, p_member);
   v_cash := (pg_temp.ok('abrir caixa', app.open_cash(v_s, 15000)) ->> 'cash_session_id')::uuid;
   for i in 1 .. p_n loop
     perform pg_temp.sell(pg_temp.k(p_store), v_s, pg_temp.random_items(), pg_temp.random_method());
@@ -212,14 +212,11 @@ select pg_temp.put('m_diego', private.attach_login_member(pg_temp.k('marcos'), p
 select pg_temp.put('m_kaua',  private.attach_login_member(pg_temp.k('marcos'), pg_temp.k('loja1'), pg_temp.k('kaua'), 'Kauã Lima', 'courier'));
 
 select pg_temp.as_user(pg_temp.k('marcos'));
-select pg_temp.put('m_bia',  (pg_temp.ok('Bia',  app.create_pin_member(pg_temp.k('loja1'), 'Bia Santos', 'cashier', '4821')) ->> 'member_id')::uuid);
-select pg_temp.put('m_leo',  (pg_temp.ok('Léo',  app.create_pin_member(pg_temp.k('loja1'), 'Léo Moura', 'cashier', '7350')) ->> 'member_id')::uuid);
-select pg_temp.put('m_leo2', (pg_temp.ok('Léo 2', app.create_pin_member(pg_temp.k('loja2'), 'Léo Moura', 'cashier', '7350')) ->> 'member_id')::uuid);
-select pg_temp.put('m_tati', (pg_temp.ok('Tati', app.create_pin_member(pg_temp.k('loja1'), 'Tati Rocha', 'stock_keeper', '5820')) ->> 'member_id')::uuid);
+select pg_temp.put('m_bia',  (pg_temp.ok('Bia',  app.create_counter_member(pg_temp.k('loja1'), 'Bia Santos', 'cashier')) ->> 'member_id')::uuid);
+select pg_temp.put('m_leo',  (pg_temp.ok('Léo',  app.create_counter_member(pg_temp.k('loja1'), 'Léo Moura', 'cashier')) ->> 'member_id')::uuid);
+select pg_temp.put('m_leo2', (pg_temp.ok('Léo 2', app.create_counter_member(pg_temp.k('loja2'), 'Léo Moura', 'cashier')) ->> 'member_id')::uuid);
+select pg_temp.put('m_tati', (pg_temp.ok('Tati', app.create_counter_member(pg_temp.k('loja1'), 'Tati Rocha', 'stock_keeper')) ->> 'member_id')::uuid);
 select pg_temp.put('m_marcos', (select id from app.store_members where store_id = pg_temp.k('loja1') and user_id = pg_temp.k('marcos')));
-select pg_temp.ok('PIN Marcos', app.set_member_pin(pg_temp.k('m_marcos'), '1937'));
-select pg_temp.ok('PIN Rafa',   app.set_member_pin(pg_temp.k('m_rafa'), '6142'));
-select pg_temp.ok('PIN Rafa 2', app.set_member_pin(pg_temp.k('m_rafa2'), '6142'));
 
 -- Aparelhos de caixa já registrados (E09). Para testar o registro, gere um código novo pelo app.
 select pg_temp.put('term1', pg_temp.new_user('terminal-esquina-1@terminals.addegas.invalid', 'Balcão 1', 'terminal'));
@@ -301,14 +298,14 @@ select pg_temp.ok('transferência', app.transfer_stock(pg_temp.k('loja1'), pg_te
 
 -- 13 dias de vendas (E19, E20, E26): sexta e sábado vendem o dobro ------------------------------
 select pg_temp.past_day('loja1', 'term1',
-  (array['m_bia','m_leo','m_bia','m_rafa'])[1 + (d % 4)], (array['4821','7350','4821','6142'])[1 + (d % 4)],
+  (array['m_bia','m_leo','m_bia','m_rafa'])[1 + (d % 4)],
   pg_temp.today() - d, case when extract(dow from pg_temp.today() - d) in (5, 6) then 40 else 20 end)
 from generate_series(13, 1, -1) d;
-select pg_temp.past_day('loja2', 'term2', 'm_leo2', '7350', pg_temp.today() - d, 12)
+select pg_temp.past_day('loja2', 'term2', 'm_leo2', pg_temp.today() - d, 12)
 from generate_series(6, 1, -1) d;
 
 -- Hoje na loja 1: caixa aberto pela Bia há 3 horas ---------------------------------------------
-select pg_temp.put('s_bia', pg_temp.login('term1', 'm_bia', '4821'));
+select pg_temp.put('s_bia', pg_temp.login('term1', 'm_bia'));
 select pg_temp.put('cash1', (pg_temp.ok('abrir caixa hoje', app.open_cash(pg_temp.k('s_bia'), 15000)) ->> 'cash_session_id')::uuid);
 select pg_temp.sell(pg_temp.k('loja1'), pg_temp.k('s_bia'), pg_temp.random_items(), pg_temp.random_method())
 from generate_series(1, 16);
@@ -343,19 +340,19 @@ select pg_temp.ok('item comanda', app.add_tab_item(pg_temp.k('s_bia'), pg_temp.k
 
 -- Sangria, pagamento do entregador e um cancelamento feito pela gerente (E19, E21)
 select pg_temp.ok('pagar entregador', app.cash_movement(pg_temp.k('s_bia'), 'courier_payment', 3000, 'Diego · 3 entregas'));
-select pg_temp.put('s_rafa', pg_temp.login('term1', 'm_rafa', '6142'));
+select pg_temp.put('s_rafa', pg_temp.login('term1', 'm_rafa'));
 select pg_temp.ok('sangria', app.cash_movement(pg_temp.k('s_rafa'), 'withdrawal', 20000, 'Sangria para o cofre'));
 select pg_temp.ok('cancelar', app.cancel_sale(pg_temp.k('s_rafa'),
   (select id from app.sales where cash_session_id = pg_temp.k('cash1') and fiado_account_id is null order by number desc limit 1),
   'Cliente desistiu da compra'));
-select pg_temp.put('s_bia', pg_temp.login('term1', 'm_bia', '4821'));
+select pg_temp.put('s_bia', pg_temp.login('term1', 'm_bia'));
 
 -- Vendas de hoje espalhadas nas últimas 3 horas
 update app.cash_sessions set opened_at = now() - interval '3 hours' where id = pg_temp.k('cash1');
 update app.sales set created_at = now() - random() * interval '170 minutes' where cash_session_id = pg_temp.k('cash1');
 
 -- Hoje na loja 2: caixa aberto pelo Léo
-select pg_temp.put('s_leo2', pg_temp.login('term2', 'm_leo2', '7350'));
+select pg_temp.put('s_leo2', pg_temp.login('term2', 'm_leo2'));
 select pg_temp.ok('abrir caixa loja 2', app.open_cash(pg_temp.k('s_leo2'), 10000));
 select pg_temp.sell(pg_temp.k('loja2'), pg_temp.k('s_leo2'), pg_temp.random_items(), pg_temp.random_method())
 from generate_series(1, 7);

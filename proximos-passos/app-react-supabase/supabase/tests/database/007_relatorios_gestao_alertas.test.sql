@@ -12,7 +12,6 @@ insert into k select 'acc', account_id from app.stores where slug = 'adega-esqui
 insert into k values ('gerente', tests.add_member(pg_temp.k('loja'), 'gerente@x.com', 'manager'));
 insert into k values ('caixa', tests.add_member(pg_temp.k('loja'), 'caixa@x.com', 'cashier'));
 insert into k select 'm_caixa', tests.member_id(pg_temp.k('loja'), pg_temp.k('caixa'));
-select tests.set_pin(pg_temp.k('m_caixa'), '4821');
 select tests.act_as(pg_temp.k('marcos'));
 insert into k select 'jack', (app.save_product(pg_temp.k('acc'), '{"name":"Jack Daniel''s 1L","price":18000,"volume_ml":1000,"min_stock":2}') -> 'data' ->> 'product_id')::uuid;
 insert into k select 'energ', (app.save_product(pg_temp.k('acc'), '{"name":"Energético 250ml","price":1000,"volume_ml":250,"min_stock":0}') -> 'data' ->> 'product_id')::uuid;
@@ -25,7 +24,7 @@ reset role;
 -- Venda pelo terminal para alimentar notinha, Início e relatórios
 insert into k values ('term', tests.new_terminal(pg_temp.k('loja')));
 select tests.act_as(pg_temp.k('term'));
-insert into k select 's', (app.operator_login(pg_temp.k('m_caixa'), '4821') -> 'data' ->> 'operator_session_id')::uuid;
+insert into k select 's', (app.operator_login(pg_temp.k('m_caixa')) -> 'data' ->> 'operator_session_id')::uuid;
 select app.open_cash(pg_temp.k('s'), 5000);
 insert into k select 'venda', (app.finalize_sale(jsonb_build_object('operator_session_id', pg_temp.k('s'), 'client_request_id', gen_random_uuid(),
   'items', jsonb_build_array(jsonb_build_object('product_id', pg_temp.k('jack'), 'quantity', 2)),

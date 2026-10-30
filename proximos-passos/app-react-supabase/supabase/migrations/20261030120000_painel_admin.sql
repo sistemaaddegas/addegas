@@ -1167,7 +1167,8 @@ begin
   if p_aal is distinct from 'aal2' then
     return private.err('MFA_REQUIRED');
   end if;
-  v_last := greatest(v_staff.last_activity_at, least(p_auth_at, now()));
+  -- greatest/least ignoram nulos: sem hora de 2FA no token, vale só a última atividade.
+  v_last := greatest(v_staff.last_activity_at, case when p_auth_at > now() then now() else p_auth_at end);
   if v_last is not null and v_last < now() - interval '30 minutes' then
     update platform.staff set last_activity_at = null where user_id = p_user;
     return private.err('SESSION_IDLE');

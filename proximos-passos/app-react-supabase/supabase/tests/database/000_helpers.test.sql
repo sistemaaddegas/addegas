@@ -52,11 +52,6 @@ begin
   return v_user;
 end $$;
 
-create or replace function tests.set_pin(p_member uuid, p_pin text) returns void language sql set search_path = '' as $$
-  insert into private.member_pins (member_id, pin_hash) values (p_member, extensions.crypt(p_pin, extensions.gen_salt('bf', 4)))
-  on conflict (member_id) do update set pin_hash = excluded.pin_hash;
-$$;
-
 create or replace function tests.member_id(p_store uuid, p_user uuid) returns uuid language sql set search_path = '' as $$
   select id from app.store_members where store_id = p_store and user_id = p_user;
 $$;

@@ -75,7 +75,7 @@ export function Entrar() {
     try {
       const t = await parearAparelho(slug, codigo, qc)
       localStorage.setItem(SLUG_KEY, slug.trim().toLowerCase())
-      toast(`Este aparelho agora é o caixa ${t.name}`) // as rotas levam para o PIN
+      toast(`Este aparelho agora é o caixa ${t.name}`) // as rotas levam para a escolha de quem vai operar
     } catch (err) {
       toast((err as Error).message)
       setBusy(false)
@@ -88,7 +88,7 @@ export function Entrar() {
         <form onSubmit={doPair} className="contents">
           <div className="flex flex-col gap-1.5 mb-1">
             <div className="text-[30px] font-black uppercase leading-none tracking-[-0.01em]" style={{ fontStretch: '100%' }}>Entrar no caixa</div>
-            <div className="text-[15px] text-[#C4C4C9] leading-[1.45]">Uma vez por aparelho: peça ao dono ou ao gerente o código em Caixa, no celular dele. Depois, cada pessoa entra só com o PIN.</div>
+            <div className="text-[15px] text-[#C4C4C9] leading-[1.45]">Uma vez por aparelho: peça ao dono ou ao gerente o código em Caixa, no celular dele. Depois, cada pessoa só toca no próprio nome.</div>
           </div>
           <Field label="Loja" value={slug} onChange={(e) => setSlug(e.target.value)} autoCapitalize="none" spellCheck={false} placeholder="adega-esquina" />
           <Field label="Código de 6 dígitos" value={codigo} onChange={(e) => setCodigo(e.target.value.replace(/\D/g, '').slice(0, 6))} inputMode="numeric" autoComplete="one-time-code" placeholder="000000" />
@@ -108,7 +108,7 @@ export function Entrar() {
           <Field label="Senha" value={senha} onChange={(e) => setSenha(e.target.value)} type="password" autoComplete="current-password" placeholder="••••••••" />
           <button type="submit" disabled={busy} className={`${btnPrimary} mt-1`}>{busy ? 'Entrando…' : 'Entrar'}</button>
           <button type="button" onClick={() => setMode('rec')} className="self-start -mt-1 p-0 bg-transparent text-brand text-sm font-bold cursor-pointer">Esqueci minha senha</button>
-          <button type="button" onClick={() => setMode('pair')} className={btnOutline}>Entrar no caixa com PIN</button>
+          <button type="button" onClick={() => setMode('pair')} className={btnOutline}>Usar este aparelho como caixa</button>
           <div className="flex justify-center gap-1.5 text-sm text-[#C4C4C9] mt-2">
             Ainda não usa?<Link to="/cadastro" className="text-brand font-bold">Cadastrar minha adega</Link>
           </div>

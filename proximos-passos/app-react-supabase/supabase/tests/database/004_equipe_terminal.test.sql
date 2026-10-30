@@ -1,6 +1,6 @@
 -- E07 (banco), E09 e E10.
 begin;
-select plan(32);
+select plan(20);
 
 create function pg_temp.new_user(p_email text, p_kind text default null)
 returns uuid language plpgsql as $$
@@ -40,26 +40,21 @@ insert into ids select 'm_marcos', id from app.store_members where store_id = pg
 
 -- Equipe (E07) ------------------------------------------------------------------------
 select pg_temp.act_as(pg_temp.id('marcos'));
-create temp table rp as select app.create_pin_member(pg_temp.id('loja'), 'Bruno', 'cashier', '4821') as res;
-select is((select res ->> 'ok' from rp), 'true', 'dono cria caixa só com PIN');
-select is(app.create_pin_member(pg_temp.id('loja'), 'Zé', 'cashier', '1234') -> 'error' ->> 'code', 'PIN_WEAK', 'PIN 1234 recusado');
-select is(app.create_pin_member(pg_temp.id('loja'), 'Zé', 'cashier', '7777') -> 'error' ->> 'code', 'PIN_WEAK', 'PIN repetido recusado');
-select is(app.create_pin_member(pg_temp.id('loja'), 'Outro dono', 'owner', '4821') -> 'error' ->> 'code', 'FORBIDDEN', 'ninguém cria outro dono');
-select is(app.set_member_pin(pg_temp.id('m_marcos'), '9301') ->> 'ok', 'true', 'dono define o próprio PIN');
+create temp table rp as select app.create_counter_member(pg_temp.id('loja'), 'Bruno', 'cashier') as res;
+select is((select res ->> 'ok' from rp), 'true', 'dono cria pessoa só do caixa (sem login)');
+select is(app.create_counter_member(pg_temp.id('loja'), 'Outro dono', 'owner') -> 'error' ->> 'code', 'FORBIDDEN', 'ninguém cria outro dono');
 select is(app.set_role_permission(pg_temp.id('loja'), 'manager', 'equipe', true) ->> 'ok', 'true', 'dono libera Gerenciar equipe para o gerente');
 reset role;
 insert into ids values ('m_bruno', (select (res -> 'data' ->> 'member_id')::uuid from rp));
 
 select pg_temp.act_as(pg_temp.id('gerente'));
-select is(app.create_pin_member(pg_temp.id('loja'), 'Gerente 2', 'manager', '4821') -> 'error' ->> 'code', 'FORBIDDEN', 'gerente não cria gerente');
-select is(app.create_pin_member(pg_temp.id('loja'), 'Estoque', 'stock_keeper', '5820') ->> 'ok', 'true', 'com a permissão, gerente cria estoquista');
+select is(app.create_counter_member(pg_temp.id('loja'), 'Gerente 2', 'manager') -> 'error' ->> 'code', 'FORBIDDEN', 'gerente não cria gerente');
+select is(app.create_counter_member(pg_temp.id('loja'), 'Estoque', 'stock_keeper') ->> 'ok', 'true', 'com a permissão, gerente cria estoquista');
 select is(app.update_member(pg_temp.id('m_marcos'), p_active => false) -> 'error' ->> 'code', 'FORBIDDEN', 'gerente não desativa o dono (§4)');
-select is(app.set_member_pin(pg_temp.id('m_gerente'), '6142') ->> 'ok', 'true', 'gerente define o próprio PIN');
-select throws_ok($$ select * from private.member_pins $$, '42501', null, 'hash do PIN inacessível pela API');
 reset role;
 
 select pg_temp.act_as(pg_temp.id('caio'));
-select is(app.create_pin_member(pg_temp.id('loja'), 'X', 'cashier', '4821') -> 'error' ->> 'code', 'FORBIDDEN', 'caixa não mexe na equipe');
+select is(app.create_counter_member(pg_temp.id('loja'), 'X', 'cashier') -> 'error' ->> 'code', 'FORBIDDEN', 'caixa não mexe na equipe');
 select is(app.create_pairing_code(pg_temp.id('loja'), 'Balcão') -> 'error' ->> 'code', 'FORBIDDEN', 'caixa não registra terminal');
 reset role;
 
@@ -79,40 +74,25 @@ select private.bind_terminal_user(pg_temp.id('terminal'), pg_temp.id('u_terminal
 
 select pg_temp.act_as(pg_temp.id('u_terminal'));
 select is((select count(*)::int from app.stores), 1, 'terminal enxerga só a própria loja');
-select ok((select count(*) from app.store_members) >= 4, 'terminal lista os operadores para a tela de PIN');
+select ok((select count(*) from app.store_members) >= 4, 'terminal lista os operadores para quem vai operar');
 select is((select count(*)::int from app.accounts), 0, 'terminal não lê a conta');
 
--- PIN e sessão (E10) --------------------------------------------------------------------
-select is(app.operator_login(pg_temp.id('m_caio'), '0000') -> 'error' ->> 'code', 'PIN_INVALID', 'PIN errado');
-select app.operator_login(pg_temp.id('m_caio'), '0000') from generate_series(1, 4);
-select is(app.operator_login(pg_temp.id('m_caio'), '0000') -> 'error' ->> 'code', 'OPERATOR_PIN_LOCKED', '5 erros travam o operador');
-create temp table s1 as select app.operator_login(pg_temp.id('m_bruno'), '4821') as res;
-select is((select res -> 'data' ->> 'role' from s1), 'cashier', 'Bruno entra com o PIN dele');
+-- Quem vai operar (E10): toca no próprio nome --------------------------------------------------
+select is(app.operator_login(gen_random_uuid()) -> 'error' ->> 'code', 'OPERATOR_INVALID', 'só quem é da loja opera o caixa');
+create temp table s1 as select app.operator_login(pg_temp.id('m_bruno')) as res;
+select is((select res -> 'data' ->> 'role' from s1), 'cashier', 'Bruno entra tocando no próprio nome');
 reset role;
 insert into ids values ('sessao_bruno', (select (res -> 'data' ->> 'operator_session_id')::uuid from s1));
 -- As funções private rodam aqui como postgres, mas com o JWT do terminal ainda valendo.
 select ok(private.operator_can(pg_temp.id('sessao_bruno'), 'vender') and not private.operator_can(pg_temp.id('sessao_bruno'), 'cancelar'),
   'permissões do operador = as do papel dele (caixa vende, não cancela)');
 
--- Autorização de desconto (D05, D63)
-select pg_temp.act_as(pg_temp.id('u_terminal'));
-select is(app.authorize_override(pg_temp.id('m_bruno'), '4821', 'discount', 10) -> 'error' ->> 'code', 'OVERRIDE_LIMIT', 'caixa (5%) não autoriza 10%');
-select is(app.authorize_override(pg_temp.id('m_gerente'), '6142', 'discount', 20) -> 'error' ->> 'code', 'OVERRIDE_LIMIT', 'gerente (15%) não autoriza 20%');
-create temp table ov as select app.authorize_override(pg_temp.id('m_gerente'), '6142', 'discount', 10) as res;
-select is((select res ->> 'ok' from ov), 'true', 'gerente autoriza 10%');
-select is(app.authorize_override(pg_temp.id('m_marcos'), '9301', 'discount', 40) ->> 'ok', 'true', 'dono autoriza qualquer desconto');
-reset role;
-select is(private.consume_override((select (res -> 'data' ->> 'override_token')::uuid from ov), pg_temp.id('loja'), 10),
-  pg_temp.id('m_gerente'), 'token consumido devolve quem autorizou');
-select is(private.consume_override((select (res -> 'data' ->> 'override_token')::uuid from ov), pg_temp.id('loja'), 10),
-  null, 'token é de uso único');
-
 -- Revogação ----------------------------------------------------------------------------
 select pg_temp.act_as(pg_temp.id('gerente'));
 select is(app.revoke_terminal(pg_temp.id('terminal')) ->> 'ok', 'true', 'gerente revoga o terminal');
 reset role;
 select pg_temp.act_as(pg_temp.id('u_terminal'));
-select is(app.operator_login(pg_temp.id('m_bruno'), '4821') -> 'error' ->> 'code', 'TERMINAL_REQUIRED',
+select is(app.operator_login(pg_temp.id('m_bruno')) -> 'error' ->> 'code', 'TERMINAL_REQUIRED',
   'terminal revogado é recusado na hora, mesmo com o token ainda válido');
 reset role;
 

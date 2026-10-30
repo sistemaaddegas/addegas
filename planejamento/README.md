@@ -15,7 +15,7 @@ Este plano quebra a arquitetura em entregas pequenas, cada uma testável sozinha
 | [runbook-producao.md](runbook-producao.md) | O que fazer quando algo cai, ações manuais na conta de uma adega, backup e restauração (E52) |
 
 ## Andamento
-Situação em 28/10/2026, branch `entregas-backend`. "Back-end pronto" quer dizer banco, regras, RPCs, Edge Functions e testes rodando no Supabase local; as **telas** de cada entrega entram no porte do front (D24). O porte começou em 29/10 e todas as telas do menu do dono já usam o back-end: cadastro em 3 passos, login, Início, Caixa, Pedidos, Estoque, Combos, Clientes e fiado, Compras e contas, Relatórios, Lucro no Copo, Anotações, Equipe, WhatsApp e Ajustes (tabela abaixo). O caixa também já vende fiado, libera desconto acima do limite com o PIN do gerente, recebe pedidos e trabalha com mesas e comandas; a tela de assinatura e o aviso de teste, carência e suspensão estão prontos. Em 30/10 os menus foram revisados contra o `Addegas.dc.html`: cabeçalho (troca de loja, caixa, ticket, sino de alertas), Meu perfil, Registrar ticket, Contas a pagar como menu próprio, Excluir promoção, Novo cliente, pedido de compra aos fornecedores, preparo do copo, cupom, cancelamento, sangria e renomear ou apagar mesa. Em 30/10 também entrou o painel da equipe Addegas (etapa 12, `/admin/` no local): login com 2FA obrigatório, as 16 telas do `Addegas Admin.dc.html` ligadas ao banco pela admin-api e filtradas pelo perfil. Ainda falta o modo sem internet no caixa.
+Situação em 28/10/2026, branch `entregas-backend`. "Back-end pronto" quer dizer banco, regras, RPCs, Edge Functions e testes rodando no Supabase local; as **telas** de cada entrega entram no porte do front (D24). O porte começou em 29/10 e todas as telas do menu do dono já usam o back-end: cadastro em 3 passos, login, Início, Caixa, Pedidos, Estoque, Combos, Clientes e fiado, Compras e contas, Relatórios, Lucro no Copo, Anotações, Equipe, WhatsApp e Ajustes (tabela abaixo). O caixa também já vende fiado, recebe pedidos e trabalha com mesas e comandas; a tela de assinatura e o aviso de teste, carência e suspensão estão prontos. Em 30/10 os menus foram revisados contra o `Addegas.dc.html`: cabeçalho (troca de loja, caixa, ticket, sino de alertas), Meu perfil, Registrar ticket, Contas a pagar como menu próprio, Excluir promoção, Novo cliente, pedido de compra aos fornecedores, preparo do copo, cupom, cancelamento, sangria e renomear ou apagar mesa. Em 30/10 também entrou o painel da equipe Addegas (etapa 12, `/admin/` no local): login com 2FA obrigatório, as 16 telas do `Addegas Admin.dc.html` ligadas ao banco pela admin-api e filtradas pelo perfil. Ainda falta o modo sem internet no caixa.
 
 Verificação: 296 testes pgTAP, advisors sem aviso, 1000 vendas em paralelo sem conflito, fluxo ponta a ponta das funções 26/26, `check:erros` com 153 códigos traduzidos, typecheck e build do app.
 
@@ -103,7 +103,7 @@ O `index.html` publicado continua sendo a referência visual. Cada tela do app n
 | --- | --- | --- |
 | 1 ✅ | Login (e-mail ou usuário), troca de senha no primeiro acesso | E06, E07 |
 | 2 ✅ | Cadastro em 3 passos (onboarding) | E06, E16 |
-| 3 ✅ | Caixa: PIN, abertura, venda, Pix com QR, fechamento | E09, E10, E19, E20 |
+| 3 ✅ | Caixa: quem opera (toca no nome, sem PIN desde 30/10), abertura, venda, Pix com QR, fechamento | E09, E10, E19, E20 |
 | 4 ✅ | Início em tempo real | E25, E26 |
 | 5 ✅ | Estoque, produtos e preços por loja | E16, E17 |
 | 6 ✅ | Mesas e comandas, fiado | E22, E23 |

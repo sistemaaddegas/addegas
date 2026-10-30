@@ -18,6 +18,11 @@ for (const f of walk(path.join(root, 'supabase/functions')).filter((f) => f.ends
   for (const m of readFileSync(f, 'utf8').matchAll(/(?:fail\(req, cid, |code: )"([A-Z][A-Z0-9_]+)"/g)) codes.add(m[1])
 }
 
+// Códigos de funções que já saíram do banco: continuam no texto das migrations antigas, mas nenhuma tela os recebe.
+// (O PIN do caixa e a liberação de desconto por PIN saíram em 20261030130000_sem_pin.sql.)
+const APOSENTADOS = new Set(['PIN_WEAK', 'PIN_INVALID', 'OPERATOR_PIN_LOCKED', 'TERMINAL_PIN_LOCKED', 'SALE_OVERRIDE_INVALID', 'OVERRIDE_LIMIT', 'OVERRIDE_ACTION_UNKNOWN'])
+for (const c of APOSENTADOS) codes.delete(c)
+
 const known = new Set([...readFileSync(path.join(root, 'src/lib/erros.ts'), 'utf8').matchAll(/^\s+([A-Z][A-Z0-9_]+):/gm)].map((m) => m[1]))
 const missing = [...codes].filter((c) => !known.has(c)).sort()
 if (missing.length) {

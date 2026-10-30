@@ -18,7 +18,6 @@ insert into k values ('moto2', tests.add_member(pg_temp.k('loja'), 'moto2@x.com'
 insert into k select 'm_moto', tests.member_id(pg_temp.k('loja'), pg_temp.k('moto'));
 insert into k values ('caixa', tests.add_member(pg_temp.k('loja'), 'caixa@x.com', 'cashier'));
 insert into k select 'm_caixa', tests.member_id(pg_temp.k('loja'), pg_temp.k('caixa'));
-select tests.set_pin(pg_temp.k('m_caixa'), '4821');
 select tests.act_as(pg_temp.k('marcos'));
 insert into k select 'gin', (app.save_product(pg_temp.k('acc'), '{"name":"Gin Tanqueray","price":15000}') -> 'data' ->> 'product_id')::uuid;
 select app.receive_goods(pg_temp.k('loja'), jsonb_build_array(jsonb_build_object('product_id', pg_temp.k('gin'), 'quantity', 10, 'unit_cost', 9000)));
@@ -58,7 +57,7 @@ reset role;
 -- Concluir no caixa: vira venda com a taxa, sem baixar estoque de novo
 insert into k values ('term', tests.new_terminal(pg_temp.k('loja')));
 select tests.act_as(pg_temp.k('term'));
-insert into k select 's', (app.operator_login(pg_temp.k('m_caixa'), '4821') -> 'data' ->> 'operator_session_id')::uuid;
+insert into k select 's', (app.operator_login(pg_temp.k('m_caixa')) -> 'data' ->> 'operator_session_id')::uuid;
 select app.open_cash(pg_temp.k('s'), 0);
 create temp table vc as select app.complete_order(pg_temp.k('pedido'), jsonb_build_object('operator_session_id', pg_temp.k('s'),
   'client_request_id', gen_random_uuid(), 'payments', jsonb_build_array(jsonb_build_object('method', 'cash', 'amount', 15800)))) r;

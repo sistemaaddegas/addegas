@@ -35,7 +35,7 @@ Como achar, na conta da Vercel dona de `addegas.com.br`:
 | D02 | Lojas por conta | Plano inclui 1 loja; **cada loja extra é um adicional pago** (valor em D54). | E08, E32, E34 |
 | D03 | Planos no design | **Um plano único + adicional de loja.** Pedido de mudança no design do admin e da ficha da adega. | E00, E32 |
 | D04 | Permissões | Lista proposta na E12 (as 10 do front + pedidos, clientes, receber fiado, compras, sangria, ferramentas, ajustes, exportar). | E12 |
-| D05 | Desconto | Limite em % por função, configurável; acima do limite, o gerente autoriza com o PIN dele. | E10, E20 |
+| D05 | Desconto | Limite em % por função, configurável; acima do limite, faz a venda quem tem limite maior (a liberação por PIN saiu em 30/10/2026). | E10, E20 |
 | D06 | Estoque negativo | Permitido, com aviso no caixa e relatório "vendido sem estoque"; a loja pode escolher bloquear. | E17, E20, E31 |
 | D07 | Lotes | Só para validade e alertas; consumo estimado pelo lote mais antigo (FEFO). | E17 |
 | D08 | Custo | Custo médio ponderado; último custo fica no movimento. | E17, E26, E30 |
@@ -43,7 +43,7 @@ Como achar, na conta da Vercel dona de `addegas.com.br`:
 | D10 | Cancelamento | Só cancelamento total; até o fechamento do caixa, quem tem `cancelar`; depois, só dono ou gerente, com estorno saindo do caixa aberto. | E21 |
 | D11 | Caixa | Uma sessão por terminal (gaveta), troca de operador dentro dela. **Fechar o caixa com comanda aberta é bloqueado.** | E19, E22 |
 | D12 | Dia comercial | Horário de corte por conta (padrão 05:00) e `business_date` gravado. | E26 |
-| D13 | PIN | 4 dígitos, com trava por operador e por terminal. | E10 |
+| D13 | ~~PIN~~ (revogada em 30/10/2026) | Sem PIN no sistema: no caixa a pessoa toca no próprio nome; sem travas por tentativa. | E10 |
 | D14 | Sem internet | Só online na v1, com idempotência, mais uma tela de contingência simples. | E20 |
 | D15 | Pix no caixa | Só registrar a forma, **com QR estático da chave Pix da loja na tela do caixa** (como funciona: logo abaixo da tabela). | E20, E31 |
 | D16 | Fiado | **Sem juros e sem WhatsApp.** | E23, E45 |
@@ -94,7 +94,7 @@ Como achar, na conta da Vercel dona de `addegas.com.br`:
 | D57 | Plano da Vercel | Continua no plano gratuito; assunto encerrado. | E02, E52 |
 | D61 | E-mail de recebimento | Configurado depois por você; a estrutura (endereços, registros 7 e 8, variáveis) está pronta em [dominio-e-email.md](dominio-e-email.md). | E35, minutas |
 | D62 | App | **PWA**, sem loja de aplicativos, no padrão do NEXUM-PRO (manifest, service worker, convite de instalação, tutorial do iPhone, telas de abertura), mais a casca offline para o modo contingência e a atualização que não derruba o caixa. | E54, E53 |
-| D63 | Papéis e permissões | O sistema adota a landing: 5 papéis (com **estoquista**), desconto dono livre / gerente 15% / caixa 5%, autorização pelo PIN de quem tiver limite, permissão nova `ver_lucro` (gerente vê vendas, não margem). | E12, E10, E00, E53 |
+| D63 | Papéis e permissões | O sistema adota a landing: 5 papéis (com **estoquista**), desconto dono livre / gerente 15% / caixa 5%, acima do limite vende quem tiver limite (sem PIN desde 30/10/2026), permissão nova `ver_lucro` (gerente vê vendas, não margem). | E12, E10, E00, E53 |
 | D55b | Limite de fiado | Opcional por pessoa, desligado por padrão. | E23 |
 
 ### Como funciona o QR do Pix no caixa (D15)
@@ -109,7 +109,7 @@ Limite: **não existe confirmação automática.** O QR é estático, e confirma
 - O dono (ou quem tem "Gerenciar equipe") cadastra a pessoa com nome, função e **e-mail ou nome de usuário** (ex.: `joao.esquina`), e define uma senha provisória.
 - Com e-mail, o sistema manda o login por e-mail (domínio já existe, D56). Sem e-mail, a tela mostra usuário e senha para o dono repassar.
 - No primeiro acesso, a pessoa troca a senha. Quem não tem e-mail não consegue recuperar a senha sozinho: o dono redefine.
-- Caixa que só opera no tablet do balcão nem precisa desse login: entra pelo PIN no terminal (E10).
+- Caixa que só opera no tablet do balcão nem precisa desse login: entra tocando no próprio nome no terminal (E10).
 
 ### Retenção e LGPD (D25)
 A LGPD **não fixa um prazo** em dias. A regra é eliminar os dados quando a finalidade termina (arts. 15 e 16), com exceções para guardar o que a lei exige. Por isso o "mínimo da LGPD" é "assim que não houver mais motivo", e os 6 meses que você pensou funcionam bem como janela para a adega voltar ou pedir os dados. Ficou assim:

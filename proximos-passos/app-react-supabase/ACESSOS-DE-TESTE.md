@@ -22,14 +22,14 @@ O `npm run db:reset` recria os acessos do seed; os criados durante os testes som
 
 Senha de todos do seed: **`addegas123`**
 
-| Login | Quem é | Loja | PIN do caixa |
-|---|---|---|---|
-| `marcos@adega.test` | Marcos Silva, dono | Adega Esquina e Adega Esquina 2 | 1937 |
-| `rafa@adega.test` | Rafa Costa, gerente | Adega Esquina e Adega Esquina 2 | 6142 |
-| `diego@adega-esquina` | Diego Alves, entregador | Adega Esquina | — |
-| `kaua@adega-esquina` | Kauã Lima, entregador | Adega Esquina | — |
-| `joana@porto.test` | Joana Prado, dona de outra conta (em carência) | Adega do Porto | — |
-| `admin@addegas.com.br` | Equipe Addegas, perfil master | — | — |
+| Login | Quem é | Loja |
+|---|---|---|
+| `marcos@adega.test` | Marcos Silva, dono | Adega Esquina e Adega Esquina 2 |
+| `rafa@adega.test` | Rafa Costa, gerente | Adega Esquina e Adega Esquina 2 |
+| `diego@adega-esquina` | Diego Alves, entregador | Adega Esquina |
+| `kaua@adega-esquina` | Kauã Lima, entregador | Adega Esquina |
+| `joana@porto.test` | Joana Prado, dona de outra conta (em carência) | Adega do Porto |
+| `admin@addegas.com.br` | Equipe Addegas, perfil master | — |
 
 - Entregador e funcionário com usuário entram como `usuario@slug-da-loja`.
 - Joana serve para testar isolamento: ela não pode ver nada da Adega Esquina.
@@ -65,18 +65,20 @@ Dados de teste do painel que ficaram no banco: lead "Adega Teste Painel", produt
 funil "Caixa do dia", melhoria "Melhoria criada no teste", desconto de R$ 20 para a Adega do Porto, acesso temporário da
 Adega do Porto por 3 dias e o alerta "Latência alta da API" ligado.
 
-## Caixa: operadores com PIN
+## Caixa: quem opera
 
-No aparelho de caixa, o operador escolhe o nome e digita o PIN.
+No aparelho de caixa, a pessoa toca no próprio nome e já entra; as vendas ficam no nome dela.
 
-| Operador | Função | Loja | PIN |
-|---|---|---|---|
-| Marcos Silva | dono | Adega Esquina | 1937 |
-| Rafa Costa | gerente | Adega Esquina e Adega Esquina 2 | 6142 |
-| Bia Santos | caixa | Adega Esquina | 4821 |
-| Léo Moura | caixa | Adega Esquina e Adega Esquina 2 | 7350 |
-| Tati Rocha | estoquista | Adega Esquina | 5820 |
-| Teste Porte | caixa (criado em teste) | Adega Esquina | 3851 |
+| Operador | Função | Loja |
+|---|---|---|
+| Marcos Silva | dono | Adega Esquina |
+| Rafa Costa | gerente | Adega Esquina e Adega Esquina 2 |
+| Bia Santos | caixa (só no caixa, sem login) | Adega Esquina |
+| Léo Moura | caixa (só no caixa, sem login) | Adega Esquina e Adega Esquina 2 |
+| Tati Rocha | estoquista (só no caixa, sem login) | Adega Esquina |
+| Teste Porte | caixa (criado em teste) | Adega Esquina |
+
+Desconto: cada função tem um limite (o dono ajusta em Equipe). Acima dele, quem tem limite maior faz a venda.
 
 ### Aparelhos de caixa
 
