@@ -102,6 +102,7 @@ export const MENSAGENS: Record<string, string> = {
   // Comandas e fiado
   TAB_INVALID: 'Informe a mesa ou a comanda.',
   TAB_ALREADY_OPEN: 'Essa mesa ou comanda já está aberta.',
+  TAB_NOT_EMPTY: 'Essa mesa ou comanda tem itens: feche a conta ou tire os itens antes.',
   TAB_NOT_OPEN: 'Essa mesa ou comanda não está aberta.',
   TAB_ITEM_NOT_FOUND: 'Item da comanda não encontrado.',
   TAB_REMOVE_REASON_REQUIRED: 'Informe o motivo para tirar o item.',

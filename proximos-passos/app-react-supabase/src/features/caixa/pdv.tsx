@@ -37,6 +37,17 @@ export function Pdv({ op, onTrocar }: { op: Operador; onTrocar: () => void }) {
   const comanda = comandas?.find((c) => c.id === ticket) ?? null
   const linhasTab = comanda ? linhasDaComanda(comanda) : null
   const busca = useRef<HTMLInputElement>(null)
+  const [nome, setNome] = useState<string | null>(null)
+  const renomear = async () => {
+    if (!comanda || !nome?.trim() || nome.trim() === comanda.label) { setNome(null); return }
+    try { await rpc('rename_tab', { p_operator_session_id: op.sessionId, p_tab_id: comanda.id, p_label: nome.trim() }); setNome(null); qc.invalidateQueries({ queryKey: ['caixa'] }) }
+    catch (e) { toast((e as Error).message) }
+  }
+  const descartar = async () => {
+    if (!comanda) return
+    try { await rpc('discard_empty_tab', { p_operator_session_id: op.sessionId, p_tab_id: comanda.id }); toast(`${comanda.label} apagada`); setTicket(null); qc.invalidateQueries({ queryKey: ['caixa'] }) }
+    catch (e) { toast((e as Error).message) }
+  }
 
   const porKey = useMemo(() => new Map(cat?.itens.map((p) => [p.key, p])), [cat])
   const linhas = carrinho.map(([k, qty]) => ({ p: porKey.get(k)!, qty })).filter((l) => l.p)
@@ -119,13 +130,25 @@ export function Pdv({ op, onTrocar }: { op: Operador; onTrocar: () => void }) {
     <>
       <div className="flex items-center gap-2.5 pt-4 px-5 pb-3 flex-none">
         <div className="flex-1 min-w-0">
-          <div className="text-[19px] font-extrabold truncate">{comanda ? comanda.label : 'Balcão'}{comanda?.nickname ? <span className="text-[#ADADB4] font-semibold"> · {comanda.nickname}</span> : null}</div>
+          {comanda && nome !== null ? (
+            <div className="flex gap-1.5 items-center">
+              <input value={nome} onChange={(e) => setNome(e.target.value.slice(0, 30))} onKeyDown={(e) => { if (e.key === 'Enter') renomear(); if (e.key === 'Escape') setNome(null) }} autoFocus placeholder="Ex.: Mesa 4 ou Mesa do João"
+                className="flex-1 min-w-0 h-10 px-3 rounded-[2px_8px_3px_7px] bg-surface-2 border border-brand text-base font-bold outline-none" />
+              <button onClick={renomear} className="h-10 px-3 rounded-[2px_8px_3px_7px] bg-brand text-brand-ink text-[13px] font-extrabold cursor-pointer flex-none">Salvar</button>
+            </div>
+          ) : comanda ? (
+            <button onClick={() => setNome(comanda.label)} title="Renomear" className="flex items-center gap-2 max-w-full text-left cursor-pointer">
+              <span className="text-[19px] font-extrabold truncate">{comanda.label}{comanda.nickname ? <span className="text-[#ADADB4] font-semibold"> · {comanda.nickname}</span> : null}</span>
+              <span className="text-[#ADADB4] flex"><Icon name="pen" size={16} /></span>
+            </button>
+          ) : <div className="text-[19px] font-extrabold truncate">Balcão</div>}
           <div className="text-sm text-[#C4C4C9] mt-1">{nItens ? `${nItens} ${nItens === 1 ? 'item' : 'itens'}` : 'Venda vazia'} · {op.name.split(' ')[0]}</div>
         </div>
+        {comanda && !nItens && <button onClick={descartar} title="Apagar a mesa ou comanda vazia" className="h-9 px-3 rounded-[2px_7px_3px_6px] bg-[#FF2D2D] hover:bg-[#E01E1E] text-white text-[13px] font-bold cursor-pointer">Apagar</button>}
         {!comanda && linhas.length > 0 && <button onClick={limpar} className="h-9 px-3 rounded-[2px_7px_3px_6px] bg-[#FF2D2D] hover:bg-[#E01E1E] text-white text-[13px] font-bold cursor-pointer">Limpar</button>}
       </div>
       <BarraComandas comandas={comandas ?? []} atual={comanda?.id ?? null} nBalcao={linhas.reduce((a, l) => a + l.qty, 0)}
-        onEscolher={(id) => { setTicket(id); setDesconto(0) }} onNova={() => aberto ? setModal('comanda') : setModal('abrir')} />
+        onEscolher={(id) => { setTicket(id); setDesconto(0); setNome(null) }} onNova={() => aberto ? setModal('comanda') : setModal('abrir')} />
       <div className="flex-1 min-h-0 overflow-y-auto px-5 py-1 border-t border-line">
         {linhasTab?.map((l) => (
           <div key={l.key} className="flex items-center gap-3 py-3 border-b border-[#1F1F22]">

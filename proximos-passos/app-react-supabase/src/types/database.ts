@@ -1260,6 +1260,9 @@ isOneToOne: false
 "dashboard_today":
 { Args: { "p_store_id": string }; Returns: Json
                            },
+"discard_empty_tab":
+{ Args: { "p_operator_session_id": string,"p_tab_id": string }; Returns: Json
+                           },
 "drink_costs":
 { Args: { "p_account_id": string }; Returns: Json
                            },
@@ -1346,6 +1349,9 @@ isOneToOne: false
                            },
 "remove_tab_item":
 { Args: { "p_operator_session_id": string,"p_reason": string,"p_tab_item_id": string }; Returns: Json
+                           },
+"rename_tab":
+{ Args: { "p_label": string,"p_operator_session_id": string,"p_tab_id": string }; Returns: Json
                            },
 "reply_ticket":
 { Args: { "p_body": string,"p_ticket_id": string }; Returns: Json
