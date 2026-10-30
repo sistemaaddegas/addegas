@@ -20,9 +20,11 @@ const iniciais = (nome: string) => {
 }
 
 export function Lojas() {
-  const { storeId, setStoreId, signOut } = useAuth()
+  const { session, storeId, setStoreId, signOut } = useAuth()
   const navigate = useNavigate()
   const { data: stores, isLoading, error } = useMyStores()
+  // Equipe Addegas não tem adega nem cadastra uma: o lugar dela é o painel interno (admin.).
+  const equipe = session?.user.app_metadata?.kind === 'staff'
 
   const go = (s: MyStore) => { setStoreId(s.store_id, s.slug); navigate('/', { replace: true }) }
 
@@ -35,6 +37,7 @@ export function Lojas() {
       <div className="text-[15px] text-[#C4C4C9] -mt-1.5">
         {isLoading ? 'Carregando suas lojas…'
           : error ? error.message
+          : equipe && !stores?.length ? 'Esta é uma conta da equipe Addegas. Ela entra no painel interno da Addegas, não no sistema da adega, e o painel ainda não está no app novo.'
           : stores?.length ? `Você tem acesso a ${stores.length} ${stores.length === 1 ? 'loja' : 'lojas'}.`
           : 'Você ainda não tem acesso a nenhuma loja. Se é o dono, cadastre sua adega; se trabalha numa, peça ao dono para liberar.'}
       </div>
@@ -52,7 +55,7 @@ export function Lojas() {
           </button>
         )
       })}
-      {stores && !stores.length && !isLoading && (
+      {stores && !stores.length && !isLoading && !equipe && (
         <button onClick={() => navigate('/cadastro')} className="h-[52px] rounded-[3px_11px_4px_10px] bg-brand text-brand-ink text-[15px] font-extrabold cursor-pointer">Cadastrar minha adega</button>
       )}
       {stores?.some((s) => s.role === 'owner') && (
@@ -60,7 +63,7 @@ export function Lojas() {
           <Icon name="plus" />Cadastrar nova loja
         </button>
       )}
-      <button onClick={signOut} className={btnText}>Voltar</button>
+      <button onClick={signOut} className={btnText}>{equipe ? 'Sair' : 'Voltar'}</button>
     </AuthLayout>
   )
 }

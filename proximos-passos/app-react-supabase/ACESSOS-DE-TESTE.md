@@ -32,7 +32,7 @@ Senha de todos do seed: **`addegas123`**
 
 - Entregador e funcionário com usuário entram como `usuario@slug-da-loja`.
 - Joana serve para testar isolamento: ela não pode ver nada da Adega Esquina.
-- O admin ainda não tem 2FA cadastrado; o painel pede o cadastro no primeiro acesso. A tela do Admin no app novo ainda não foi portada.
+- `admin@addegas.com.br` é da equipe Addegas, não de uma adega: no app da adega ele só vê o aviso de que o lugar dele é o painel interno. O painel (etapa 12) ainda não existe no app novo; até lá, use o protótipo do Admin (abaixo). O 2FA será pedido no primeiro acesso ao painel.
 
 ### Criados durante os testes (somem no próximo `db:reset`)
 
