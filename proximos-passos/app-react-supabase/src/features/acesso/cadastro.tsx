@@ -79,9 +79,9 @@ function Passos({ atual }: { atual: number }) {
 }
 
 const PRODUTOS = [
-  ['catalogo', 'Escolher do catálogo Addegas', 'Marque as bebidas que você vende; preço e código de barras já vêm prontos.'],
-  ['planilha', 'Importar minha planilha', 'Mandamos um modelo e a equipe ajuda a subir.'],
-  ['depois', 'Cadastrar depois', 'Comece vazio e cadastre em Estoque.'],
+  ['catalogo', 'Começar com catálogo pronto', 'Bebidas com foto, código de barras e categoria. Você ajusta preço e estoque.'],
+  ['planilha', 'Importar planilha', 'Mandamos um modelo com nome, código, preço e estoque, e a equipe ajuda a subir.'],
+  ['depois', 'Cadastrar depois', 'Começa vazio e você cadastra pelo leitor, produto por produto.'],
 ] as const
 const APPS = ['iFood', 'Zé Delivery', '99Food', 'Keeta']
 
@@ -159,7 +159,7 @@ function Onboarding() {
       )}
       <div className="flex gap-2.5">
         <button onClick={() => (passo > 1 ? setPasso(passo - 1) : dono ? navigate('/lojas') : signOut())} className="h-[58px] px-5 rounded-[3px_11px_4px_10px] border border-line-2 bg-transparent font-bold cursor-pointer">Voltar</button>
-        <button onClick={avancar} disabled={busy} className={`${btnPrimary} flex-1`}>{busy ? 'Criando…' : dono ? 'Criar loja' : passo < 3 ? 'Continuar' : 'Começar a usar'}</button>
+        <button onClick={avancar} disabled={busy} className={`${btnPrimary} flex-1`}>{busy ? 'Criando…' : dono ? 'Criar loja' : passo < 3 ? 'Continuar' : 'Concluir e abrir o sistema'}</button>
       </div>
     </AuthLayout>
   )

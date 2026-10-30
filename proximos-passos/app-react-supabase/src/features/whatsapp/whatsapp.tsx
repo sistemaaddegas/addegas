@@ -82,7 +82,7 @@ export function WhatsApp() {
         </div>
         <div className="flex items-center gap-2.5 h-[52px] pl-4 pr-2 rounded-[3px_10px_2px_9px] bg-surface-2 border border-line-2">
           <span className="flex-1 min-w-0 text-[15px] font-bold truncate">{link}</span>
-          <button onClick={() => navigator.clipboard.writeText(`https://${link}`).then(() => toast('Link copiado'), () => toast('Não deu para copiar'))}
+          <button onClick={() => navigator.clipboard.writeText(`https://${link}`).then(() => toast('Link do catálogo copiado'), () => toast('Não deu para copiar'))}
             className="h-[38px] px-3 rounded-[2px_7px_3px_6px] bg-line-2 text-[13px] font-bold flex items-center gap-1.5 cursor-pointer"><Icon name="copy" size={16} />Copiar</button>
         </div>
         <div className="grid grid-cols-2 gap-2.5">
