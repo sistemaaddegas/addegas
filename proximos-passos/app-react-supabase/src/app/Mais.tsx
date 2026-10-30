@@ -1,48 +1,34 @@
-import { NavLink, useNavigate } from 'react-router'
+import { useNavigate } from 'react-router'
 import { useAuth } from '@/lib/auth'
 import { Icon } from '@/components/icon'
-import { useToast } from '@/components/toast'
-import { useMyStores } from '@/features/acesso/lojas'
-import { NAV } from './routes'
+import { TABS } from './routes'
+import { useMenu } from './AppShell'
 
-const card = 'p-5 rounded-[4px_13px_5px_11px] bg-surface border border-line flex flex-col'
-
-/** Abas que não cabem embaixo, troca de loja e sair (celular; no computador fica no menu lateral). */
+/** O que não cabe nas abas (celular) ou no trilho (tablet), o ticket e sair. No computador fica tudo no menu lateral. */
 export function Mais() {
-  const { storeId, setStoreId, signOut, terminal } = useAuth()
-  const { data: stores } = useMyStores()
+  const { signOut, terminal } = useAuth()
+  const { nav, selos } = useMenu()
   const navigate = useNavigate()
-  const toast = useToast()
+  // Celular: tudo que não está nas abas. Tablet: tudo que não está no trilho.
+  const itens = terminal ? [] : nav.filter((n) => !TABS.some((t) => t.path === n.path))
 
   return (
-    <div className="p-4 tablet:p-8 flex flex-col gap-4 max-w-[640px]">
-      <div className="text-[28px] font-black tracking-[-0.01em]">Mais</div>
-      <nav className={card}>
-        {(terminal ? [] : NAV.filter((n) => !n.tab)).map((n) => (
-          <NavLink key={n.path} to={n.path} className="flex items-center justify-between py-3 border-t first:border-t-0 border-line text-[15px] font-bold">
-            {n.label}<span className="text-[#C4C4C9]"><Icon name="chev" /></span>
-          </NavLink>
+    <div className="p-4 tablet:p-8 flex flex-col gap-3 max-w-[900px] mx-auto w-full">
+      <div className="grid gap-2.5 grid-cols-[repeat(auto-fill,minmax(min(100%,160px),1fr))]">
+        {itens.map((n) => (
+          <button key={n.path} onClick={() => navigate(n.path)}
+            className={`relative flex flex-col items-start justify-between gap-5 h-28 p-4 rounded-[4px_10px_5px_9px] border border-line bg-surface-2 text-[15px] font-bold text-left cursor-pointer active:scale-[.97] ${n.rail ? 'tablet:hidden' : ''}`}>
+            <span className="text-brand"><Icon name={n.icon} size={24} /></span>{n.label}
+            {!!selos[n.path] && <span className="absolute top-3.5 right-3.5 min-w-[22px] h-[22px] px-1.5 rounded-full bg-brand text-brand-ink text-xs font-extrabold flex items-center justify-center">{selos[n.path]}</span>}
+          </button>
         ))}
-      </nav>
-      {stores && stores.length > 1 && (
-        <div className={`${card} gap-2.5`}>
-          <div className="text-[17px] font-extrabold">Lojas</div>
-          {stores.map((s) => {
-            const atual = s.store_id === storeId
-            return (
-              <button key={s.store_id} onClick={() => { setStoreId(s.store_id, s.slug); if (!atual) toast(`Agora em ${s.name}`); navigate('/') }}
-                className={`flex items-center gap-3.5 p-3.5 w-full text-left rounded-[3px_11px_4px_10px] border cursor-pointer ${atual ? 'border-brand bg-[rgba(251,192,9,.08)]' : 'border-line-2 bg-surface-2'}`}>
-                <span className="flex-1 min-w-0">
-                  <span className="block text-[15px] font-bold">{s.name}</span>
-                  <span className="block text-sm text-[#C4C4C9] mt-[3px]">{s.neighborhood ?? s.slug}</span>
-                </span>
-                {atual && <span className="text-brand"><Icon name="check" /></span>}
-              </button>
-            )
-          })}
-        </div>
+      </div>
+      {!terminal && (
+        <button onClick={() => navigate('/suporte')} className="h-[60px] rounded-[4px_13px_5px_11px] bg-brand text-brand-ink text-base font-extrabold flex items-center gap-3 px-[18px] cursor-pointer active:scale-[.97]">
+          <Icon name="help" size={24} /><span className="flex-1 text-left">Registrar ticket</span><span className="text-[13px] font-bold">Problemas e melhorias</span>
+        </button>
       )}
-      <button onClick={signOut} className="h-[46px] rounded-[3px_10px_2px_9px] bg-[#E5241B] hover:bg-[#FF3B30] active:bg-[#B81C15] active:scale-[.97] transition text-white text-[15px] font-extrabold flex items-center justify-center gap-2 cursor-pointer">
+      <button onClick={signOut} className="h-[52px] rounded-[3px_11px_4px_10px] bg-[#E5241B] hover:bg-[#FF3B30] active:bg-[#B81C15] active:scale-[.97] transition text-white text-[15px] font-extrabold flex items-center justify-center gap-2 cursor-pointer">
         <Icon name="logout" />{terminal ? 'Desconectar este caixa' : 'Sair da conta'}
       </button>
     </div>

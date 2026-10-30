@@ -133,14 +133,14 @@ isOneToOne: false
                   ]
                 },"bundles": {
                   Row: {
-                    "account_id": string,"active": boolean,"created_at": string,"end_time": string | null,"ends_at": string | null,"id": string,"image_path": string | null,"kind": string,"name": string,"price": number,"show_in_catalog": boolean,"start_time": string | null,"starts_at": string | null,"updated_at": string,"weekdays": (number)[] | null
+                    "account_id": string,"active": boolean,"archived_at": string | null,"created_at": string,"end_time": string | null,"ends_at": string | null,"id": string,"image_path": string | null,"kind": string,"name": string,"price": number,"show_in_catalog": boolean,"start_time": string | null,"starts_at": string | null,"updated_at": string,"weekdays": (number)[] | null
                   }
                   ComputedFields: never
                   Insert: {
-                    "account_id": string,"active"?: boolean,"created_at"?: string,"end_time"?: string | null,"ends_at"?: string | null,"id"?: string,"image_path"?: string | null,"kind"?: string,"name": string,"price": number,"show_in_catalog"?: boolean,"start_time"?: string | null,"starts_at"?: string | null,"updated_at"?: string,"weekdays"?: (number)[] | null
+                    "account_id": string,"active"?: boolean,"archived_at"?: string | null,"created_at"?: string,"end_time"?: string | null,"ends_at"?: string | null,"id"?: string,"image_path"?: string | null,"kind"?: string,"name": string,"price": number,"show_in_catalog"?: boolean,"start_time"?: string | null,"starts_at"?: string | null,"updated_at"?: string,"weekdays"?: (number)[] | null
                   }
                   Update: {
-                    "account_id"?: string,"active"?: boolean,"created_at"?: string,"end_time"?: string | null,"ends_at"?: string | null,"id"?: string,"image_path"?: string | null,"kind"?: string,"name"?: string,"price"?: number,"show_in_catalog"?: boolean,"start_time"?: string | null,"starts_at"?: string | null,"updated_at"?: string,"weekdays"?: (number)[] | null
+                    "account_id"?: string,"active"?: boolean,"archived_at"?: string | null,"created_at"?: string,"end_time"?: string | null,"ends_at"?: string | null,"id"?: string,"image_path"?: string | null,"kind"?: string,"name"?: string,"price"?: number,"show_in_catalog"?: boolean,"start_time"?: string | null,"starts_at"?: string | null,"updated_at"?: string,"weekdays"?: (number)[] | null
                   }
                   Relationships: [
                     {
@@ -559,14 +559,14 @@ isOneToOne: false
                   ]
                 },"profiles": {
                   Row: {
-                    "created_at": string,"full_name": string | null,"id": string,"last_store_id": string | null,"phone": string | null,"updated_at": string
+                    "avatar": string | null,"created_at": string,"full_name": string | null,"id": string,"last_store_id": string | null,"phone": string | null,"updated_at": string
                   }
                   ComputedFields: never
                   Insert: {
-                    "created_at"?: string,"full_name"?: string | null,"id": string,"last_store_id"?: string | null,"phone"?: string | null,"updated_at"?: string
+                    "avatar"?: string | null,"created_at"?: string,"full_name"?: string | null,"id": string,"last_store_id"?: string | null,"phone"?: string | null,"updated_at"?: string
                   }
                   Update: {
-                    "created_at"?: string,"full_name"?: string | null,"id"?: string,"last_store_id"?: string | null,"phone"?: string | null,"updated_at"?: string
+                    "avatar"?: string | null,"created_at"?: string,"full_name"?: string | null,"id"?: string,"last_store_id"?: string | null,"phone"?: string | null,"updated_at"?: string
                   }
                   Relationships: [
                     {
@@ -1200,8 +1200,14 @@ isOneToOne: false
 "apply_stock_count":
 { Args: { "p_count_id": string }; Returns: Json
                            },
+"archive_bundle":
+{ Args: { "p_account_id": string,"p_bundle_id": string }; Returns: Json
+                           },
 "assign_courier":
 { Args: { "p_member_id": string,"p_order_id": string }; Returns: Json
+                           },
+"attach_ticket_file":
+{ Args: { "p_name"?: string,"p_path": string,"p_ticket_id": string }; Returns: Json
                            },
 "authorize_override":
 { Args: { "p_action": string,"p_member_id": string,"p_pin": string,"p_value": number }; Returns: Json
@@ -1235,6 +1241,9 @@ isOneToOne: false
                            },
 "courier_update":
 { Args: { "p_order_id": string,"p_status": string }; Returns: Json
+                           },
+"create_fiado_account":
+{ Args: { "p_credit_limit"?: number,"p_name": string,"p_phone": string,"p_promised_date"?: string,"p_store_id": string }; Returns: Json
                            },
 "create_order":
 { Args: { "p": Json,"p_store_id": string }; Returns: Json
@@ -1310,6 +1319,9 @@ isOneToOne: false
                            },
 "pay_bill":
 { Args: { "p_bill_id": string,"p_method": string,"p_paid_on"?: string }; Returns: Json
+                           },
+"plan_prices":
+{ Args: Record<PropertyKey, never>; Returns: Json
                            },
 "public_catalog":
 { Args: { "p_slug": string }; Returns: Json

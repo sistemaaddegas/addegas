@@ -31,10 +31,8 @@ async function carregar(storeId: string, userId: string) {
   const dia = dash.business_date
   const semanaPassada = menosDias(dia, 7)
   const agoraSemanaPassada = new Date(Date.now() - 7 * 864e5).toISOString()
-  const hoje = new Date().toISOString().slice(0, 10)
-  const em15 = new Date(Date.now() + 15 * 864e5).toISOString().slice(0, 10)
 
-  const [perfil, membros, caixa, pedidos, fiado, vendidos, semana, produtos, lojaProd, estoque, rapido, combos, lojaCombos, categorias, contas, lotes] = await Promise.all([
+  const [perfil, membros, caixa, pedidos, fiado, vendidos, semana, produtos, lojaProd, estoque, rapido, combos, lojaCombos, categorias] = await Promise.all([
     supabase.from('profiles').select('full_name').eq('id', userId),
     supabase.from('store_members').select('id, display_name, user_id').eq('store_id', storeId),
     supabase.from('cash_sessions').select('opened_by, opened_at').eq('store_id', storeId).eq('status', 'open').order('opened_at'),
@@ -51,8 +49,6 @@ async function carregar(storeId: string, userId: string) {
     supabase.from('bundles').select('id, name, price, image_path').eq('active', true),
     supabase.from('store_bundles').select('bundle_id, price, active').eq('store_id', storeId),
     supabase.from('categories').select('id, color'),
-    supabase.from('bills').select('id, description, amount, due_on').eq('store_id', storeId).is('paid_at', null).lt('due_on', hoje).order('due_on'),
-    supabase.from('stock_lots').select('product_id, code, remaining_qty, expires_on').eq('store_id', storeId).gt('remaining_qty', 0).lte('expires_on', em15).order('expires_on'),
   ])
 
   const nomeMembro = new Map(rows(membros).map((m) => [m.id, m.display_name]))
@@ -92,9 +88,6 @@ async function carregar(storeId: string, userId: string) {
       const it = q.product_id ? prods.get(q.product_id) : q.bundle_id ? bunds.get(q.bundle_id) : undefined
       return it ? { ...it, color: q.color ?? it.color } : null
     }).filter((x): x is Item => !!x),
-    baixo: [...prods.values()].filter((p) => p.min > 0 && p.stock < p.min).sort((a, b) => a.stock / a.min - b.stock / b.min),
-    lotes: rows(lotes).map((l) => ({ ...l, name: prods.get(l.product_id)?.name ?? 'Produto' })),
-    contas: rows(contas),
   }
 }
 

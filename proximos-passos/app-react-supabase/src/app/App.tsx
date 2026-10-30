@@ -20,6 +20,8 @@ import { Clientes } from '@/features/clientes/clientes'
 import { Relatorios } from '@/features/relatorios/relatorios'
 import { Combos } from '@/features/combos/combos'
 import { Compras } from '@/features/compras/compras'
+import { Perfil } from '@/features/perfil/perfil'
+import { Suporte } from '@/features/suporte/suporte'
 import { Anotacoes } from '@/features/anotacoes/anotacoes'
 import { Equipe } from '@/features/equipe/equipe'
 import { AjustesTela } from '@/features/ajustes/ajustes'
@@ -45,8 +47,8 @@ function Gate({ stage }: { stage: Stage }) {
   return stage === 'app' ? <AppShell><Outlet /></AppShell> : <Outlet />
 }
 
-// Telas já portadas; as outras do menu ainda mostram o Placeholder (siga o Addegas.dc.html).
-const TELAS: Record<string, ReactNode> = { '/': <Inicio />, '/caixa': <Caixa />, '/pedidos': <Pedidos />, '/estoque': <Estoque />, '/clientes': <Clientes />, '/relatorios': <Relatorios />, '/combos': <Combos />, '/compras': <Compras />, '/anotacoes': <Anotacoes />, '/equipe': <Equipe />, '/ajustes': <AjustesTela />, '/whatsapp': <WhatsApp />, '/lucro-no-copo': <LucroNoCopo /> }
+// Telas do menu (NAV); um item sem tela aqui mostra o Placeholder.
+const TELAS: Record<string, ReactNode> = { '/': <Inicio />, '/caixa': <Caixa />, '/pedidos': <Pedidos />, '/estoque': <Estoque />, '/clientes': <Clientes />, '/relatorios': <Relatorios />, '/combos': <Combos />, '/compras': <Compras />, '/contas': <Compras contas />, '/anotacoes': <Anotacoes />, '/equipe': <Equipe />, '/ajustes': <AjustesTela />, '/whatsapp': <WhatsApp />, '/lucro-no-copo': <LucroNoCopo /> }
 const Placeholder = ({ title }: { title: string }) => <div className="p-8 display text-3xl">{title}</div>
 
 export function App() {
@@ -70,6 +72,8 @@ export function App() {
           {NAV.map((n) => <Route key={n.path} path={n.path} element={TELAS[n.path] ?? <Placeholder title={n.label} />} />)}
           <Route path="/mais" element={<Mais />} />
           <Route path="/assinatura" element={<AssinaturaTela />} />
+          <Route path="/perfil" element={<Perfil />} />
+          <Route path="/suporte" element={<Suporte />} />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

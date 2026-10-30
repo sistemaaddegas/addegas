@@ -4,8 +4,12 @@ import { useAuth } from '@/lib/auth'
 import { brlc } from '@/lib/format'
 import { Icon, type IconName } from '@/components/icon'
 import { canal, CanalLogo } from '@/components/canal'
-import { card, ha, hora, irr, minutos, pill, pillCls } from '@/lib/visual'
+import { card, hora, irr, pill, pillCls } from '@/lib/visual'
 import { useInicio } from './dados'
+import { useQueryClient } from '@tanstack/react-query'
+import { rpc } from '@/lib/supabase'
+import { useAtencao, type Aviso } from '@/app/shell-dados'
+import { LinhaAviso } from '@/app/AppShell'
 
 const KC = ['#4ADE80', '#FBC009', '#7CB3FF', '#FF8A5B']
 
@@ -38,6 +42,13 @@ export function Inicio() {
   const { session, storeId } = useAuth()
   const navigate = useNavigate()
   const { data: d, error, isLoading } = useInicio(storeId, session?.user.id)
+  const { data: atencao } = useAtencao()
+  const qc = useQueryClient()
+  const alerts = atencao?.itens ?? []
+  const agir = async (a: Aviso) => {
+    if (a.alertId) { await rpc('mark_alerts_read', { p_store_id: storeId, p_alert_ids: [a.alertId] }).catch(() => null); await qc.invalidateQueries({ queryKey: ['atencao'] }) }
+    else if (a.to) navigate(a.to)
+  }
 
   if (isLoading) return <div className="p-4 tablet:p-8 text-[#C4C4C9]">Carregando…</div>
   if (error || !d) return <div className="p-4 tablet:p-8 text-bad">Não deu para carregar o Início. {error?.message}</div>
@@ -67,23 +78,6 @@ export function Inicio() {
     ['wallet', d.caixa ? 'Fechar caixa' : 'Abrir caixa', '/caixa', d.caixa ? '#E5241B' : '#4ADE80', d.caixa ? '#FFFFFF' : '#0A0A0B'],
     ['down', 'Entrada de mercadoria', '/estoque', '#16C60C', '#0A0A0B'],
     ['tag', 'Promoções', '/combos', '#1E90FF', '#0A0A0B'],
-  ]
-
-  const icBox = (c: string, bg: string): CSSProperties => ({ width: 40, height: 40, borderRadius: '3px 10px 2px 9px', background: bg, color: c, display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 'none' })
-  const hoje = new Date(new Date().toDateString())
-  const alerts = [
-    ...d.baixo.map((p) => ({ icon: 'alert' as const, st: icBox('#FF6B5E', 'rgba(255,107,94,.12)'), title: p.name, sub: `${p.stock} un · mínimo ${p.min}`, cta: 'Lançar entrada', to: '/estoque' })),
-    ...d.lotes.map((l) => {
-      const dias = Math.round((new Date(l.expires_on + 'T00:00:00').getTime() - hoje.getTime()) / 864e5)
-      return { icon: 'cal' as const, st: icBox('#FBC009', 'rgba(251,192,9,.12)'), title: l.name,
-        sub: `${Number(l.remaining_qty)} un ${dias < 0 ? `venceram há ${-dias} dias` : dias === 0 ? 'vencem hoje' : `vencem em ${dias} dias`}${l.code ? ` · lote ${l.code}` : ''}`, cta: 'Montar combo', to: '/combos' }
-    }),
-    ...d.contas.map((b) => {
-      const dias = Math.round((hoje.getTime() - new Date(b.due_on + 'T00:00:00').getTime()) / 864e5)
-      return { icon: 'wallet' as const, st: icBox('#FF6B5E', 'rgba(255,107,94,.12)'), title: b.description, sub: `Venceu há ${dias} ${dias === 1 ? 'dia' : 'dias'} · ${brlc(b.amount)}`, cta: 'Ver contas', to: '/compras' }
-    }),
-    ...novos.filter((o) => minutos(o.created_at) >= 5).map((o) => ({ icon: 'clock' as const, st: icBox('#FBC009', 'rgba(251,192,9,.12)'),
-      title: `Pedido #${o.number} aguardando`, sub: `${canal(o.channel).nome} · ${ha(o.created_at)}`, cta: 'Ver pedido', to: '/pedidos' })),
   ]
 
   const topMax = d.top[0]?.qty || 1
@@ -169,13 +163,7 @@ export function Inicio() {
 
         <div className={`${card} p-5`}>
           <Cabecalho titulo="Precisa de atenção"><span className="text-sm text-[#C4C4C9]">{alerts.length} {alerts.length === 1 ? 'item' : 'itens'}</span></Cabecalho>
-          {alerts.slice(0, 8).map((a, i) => (
-            <div key={i} className="flex items-center gap-3 py-3 border-t border-line">
-              <span style={a.st}><Icon name={a.icon} /></span>
-              <div className="flex-1 min-w-0"><div className="text-sm font-bold truncate">{a.title}</div><div className="text-sm text-[#C4C4C9] mt-[3px]">{a.sub}</div></div>
-              <button onClick={() => navigate(a.to)} className="h-9 px-3 rounded-[2px_7px_3px_6px] border border-line-2 bg-surface-2 text-[13px] font-bold cursor-pointer flex-none whitespace-nowrap">{a.cta}</button>
-            </div>
-          ))}
+          {alerts.slice(0, 8).map((a) => <LinhaAviso key={a.key} a={a} borda="t" onAgir={() => agir(a)} />)}
           {alerts.length === 0 && <div className="py-3 border-t border-line text-sm text-[#C4C4C9]">Tudo em ordem por aqui.</div>}
         </div>
 

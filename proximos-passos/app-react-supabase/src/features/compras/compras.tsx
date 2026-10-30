@@ -34,12 +34,14 @@ function Stat({ l, v, c }: { l: string; v: string; c: string }) {
   )
 }
 
-export function Compras() {
+/** Compras (fornecedores e sugestão) e, com `contas`, a tela "Contas a pagar" do menu. */
+export function Compras({ contas = false }: { contas?: boolean }) {
   const { storeId } = useAuth()
   const est = useEstoque(storeId)
   const qc = useQueryClient()
   const toast = useToast()
-  const [aba, setAba] = useState<Aba>('fornecedores')
+  const [abaCompras, setAba] = useState<Aba>('fornecedores')
+  const aba: Aba = contas ? 'contas' : abaCompras
   const [modal, setModal] = useState<null | 'forn' | 'conta' | Conta>(null)
   const accountId = est.data?.accountId
 
@@ -76,11 +78,13 @@ export function Compras() {
 
   return (
     <div className="p-4 tablet:p-8 flex flex-col gap-4 max-w-[1400px] mx-auto w-full">
-      <div className={segBar}>
-        {([['fornecedores', 'Fornecedores'], ['sugestao', 'Sugestão de compra'], ['contas', 'Contas a pagar']] as const).map(([id, l], k) => (
-          <button key={id} onClick={() => setAba(id)} className={segCls} style={seg(aba === id, k)}>{l}</button>
-        ))}
-      </div>
+      {!contas && (
+        <div className={segBar}>
+          {([['fornecedores', 'Fornecedores'], ['sugestao', 'Sugestão de compra']] as const).map(([id, l], k) => (
+            <button key={id} onClick={() => setAba(id)} className={segCls} style={seg(aba === id, k)}>{l}{id === 'fornecedores' && <span className="text-[13px] opacity-70">{data.fornecedores.length}</span>}</button>
+          ))}
+        </div>
+      )}
 
       {aba === 'fornecedores' && (
         <>

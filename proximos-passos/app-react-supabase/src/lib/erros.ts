@@ -109,6 +109,10 @@ export const MENSAGENS: Record<string, string> = {
   FIADO_NOT_FOUND: 'Fiado não encontrado.',
   FIADO_PAYMENT_INVALID: 'Valor inválido: maior que zero e até o saldo devido.',
   FIADO_PAYMENT_METHOD: 'Forma de pagamento inválida.',
+  FIADO_NAME_REQUIRED: 'Escreva o nome do cliente.',
+  FIADO_PHONE_INVALID: 'WhatsApp inválido: use DDD e número, ex.: (11) 98765-4321.',
+  FIADO_PHONE_EXISTS: 'Já existe um cliente com esse WhatsApp.',
+  FIADO_LIMIT_INVALID: 'Limite de fiado inválido.',
   FIADO_MERGE_SAME: 'Escolha duas pessoas diferentes.',
 
   // Pedidos
