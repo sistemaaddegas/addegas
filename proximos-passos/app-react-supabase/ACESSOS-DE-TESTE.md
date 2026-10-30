@@ -3,13 +3,14 @@
 Só valem no ambiente local (Supabase local + `npm run dev`). Nada daqui existe no dev nem na produção.
 O `npm run db:reset` recria os acessos do seed; os criados durante os testes somem.
 
-> Atualizado em 30/10/2026. Todo acesso novo criado em teste entra aqui.
+> Atualizado em 30/10/2026 (painel da equipe). Todo acesso novo criado em teste entra aqui.
 
 ## Endereços
 
 | O quê | Endereço |
 |---|---|
-| App novo | http://localhost:5173 |
+| App novo (adega) | http://localhost:5173 |
+| Painel da equipe Addegas (admin) | http://localhost:5173/admin/ |
 | Protótipo aprovado (`index.html`) | http://localhost:5500 |
 | Protótipo do Admin (`admin.html`) | http://localhost:5500/admin |
 | Supabase Studio | http://localhost:57323 |
@@ -32,7 +33,25 @@ Senha de todos do seed: **`addegas123`**
 
 - Entregador e funcionário com usuário entram como `usuario@slug-da-loja`.
 - Joana serve para testar isolamento: ela não pode ver nada da Adega Esquina.
-- `admin@addegas.com.br` é da equipe Addegas, não de uma adega: no app da adega ele só vê o aviso de que o lugar dele é o painel interno. O painel (etapa 12) ainda não existe no app novo; até lá, use o protótipo do Admin (abaixo). O 2FA será pedido no primeiro acesso ao painel.
+- A equipe Addegas não entra no app da adega (lá aparece só um aviso). Ela entra no painel: veja a seção abaixo.
+
+## Painel da equipe Addegas (http://localhost:5173/admin/)
+
+Senha de todos: **`addegas123`**. No primeiro acesso o painel mostra um QR code: escaneie com um aplicativo autenticador
+(Google Authenticator, Microsoft Authenticator, 1Password) ou digite a chave que aparece embaixo. Depois, cada login pede
+o código de 6 dígitos do aplicativo. A sessão cai depois de 30 minutos sem uso.
+
+| Login | Perfil | O que vê |
+|---|---|---|
+| `admin@addegas.com.br` | Administrador mestre | Tudo, inclusive segurança, equipe e configurações |
+| `caio@addegas.com.br` | Financeiro | Visão geral, adegas, planos, financeiro, descontos, mensagens |
+| `lia@addegas.com.br` | Suporte | Visão geral, adegas, tickets, produtos, mensagens, monitoramento |
+| `rafael@addegas.com.br` | Comercial e marketing | Visão geral, adegas, CRM, marketing, brindes, mapa, mensagens, descontos |
+| `nina@addegas.com.br` | Analista | Visão geral, adegas, planos, financeiro, uso e funis, marketing, mapa (só leitura) |
+
+Perdeu o celular do autenticador? No banco local, apague o fator e o painel pede um QR novo no próximo login:
+`delete from auth.mfa_factors f using auth.users u where u.id = f.user_id and u.email = 'EMAIL';`
+(no Studio, http://localhost:57323, em SQL Editor).
 
 ### Criados durante os testes (somem no próximo `db:reset`)
 
@@ -41,6 +60,10 @@ Senha de todos do seed: **`addegas123`**
 | `dono-teste@adega.test` | `cadastro2026` | Dono Teste, dono da "Adega do Teste" (criada pelo cadastro) |
 | `teste.prov@adega-esquina` | `novasenha123` | Teste Provisório, caixa na Adega Esquina |
 | `testeporte@adega-esquina` | desconhecida (provisória) | Teste Login, caixa **desativado** na Adega Esquina |
+
+Dados de teste do painel que ficaram no banco: lead "Adega Teste Painel", produto "Cerveja Teste Painel 350 ml" (arquivado),
+funil "Caixa do dia", melhoria "Melhoria criada no teste", desconto de R$ 20 para a Adega do Porto, acesso temporário da
+Adega do Porto por 3 dias e o alerta "Latência alta da API" ligado.
 
 ## Caixa: operadores com PIN
 
@@ -66,7 +89,7 @@ No aparelho de caixa, o operador escolhe o nome e digita o PIN.
 | Tela | Acesso |
 |---|---|
 | Sistema (`index.html`) | Abre direto como Marcos. "Sair" leva ao login amarelo, que aceita qualquer e-mail e qualquer senha. |
-| Admin (`admin.html`) | Um dos e-mails listados na tela, senha `addegas-demo`, código `482913` |
+| Admin (`admin.html`) | Um dos e-mails listados na tela, senha `addegas-demo`, código `482913` (dados fictícios; o painel de verdade é o de cima) |
 
 ## Pagamentos (Stripe, modo teste)
 

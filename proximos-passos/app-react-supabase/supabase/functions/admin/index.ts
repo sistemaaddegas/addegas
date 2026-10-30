@@ -14,12 +14,16 @@ const s = (staff: Staff) => ({ p_staff: staff.user_id, p_role: staff.role });
 // Catálogo de rotas → ação exigida. Teste de CI: toda rota precisa estar aqui (E14).
 const ROUTES: Record<string, { action: string; run: Handler }> = {
   "me": { action: "overview.read", run: async (_b, st) => st },
+  // Retrato do painel: cada parte só vem se o perfil tiver a ação (private.admin_snapshot).
+  "snapshot": { action: "overview.read", run: (_b, st, c) => priv("admin_snapshot", { p_staff: st.user_id }, c) },
   "overview": { action: "overview.read", run: (b, _s, c) => priv("metrics_overview", { p_month: b.month ?? null }, c) },
   "accounts/list": { action: "accounts.read", run: (b, _s, c) =>
     priv("admin_accounts", { p_staff: _s.user_id, p_filter: b.filter ?? {}, p_cursor: b.cursor ?? null, p_limit: b.limit ?? 50 }, c) },
   "accounts/detail": { action: "accounts.read", run: (b, _s, c) => priv("admin_account_detail", { p_account_id: b.account_id }, c) },
   "accounts/note": { action: "accounts.note", run: (b, st, c) =>
-    priv("admin_add_note", { ...s(st), p_account_id: b.account_id, p_body: b.body }, c) },
+    priv("admin_note", { ...s(st), p_account_id: b.account_id, p_body: b.body }, c) },
+  "accounts/plan": { action: "accounts.plan", run: (b, st, c) =>
+    priv("admin_change_cycle", { ...s(st), p_account_id: b.account_id, p_cycle: b.cycle, p_activate: !!b.activate, p_reason: b.reason }, c) },
   "accounts/extend-trial": { action: "accounts.extend_trial", run: (b, st, c) =>
     priv("admin_extend_trial", { ...s(st), p_account_id: b.account_id, p_days: b.days, p_reason: b.reason }, c) },
   "accounts/access": { action: "accounts.access", run: (b, st, c) =>
@@ -31,12 +35,51 @@ const ROUTES: Record<string, { action: string; run: Handler }> = {
   "billing/refund": { action: "billing.refund", run: (b, st, c) =>
     priv("admin_refund", { ...s(st), p_payment_id: b.payment_id, p_amount: b.amount, p_reason: b.reason }, c) },
   "billing/discount": { action: "billing.discount", run: (b, st, c) =>
-    priv("admin_create_discount", { ...s(st), p_accounts: b.accounts ?? [], p_kind: b.kind, p_value: b.value,
-      p_cycles: b.cycles ?? null, p_stacks: !!b.stacks, p_reason: b.reason }, c) },
+    priv("admin_discount_create", { ...s(st), p_accounts: b.accounts ?? [], p_kind: b.kind, p_value: b.value,
+      p_cycles: b.cycles ?? 1, p_stacks: !!b.stacks, p_starts_at: b.starts_at ?? null, p_reason: b.reason }, c) },
+  "billing/discount-revoke": { action: "billing.discount", run: (b, st, c) =>
+    priv("admin_revoke_discount", { ...s(st), p_discount_id: b.discount_id, p_reason: b.reason }, c) },
+  "plans/price": { action: "platform.config", run: (b, st, c) =>
+    priv("admin_plan_price", { ...s(st), p_cycle: b.cycle, p_price: b.price, p_reason: b.reason }, c) },
   "tickets/reply": { action: "tickets.reply", run: (b, st, c) =>
     priv("staff_reply_ticket", { ...s(st), p_ticket_id: b.ticket_id, p_body: b.body, p_internal: !!b.internal, p_status: b.status ?? null }, c) },
   "catalog/save": { action: "catalog.write", run: (b, st, c) => priv("admin_catalog_save", { ...s(st), p: b.product }, c) },
   "catalog/duplicates": { action: "catalog.write", run: (_b, _s, c) => priv("admin_catalog_duplicates", {}, c) },
+  "catalog/merge": { action: "catalog.write", run: (b, st, c) => priv("admin_catalog_merge", { ...s(st), p_keep: b.keep, p_drop: b.drop }, c) },
+  "catalog/update-rule": { action: "catalog.write", run: (b, st, c) =>
+    priv("admin_setting_set", { ...s(st), p_key: "catalog_update_rule", p_value: { rule: b.rule === "auto" ? "auto" : "manual" } }, c) },
+  "tickets/update": { action: "tickets.reply", run: (b, st, c) =>
+    priv("admin_ticket_update", { ...s(st), p_ticket_id: b.ticket_id, p: b.changes ?? {} }, c) },
+  "tickets/improvement": { action: "tickets.reply", run: (b, st, c) =>
+    priv("admin_improvement_status", { ...s(st), p_improvement_id: b.improvement_id, p_status: b.status }, c) },
+  "crm/action": { action: "crm.write", run: (b, st, c) =>
+    priv("admin_lead_action", { ...s(st), p_lead_id: b.lead_id ?? null, p_action: b.action, p: b.data ?? {} }, c) },
+  "crm/stages": { action: "crm.write", run: (b, st, c) =>
+    priv("admin_stages_save", { ...s(st), p_names: b.names ?? {}, p_new: b.new ?? null }, c) },
+  "monitor/triage": { action: "monitoring.read", run: (b, st, c) =>
+    priv("admin_log_triage", { ...s(st), p_log_id: b.log_id, p_status: b.status, p_assignee: b.assignee || null, p_note: b.note ?? null }, c) },
+  "monitor/alerts": { action: "monitoring.read", run: (b, st, c) =>
+    priv("admin_setting_set", { ...s(st), p_key: "alerts", p_value: { items: b.alerts ?? [] } }, c) },
+  "settings/set": { action: "platform.config", run: (b, st, c) =>
+    priv("admin_setting_set", { ...s(st), p_key: b.key, p_value: b.value ?? {} }, c) },
+  "staff/update": { action: "staff.manage", run: (b, st, c) =>
+    priv("admin_staff_update", { ...s(st), p_user_id: b.user_id, p_staff_role: b.role, p_active: b.active ?? null, p_reason: b.reason }, c) },
+  "messages/template": { action: "messages.send", run: (b, st, c) =>
+    priv("admin_template_save", { ...s(st), p_code: b.code, p_name: b.name, p_kind: b.kind, p_body: b.body }, c) },
+  "messages/send": { action: "messages.send", run: async (b, st, c) => {
+    // Campanha promocional exige também a ação de marketing (perfil comercial ou mestre).
+    if (b.promotional && !st.actions.includes("marketing.write")) return { ok: false, error: { code: "FORBIDDEN_ACTION" } };
+    return priv("admin_send", { ...s(st), p_template: b.template, p_channels: b.channels ?? [], p_accounts: b.accounts ?? [], p_when: b.when ?? null }, c);
+  } },
+  "messages/cancel": { action: "messages.send", run: (b, st, c) => priv("admin_send_cancel", { ...s(st), p_campaign_id: b.campaign_id }, c) },
+  "messages/retry": { action: "messages.send", run: (b, st, c) => priv("admin_send_retry", { ...s(st), p_campaign_id: b.campaign_id }, c) },
+  "marketing/spend": { action: "marketing.write", run: (b, st, c) =>
+    priv("admin_marketing_spend", { ...s(st), p_channel: b.channel, p_amount: b.amount }, c) },
+  "usage/funnel-create": { action: "usage.read", run: (b, st, c) =>
+    priv("admin_funnel_create", { ...s(st), p_name: b.name, p_steps: b.steps ?? [] }, c) },
+  "gifts/action": { action: "gifts.write", run: (b, st, c) =>
+    priv("admin_gift_action", { ...s(st), p_action: b.action, p: b.data ?? {} }, c) },
+  "export/log": { action: "export", run: (b, st, c) => priv("admin_log_export", { ...s(st), p_name: b.name, p_rows: b.rows ?? 0 }, c) },
   "crm/lead": { action: "crm.write", run: (b, st, c) => priv("admin_lead_update", { ...s(st), p_lead_id: b.lead_id, p: b.changes }, c) },
   "messages/campaign-send": { action: "messages.send", run: (b, st, c) =>
     priv("campaign_send", { ...s(st), p_campaign_id: b.campaign_id }, c) },
@@ -58,7 +101,7 @@ Deno.serve(async (req) => {
   if (!me || me.kind !== "staff") return fail(req, cid, "AUTH_REQUIRED", 401);
   const ip = clientIp(req);
   const check = await priv<{ ok: boolean; data?: Staff; error?: { code: string } }>("staff_check",
-    { p_user: me.id, p_aal: me.aal, p_action: def.action }, { cid, ip, userId: me.id });
+    { p_user: me.id, p_aal: me.aal, p_action: def.action, p_auth_at: me.mfaAt }, { cid, ip, userId: me.id });
   if (!check.ok) {
     const status = check.error!.code === "FORBIDDEN_ACTION" ? 403 : 401;
     return fail(req, cid, check.error!.code, status);

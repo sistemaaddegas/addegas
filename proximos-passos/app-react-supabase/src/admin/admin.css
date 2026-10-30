@@ -1,0 +1,12 @@
+/* Base e efeitos de hover/foco do protótipo do painel (style-hover, style-focus e style-active no admin.html). */
+html, body { margin: 0; background: #050506; color: #F5F5F2; font-family: 'Archivo Variable', 'Archivo', system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+* { box-sizing: border-box; }
+a { color: #FBC009; }
+a:hover { color: #FFD54A; }
+input, select, textarea, button { font-family: inherit; }
+select option { background: #141416; color: #F5F5F2; }
+.h-row:hover, .h-row:hover > * { background: #141416; }
+.h-item:hover { background: #1C1C1F !important; }
+.f-white:focus { border-color: #FFFFFF !important; }
+.a-press:active { transform: scale(.98); }
+button:disabled { cursor: progress; }

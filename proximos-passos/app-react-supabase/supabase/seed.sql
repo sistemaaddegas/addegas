@@ -14,7 +14,8 @@
 --   rafa@adega.test       gerente nas duas lojas                        PIN 6142
 --   diego / kaua          entregadores, entram pelo nome de usuário (ver o fim do arquivo)
 --   joana@porto.test      dona da Adega do Porto (outra conta, em carência: serve para testar isolamento)
---   admin@addegas.com.br  equipe Addegas (perfil master; o painel exige cadastrar o 2FA no primeiro acesso)
+--   admin@addegas.com.br  equipe Addegas, perfil mestre (o painel exige cadastrar o 2FA no primeiro acesso)
+--   caio@, lia@, rafael@, nina@addegas.com.br  equipe: financeiro, suporte, comercial e analista
 -- Operadores só com PIN, no caixa: Bia Santos 4821 · Léo Moura 7350 · Tati Rocha (estoquista) 5820.
 
 begin;
@@ -498,5 +499,164 @@ where a.type = 'stock_low' and a.entity = 'product'
 update app.alerts a set read_at = cs.closed_at, read_by = pg_temp.k('marcos')
 from app.cash_sessions cs
 where a.entity = 'cash_session' and cs.id = a.entity_id::uuid and cs.business_date < pg_temp.today();
+
+-- Painel Addegas (etapa 12): equipe com os cinco perfis e o lado da equipe (cobranças, tickets, CRM, ocorrências) ----
+-- Senha de todos: addegas123. Cada pessoa cadastra o 2FA (aplicativo autenticador) no primeiro acesso ao painel.
+create function pg_temp.staff(p_email text, p_name text, p_role text) returns uuid language plpgsql as $$
+declare v uuid;
+begin
+  select id into v from auth.users where email = p_email;
+  if v is null then
+    v := gen_random_uuid();
+    insert into auth.users (instance_id, id, aud, role, email, encrypted_password, email_confirmed_at,
+      raw_app_meta_data, raw_user_meta_data, created_at, updated_at,
+      confirmation_token, recovery_token, email_change_token_new, email_change, email_change_token_current,
+      phone_change_token, reauthentication_token)
+    values ('00000000-0000-0000-0000-000000000000', v, 'authenticated', 'authenticated', p_email,
+      extensions.crypt('addegas123', extensions.gen_salt('bf')), now(),
+      '{"provider":"email","providers":["email"],"kind":"staff"}'::jsonb, jsonb_build_object('name', p_name), now(), now(),
+      '', '', '', '', '', '', '');
+    insert into auth.identities (id, user_id, provider_id, identity_data, provider, last_sign_in_at, created_at, updated_at)
+    values (gen_random_uuid(), v, v::text, jsonb_build_object('sub', v::text, 'email', p_email, 'email_verified', true),
+      'email', now(), now(), now());
+  end if;
+  perform private.admin_staff_upsert(null, 'seed', v, p_name, p_email, p_role);
+  return v;
+end $$;
+select pg_temp.staff('caio@addegas.com.br', 'Caio Brandão', 'finance'), pg_temp.staff('lia@addegas.com.br', 'Lia Santos', 'support'),
+  pg_temp.staff('rafael@addegas.com.br', 'Rafael Okada', 'commercial'), pg_temp.staff('nina@addegas.com.br', 'Nina Torres', 'analyst');
+
+create temp table adm as select
+  (select id from app.accounts where name = 'Adega Esquina') esquina,
+  (select id from app.accounts where name = 'Adega do Porto') porto,
+  (select id from app.stores where name = 'Adega Esquina') loja1,
+  (select id from app.stores where name = 'Adega do Porto') loja_porto,
+  (select id from auth.users where email = 'marcos@adega.test') marcos,
+  (select id from auth.users where email = 'joana@porto.test') joana,
+  (select id from auth.users where email = 'admin@addegas.com.br') admin,
+  (select id from auth.users where email = 'lia@addegas.com.br') lia,
+  (select id from auth.users where email = 'rafael@addegas.com.br') rafael,
+  (select id from auth.users where email = 'caio@addegas.com.br') caio;
+
+-- Cobranças: Adega Esquina em dia (paga o ciclo atual, a próxima vence no fim dele); Porto com a fatura vencida.
+insert into platform.subscription_events (subscription_id, from_status, to_status, from_access, to_access, reason, author, created_at)
+select s.id, 'trial', 'active', 'allowed', 'allowed', 'Pagamento confirmado no fim do teste', 'stripe', s.current_period_start
+from platform.subscriptions s, adm where s.account_id = adm.esquina;
+insert into platform.invoices (account_id, stripe_invoice_id, amount, status, due_at, paid_at, period_start, period_end, created_at)
+select s.account_id, 'in_seed_esquina_1', s.price + s.extra_stores * s.extra_store_price, 'paid', s.current_period_start,
+  s.current_period_start + interval '2 hours', s.current_period_start, s.current_period_end, s.current_period_start - interval '3 days'
+from platform.subscriptions s, adm where s.account_id = adm.esquina;
+insert into platform.payments (invoice_id, account_id, amount, source, method, paid_at, stripe_payment_id)
+select i.id, i.account_id, i.amount, 'stripe', 'card', i.paid_at, 'pi_seed_esquina_1' from platform.invoices i where i.stripe_invoice_id = 'in_seed_esquina_1';
+insert into platform.invoices (account_id, stripe_invoice_id, amount, status, due_at, period_start, period_end, created_at)
+select s.account_id, 'in_seed_esquina_2', s.price + s.extra_stores * s.extra_store_price, 'open', s.current_period_end,
+  s.current_period_end, s.current_period_end + interval '1 month', now()
+from platform.subscriptions s, adm where s.account_id = adm.esquina;
+insert into platform.subscription_events (subscription_id, from_status, to_status, from_access, to_access, reason, author, created_at)
+select s.id, 'trial', 'active', 'allowed', 'allowed', 'Pagamento confirmado no fim do teste', 'stripe', s.current_period_start
+from platform.subscriptions s, adm where s.account_id = adm.porto;
+insert into platform.invoices (account_id, stripe_invoice_id, amount, status, due_at, paid_at, period_start, period_end, created_at)
+select s.account_id, 'in_seed_porto_1', s.price, 'paid', s.current_period_start, s.current_period_start + interval '1 hour',
+  s.current_period_start, s.current_period_end, s.current_period_start - interval '3 days'
+from platform.subscriptions s, adm where s.account_id = adm.porto;
+insert into platform.payments (invoice_id, account_id, amount, source, method, paid_at, stripe_payment_id)
+select i.id, i.account_id, i.amount, 'stripe', 'pix', i.paid_at, 'pi_seed_porto_1' from platform.invoices i where i.stripe_invoice_id = 'in_seed_porto_1';
+insert into platform.invoices (account_id, stripe_invoice_id, amount, status, due_at, period_start, period_end, created_at)
+select s.account_id, 'in_seed_porto_2', s.price, 'open', s.current_period_end, s.current_period_end, s.current_period_end + interval '1 month',
+  s.current_period_end - interval '3 days'
+from platform.subscriptions s, adm where s.account_id = adm.porto;
+insert into platform.subscription_events (subscription_id, from_status, to_status, from_access, to_access, reason, author, created_at)
+select s.id, 'active', 'past_due', 'allowed', 'grace', 'Cobrança não paga no vencimento: carência de 5 dias', 'job:billing', s.current_period_end
+from platform.subscriptions s, adm where s.account_id = adm.porto;
+
+-- Desconto de indicação para a Adega Esquina.
+select private.admin_discount_create(adm.caio, 'finance', array[adm.esquina], 'pct', 10, 3, false, now() - interval '20 days',
+  'Indicação: trouxe a Adega do Porto') from adm;
+insert into platform.account_notes (account_id, staff_user_id, body, created_at)
+select adm.esquina, adm.rafael, 'Marcos pediu para avisar quando sair o relatório por funcionário.', now() - interval '2 days' from adm;
+
+-- Tickets com conversa, nota interna e uma melhoria agrupada.
+insert into support.improvements (title, area, status, created_by) select 'Relatório de vendas por funcionário e turno', 'Relatórios', 'analise', adm.lia from adm;
+with t as (
+  insert into support.tickets (account_id, store_id, opened_by, kind, subject, description, priority, status, assignee, correlation_ids,
+    first_response_at, created_at, updated_at)
+  select adm.esquina, adm.loja1, adm.marcos, 'problema', 'Caixa', 'Caixa travou ao finalizar venda no Pix e o cliente teve que pagar de novo.',
+    'critica', 'em_andamento', adm.lia, array['c-cx-7781'], now() - interval '75 minutes', now() - interval '95 minutes', now() - interval '40 minutes'
+  from adm returning id)
+insert into support.ticket_messages (ticket_id, author_id, side, body, internal, created_at)
+select t.id, x.who, x.side, x.body, x.internal, now() - x.ago from t, adm,
+  lateral (values (adm.lia, 'equipe', 'Oi Marcos, já estamos olhando. Consegue mandar o horário da venda?', false, interval '75 minutes'),
+                  (adm.marcos, 'cliente', 'Foi 12:58, venda de R$ 86,40.', false, interval '67 minutes'),
+                  (adm.lia, 'equipe', 'Correlação c-cx-7781. Timeout no retorno do Pix. Encaminhar ao time técnico se repetir.', true, interval '55 minutes'))
+  x(who, side, body, internal, ago);
+insert into support.tickets (account_id, store_id, opened_by, kind, subject, description, priority, status, improvement_id, created_at, updated_at)
+select adm.esquina, adm.loja1, adm.marcos, 'melhoria', 'Relatórios', 'Relatório de vendas por funcionário no fim do turno.', 'baixa', 'novo',
+  (select id from support.improvements order by number limit 1), now() - interval '4 days', now() - interval '4 days' from adm;
+insert into support.tickets (account_id, store_id, opened_by, kind, subject, description, priority, status, created_at, updated_at)
+select adm.porto, adm.loja_porto, adm.joana, 'financeiro', 'Pagamento', 'Paguei ontem e o sistema diz que estou em carência.', 'alta', 'novo',
+  now() - interval '3 hours', now() - interval '3 hours' from adm;
+
+-- CRM: leads em várias etapas, com histórico, uma tarefa atrasada e um perdido.
+insert into platform.leads (name, store_name, phone, email, neighborhood, city, source, campaign, utm, stage, owner_staff, next_task, next_task_at,
+  lost_reason, lost_detail, lost_at, created_at)
+select x.resp, x.nome, x.tel, x.email, x.bairro, 'São Paulo', x.origem, x.camp, coalesce(x.utm, '{}'), x.etapa, adm.rafael, x.prox,
+  case when x.prox is null then null else now() + x.quando end, x.perdido, x.det, case when x.perdido is null then null else now() - interval '20 days' end,
+  now() - x.criado
+from adm, (values
+  ('Otávio Reis', 'Adega Brooklin', '11981112030', 'otavio@adegabrooklin.com.br', 'Brooklin', 'Meta Ads', 'Teste grátis outubro',
+   '{"source":"facebook","medium":"cpc","campaign":"teste-gratis-out"}'::jsonb, 'novo', 'Primeiro contato por WhatsApp', interval '2 hours', null, null, interval '1 day'),
+  ('Mirela Antunes', 'Adega Saúde 24h', '11994201187', null, 'Saúde', 'Google', 'Sistema para adega',
+   '{"source":"google","medium":"cpc","campaign":"sistema-adega"}'::jsonb, 'novo', 'Ligar para apresentar', interval '2 days', null, null, interval '12 hours'),
+  ('Sérgio Kato', 'Empório Vila Prudente', '11973004411', null, 'Vila Prudente', 'Instagram', 'Reels do caixa',
+   '{"source":"instagram","medium":"social","campaign":"reels-caixa"}'::jsonb, 'contato', 'Enviar vídeo do caixa', interval '-1 day', null, null, interval '5 days'),
+  ('Beatriz Nogueira', 'Adega Aclimação', '11987651200', null, 'Aclimação', 'Indicação', 'Indicação Adega Esquina', null, 'demo',
+   'Demonstração por vídeo', interval '3 days', null, null, interval '8 days'),
+  ('Leandro Souza', 'Adega Ipiranga', '11955103320', null, 'Ipiranga', 'Google', 'Sistema para adega',
+   '{"source":"google","medium":"cpc","campaign":"sistema-adega"}'::jsonb, 'contato', null, null, 'Já usa outro sistema',
+   'Contrato com outro fornecedor até março de 2027.', interval '25 days')
+) x(resp, nome, tel, email, bairro, origem, camp, utm, etapa, prox, quando, perdido, det, criado);
+insert into platform.lead_events (lead_id, kind, body, staff_user_id, created_at)
+select l.id, 'Site', 'Pediu teste grátis pelo formulário.', null, l.created_at from platform.leads l where l.store_name in ('Adega Brooklin', 'Adega Saúde 24h');
+insert into platform.lead_events (lead_id, kind, body, staff_user_id, created_at)
+select l.id, 'WhatsApp', 'Expliquei integração com iFood e Zé Delivery. Pediu um vídeo.', adm.rafael, l.created_at + interval '1 day'
+from platform.leads l, adm where l.store_name = 'Empório Vila Prudente';
+insert into platform.lead_events (lead_id, kind, body, staff_user_id, created_at)
+select l.id, 'Ligação', 'Agendada demonstração por vídeo.', adm.rafael, l.created_at + interval '1 day'
+from platform.leads l, adm where l.store_name = 'Adega Aclimação';
+insert into platform.lead_events (lead_id, kind, body, staff_user_id, created_at)
+select l.id, 'Sistema', 'Perdido: Já usa outro sistema. Contrato com outro fornecedor até março de 2027.', adm.rafael, now() - interval '20 days'
+from platform.leads l, adm where l.store_name = 'Adega Ipiranga';
+insert into platform.marketing_spend (channel, period_start, period_end, amount, note, staff_user_id)
+select x.c, date_trunc('month', current_date)::date, (date_trunc('month', current_date) + interval '1 month - 1 day')::date, x.v, 'informado manualmente', adm.rafael
+from adm, (values ('Google', 240000), ('Meta Ads', 180000), ('Evento', 150000)) x(c, v);
+
+-- Ocorrências do sistema nas três camadas, ligadas pela correlação.
+insert into audit.system_logs (created_at, source, level, code, message, correlation_id, account_id, store_id, context)
+select now() - x.ago, x.src, x.lvl, x.code, x.msg, x.corr, case when x.acc then adm.esquina end, case when x.acc then adm.loja1 end, x.ctx
+from adm, (values
+  (interval '100 minutes', 'front', 'error', 'PIX_TIMEOUT', 'Timeout aguardando confirmação do Pix (12 s)', 'c-cx-7781', true,
+   '{"module":"Caixa","route":"/caixa","version":"web dev","device":"Android · Chrome"}'::jsonb),
+  (interval '100 minutes', 'back', 'error', 'PIX_GATEWAY_TIMEOUT', 'Gateway Pix: timeout de 12 000 ms ao confirmar a cobrança', 'c-cx-7781', true,
+   '{"module":"Pagamentos","route":"api","version":"api dev"}'::jsonb),
+  (interval '5 hours', 'front', 'warn', 'SLOW_LCP', 'Carregamento lento: LCP de 4,8 s', 'c-rel-8807', true,
+   '{"module":"Relatórios","route":"/relatorios","version":"web dev","device":"Windows · Edge"}'::jsonb),
+  (interval '7 hours', 'back', 'warn', 'WEBHOOK_SIGNATURE', 'Webhook de pagamento sem assinatura válida: descartado', 'c-pay-5519', false,
+   '{"module":"Webhooks","route":"webhook","version":"api dev"}'::jsonb),
+  (interval '9 hours', 'security', 'warn', 'LOGIN_FAILED', '3 senhas inválidas para n***@addegas.com.br', 'c-auth-3301', false,
+   '{"module":"Login","route":"auth","ip":"189.40.xxx.xxx"}'::jsonb),
+  (interval '20 hours', 'security', 'info', 'FORBIDDEN_ACTION', 'Analista tentou abrir Descontos: bloqueado no servidor', 'c-authz-3290', false,
+   '{"module":"Acesso negado","route":"authz"}'::jsonb)
+) x(ago, src, lvl, code, msg, corr, acc, ctx);
+insert into platform.log_triage (log_id, status, assignee, history)
+select l.id, 'investigando', adm.lia, jsonb_build_array(jsonb_build_object('when', now() - interval '80 minutes', 'who', 'Lia Santos',
+  't', 'status: aberto → investigando · responsável: — → Lia Santos'))
+from audit.system_logs l, adm where l.correlation_id = 'c-cx-7781';
+
+-- Brindes: estoque inicial e um envio de exemplo pronto para despachar.
+update platform.gift_items set qty = x.q from (values ('adesivo', 420), ('copo', 38), ('camiseta', 22), ('bone', 9), ('placa', 6),
+  ('avental', 14), ('abridor', 120)) x(c, q) where code = x.c;
+
+-- Um aviso de serviço já enviado pela central.
+select private.admin_send(adm.caio, 'finance', 'cobranca_proxima', array['whatsapp'], array[adm.esquina], now()) from adm;
 
 commit;

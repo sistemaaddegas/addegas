@@ -30,7 +30,7 @@ export function userClient(req: Request, cid: string): SupabaseClient {
   });
 }
 
-export type Caller = { id: string; email: string | null; kind: string | null; aal: string | null };
+export type Caller = { id: string; email: string | null; kind: string | null; aal: string | null; mfaAt: string | null };
 
 // Usuário da requisição, confirmado no Auth. O aal (2FA) vem do token.
 export async function caller(req: Request): Promise<Caller | null> {
@@ -44,7 +44,15 @@ export async function caller(req: Request): Promise<Caller | null> {
     email: data.user.email ?? null,
     kind: (data.user.app_metadata?.kind as string) ?? null,
     aal: (claims?.aal as string) ?? null,
+    // Hora da verificação 2FA (claim amr do Supabase), para a regra de inatividade da equipe.
+    mfaAt: totpAt(claims),
   };
+}
+
+function totpAt(claims: Record<string, unknown> | null): string | null {
+  const amr = Array.isArray(claims?.amr) ? (claims!.amr as { method?: string; timestamp?: number }[]) : [];
+  const t = amr.filter((x) => x.method === "totp" && typeof x.timestamp === "number").map((x) => x.timestamp!);
+  return t.length ? new Date(Math.max(...t) * 1000).toISOString() : null;
 }
 
 function decodeJwt(token: string): Record<string, unknown> | null {

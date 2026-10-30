@@ -25,10 +25,14 @@ export default defineConfig({
       manifest: false, // usa public/manifest.webmanifest
       injectManifest: {
         globPatterns: ['**/*.{js,css,html,woff2,svg}', 'icons/*.png', 'offline.html'],
+        // O painel da equipe é outro site (admin.addegas.com.br): fora do cache do app da adega.
+        globIgnores: ['admin/**', 'assets/admin-*'],
         maximumFileSizeToCacheInBytes: 3_000_000,
       },
       devOptions: { enabled: false },
     }),
   ],
   resolve: { alias: { '@': '/src' } },
+  // Duas páginas: o app da adega (index.html) e o painel da equipe (admin/index.html, em /admin/ no local).
+  build: { rollupOptions: { input: { app: 'index.html', admin: 'admin/index.html' } } },
 })

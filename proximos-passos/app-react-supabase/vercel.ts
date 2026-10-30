@@ -33,7 +33,8 @@ export const config: VercelConfig = {
       ? [routes.rewrite('/api/admin/(.*)', `${functions}/admin/$1`), routes.rewrite('/api/(.*)', `${functions}/not-found`)]
       : [routes.rewrite('/api/admin/(.*)', `${functions}/not-found`), routes.rewrite('/api/hooks/(.*)', `${functions}/hooks-$1`),
          routes.rewrite('/api/(.*)', `${functions}/$1`)]),
-    routes.rewrite('/(.*)', '/index.html'),
+    // Mesmo build, dois sites: o projeto do admin serve a página do painel (admin/index.html) em qualquer caminho.
+    routes.rewrite('/(.*)', isAdmin ? '/admin/index.html' : '/index.html'),
   ],
   headers: [
     routes.header('/(.*)', [
