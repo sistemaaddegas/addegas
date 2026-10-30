@@ -1,4 +1,6 @@
-import type { ReactNode } from 'react'
+import { useEffect, type ReactNode } from 'react'
+import type { Session } from '@supabase/supabase-js'
+import { supabase } from '@/lib/supabase'
 import { BrowserRouter, Navigate, Outlet, Route, Routes, useLocation } from 'react-router'
 import { useAuth } from '@/lib/auth'
 import { NAV } from './routes'
@@ -30,11 +32,27 @@ import { LucroNoCopo } from '@/features/lucro-no-copo/lucro-no-copo'
 
 type Stage = 'guest' | 'password' | 'store' | 'app'
 
+/**
+ * Conta da equipe Addegas não usa o app da adega: vai para o painel da equipe. No local o painel está na mesma
+ * origem (/admin/), então a sessão é passada adiante e só falta o código do 2FA; em produção (admin.addegas.com.br)
+ * a pessoa entra de novo lá.
+ */
+function IrParaPainel({ session }: { session: Session }) {
+  useEffect(() => {
+    const destino = import.meta.env.VITE_ADMIN_URL || '/admin/'
+    if (destino.startsWith('/')) localStorage.setItem('addegas-admin-auth', JSON.stringify(session))
+    // scope local: não revoga o token que acabou de ser passado para o painel.
+    void supabase.auth.signOut({ scope: 'local' }).finally(() => location.replace(destino))
+  }, [session])
+  return null
+}
+
 /** Para onde a pessoa vai, conforme a etapa do acesso em que está. */
 function Gate({ stage }: { stage: Stage }) {
   const { session, loading, storeId, needsNewPassword, terminal } = useAuth()
   const { pathname } = useLocation()
   if (loading) return null
+  if (session?.user.app_metadata?.kind === 'staff' && !needsNewPassword) return <IrParaPainel session={session} />
   let where: Stage
   if (!session) where = 'guest'
   else if (needsNewPassword) where = 'password'
