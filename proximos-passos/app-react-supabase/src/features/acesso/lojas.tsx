@@ -64,7 +64,7 @@ export function Lojas() {
         </button>
       )}
       {equipe && (
-        <button onClick={() => { void signOut(); location.assign(import.meta.env.VITE_ADMIN_URL ?? '/admin/') }} className="h-[52px] rounded-[3px_11px_4px_10px] bg-brand text-brand-ink text-[15px] font-extrabold cursor-pointer">Ir para o painel da equipe</button>
+        <button onClick={() => { void signOut(); location.assign(import.meta.env.VITE_ADMIN_URL || '/admin/') }} className="h-[52px] rounded-[3px_11px_4px_10px] bg-brand text-brand-ink text-[15px] font-extrabold cursor-pointer">Ir para o painel da equipe</button>
       )}
       <button onClick={signOut} className={btnText}>{equipe ? 'Sair' : 'Voltar'}</button>
     </AuthLayout>
