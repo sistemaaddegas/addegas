@@ -1221,6 +1221,9 @@ isOneToOne: false
 "cash_movement":
 { Args: { "p_amount": number,"p_operator_session_id": string,"p_reason": string,"p_type": string }; Returns: Json
                            },
+"catalog_status":
+{ Args: { "p_account_id": string }; Returns: Json
+                           },
 "close_cash":
 { Args: { "p_counted_cash": number,"p_note"?: string,"p_operator_session_id": string }; Returns: Json
                            },
@@ -1397,6 +1400,9 @@ isOneToOne: false
                            },
 "search_catalog":
 { Args: { "p_limit"?: number,"p_query": string }; Returns: Json
+                           },
+"search_catalog_for_store":
+{ Args: { "p_limit"?: number,"p_query": string,"p_store_id": string }; Returns: Json
                            },
 "set_marketing_consent":
 { Args: { "p_account_id": string,"p_channel": string,"p_granted": boolean }; Returns: Json

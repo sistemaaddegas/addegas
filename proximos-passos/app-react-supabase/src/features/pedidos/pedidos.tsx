@@ -7,6 +7,7 @@ import { Icon } from '@/components/icon'
 import { Sheet, bigBtn } from '@/components/sheet'
 import { useToast } from '@/components/toast'
 import { canal } from '@/components/canal'
+import { BarraLista, norm } from '@/components/filtros'
 import { chip, chipCls, dot, ha, minutos, qtd, seg, segBar, segCls } from '@/lib/visual'
 import { usePedidos, type Entregador, type Pedido } from './dados'
 import { NovoPedido } from './novo-pedido'
@@ -48,6 +49,8 @@ export function Pedidos() {
   const toast = useToast()
   const [aba, setAba] = useState<Aba>('new')
   const [ch, setCh] = useState('todos')
+  const [q, setQ] = useState('')
+  const [fModo, setFModo] = useState('todos')
   const [busy, setBusy] = useState<string | null>(null)
   const [recusar, setRecusar] = useState<Pedido | null>(null)
   const [chamar, setChamar] = useState<Pedido | null>(null)
@@ -59,8 +62,13 @@ export function Pedidos() {
   const { pedidos, entregadores } = data
   const nomeEntregador = new Map(entregadores.map((e) => [e.id, e.display_name]))
   const ocupados = new Set(pedidos.filter((o) => o.status === 'out_for_delivery').map((o) => o.courier_member_id))
-  const doCanal = pedidos.filter((o) => ch === 'todos' || o.channel === ch)
+  const qn = norm(q.trim())
+  const doCanal = pedidos.filter((o) => (ch === 'todos' || o.channel === ch) && (fModo === 'todos' || o.mode === fModo)
+    && (!qn || norm(`#${o.number} ${o.number} ${o.customer_name ?? ''} ${o.customer_phone ?? ''} ${o.address ?? ''}`).includes(qn)))
+  const daAba = pedidos.filter((o) => (ABAS.find((a) => a.id === aba)!.status as readonly string[]).includes(o.status))
   const lista = doCanal.filter((o) => (ABAS.find((a) => a.id === aba)!.status as readonly string[]).includes(o.status))
+  const filtrado = !!qn || ch !== 'todos' || fModo !== 'todos'
+  const limpar = () => { setQ(''); setCh('todos'); setFModo('todos') }
   const filtros = ['todos', ...FILTROS, ...new Set(pedidos.map((o) => o.channel).filter((c) => !FILTROS.includes(c)))]
 
   const mudar = async (o: Pedido, status: string, motivo?: string, entregador?: string) => {
@@ -111,6 +119,8 @@ export function Pedidos() {
       <button onClick={() => setNovo(true)} className="h-12 px-[18px] rounded-[3px_10px_2px_9px] bg-brand text-brand-ink text-[15px] font-extrabold flex items-center gap-2 cursor-pointer flex-none"><Icon name="plus" />Lançar pedido</button>
       </div>
 
+      <BarraLista busca={q} onBusca={setQ} placeholder="Número, cliente, telefone ou endereço" mostrando={lista.length} total={daAba.length} unidade={['pedido', 'pedidos']} onLimpar={limpar}
+        filtros={[{ label: 'Entrega', value: fModo, onChange: setFModo, options: [['todos', 'Todas'], ['pickup', 'Retirada no balcão'], ['own_delivery', 'Entrega própria'], ['platform_delivery', 'Entrega do app']] }]} />
       <div className="flex gap-2 overflow-x-auto no-scrollbar max-w-full">
         {filtros.map((id, k) => (
           <button key={id} onClick={() => setCh(id)} className={chipCls} style={chip(ch === id, k)}>
@@ -174,8 +184,9 @@ export function Pedidos() {
       {lista.length === 0 && (
         <div className="flex flex-col items-center gap-3.5 py-14 px-5 text-center">
           <img src="/icons/dd-amarelo.png" alt="" className="w-16 -rotate-6" />
-          <div className="text-xl font-black" style={{ fontStretch: '100%' }}>Nenhum pedido aqui.</div>
-          <div className="text-sm text-[#C4C4C9]">Pedidos do iFood, Zé Delivery, 99Food, Keeta e WhatsApp entram automaticamente.</div>
+          <div className="text-xl font-black" style={{ fontStretch: '100%' }}>{filtrado ? 'Nenhum pedido com esses filtros.' : 'Nenhum pedido aqui.'}</div>
+          {filtrado ? <button onClick={limpar} className="h-10 px-4 rounded-[2px_8px_3px_7px] border border-line-2 text-sm font-bold cursor-pointer">Limpar filtros</button>
+            : <div className="text-sm text-[#C4C4C9]">Pedidos do iFood, Zé Delivery, 99Food, Keeta e WhatsApp entram automaticamente.</div>}
         </div>
       )}
 

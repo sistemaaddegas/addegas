@@ -15,7 +15,14 @@ const s = (staff: Staff) => ({ p_staff: staff.user_id, p_role: staff.role });
 const ROUTES: Record<string, { action: string; run: Handler }> = {
   "me": { action: "overview.read", run: async (_b, st) => st },
   // Retrato do painel: cada parte só vem se o perfil tiver a ação (private.admin_snapshot).
-  "snapshot": { action: "overview.read", run: (_b, st, c) => priv("admin_snapshot", { p_staff: st.user_id }, c) },
+  "snapshot": { action: "overview.read", run: async (_b, st, c) => {
+    const r = await priv<Body>("admin_snapshot", { p_staff: st.user_id }, c);
+    // Fila de sugestões das adegas para o repositório (só para quem edita o catálogo).
+    if (r?.ok && st.actions.includes("catalog.write")) r.data.suggestions = await priv("admin_catalog_suggestions", {}, c);
+    return r;
+  } },
+  "catalog/suggestion": { action: "catalog.write", run: (b, st, c) =>
+    priv("admin_catalog_suggestion", { ...s(st), p_id: b.id, p_action: b.action, p: b.data ?? {} }, c) },
   "overview": { action: "overview.read", run: (b, _s, c) => priv("metrics_overview", { p_month: b.month ?? null }, c) },
   "accounts/list": { action: "accounts.read", run: (b, _s, c) =>
     priv("admin_accounts", { p_staff: _s.user_id, p_filter: b.filter ?? {}, p_cursor: b.cursor ?? null, p_limit: b.limit ?? 50 }, c) },

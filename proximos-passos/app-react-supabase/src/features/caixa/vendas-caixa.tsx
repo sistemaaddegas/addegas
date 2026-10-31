@@ -5,6 +5,7 @@ import { brlc, centavos } from '@/lib/format'
 import { Icon } from '@/components/icon'
 import { Sheet, bigBtn, chipBtn, moneyInput } from '@/components/sheet'
 import { useToast } from '@/components/toast'
+import { BarraLista, SemResultado } from '@/components/filtros'
 import { hora, pill, pillCls } from '@/lib/visual'
 import { imprimirCupom } from './cupom'
 import type { Operador } from './dados'
@@ -17,6 +18,9 @@ const MOTIVOS = ['Lançado errado', 'Cliente desistiu', 'Cobrança duplicada']
 export function UltimasVendas({ op, onClose, onCancelada }: { op: Operador; onClose: () => void; onCancelada: () => void }) {
   const toast = useToast()
   const [cancelar, setCancelar] = useState<VendaLinha | null>(null)
+  const [q, setQ] = useState('')
+  const [fForma, setFForma] = useState('todos')
+  const [fSit, setFSit] = useState('todos')
   const { data, isLoading, refetch } = useQuery({
     queryKey: ['caixa', 'ultimas-vendas'],
     queryFn: async () => {
@@ -27,12 +31,22 @@ export function UltimasVendas({ op, onClose, onCancelada }: { op: Operador; onCl
       return data as unknown as VendaLinha[]
     },
   })
+  const todas = data ?? []
+  const qd = q.replace(/\D/g, '')
+  const lista = todas.filter((v) => (!qd || String(v.number).includes(qd)) && (fForma === 'todos' || v.sale_payments.some((p) => p.method === fForma))
+    && (fSit === 'todos' || v.status === fSit))
+  const limpar = () => { setQ(''); setFForma('todos'); setFSit('todos') }
   return (
     <>
       <Sheet title="Últimas vendas" onClose={onClose}>
         {isLoading && <div className="text-sm text-[#C4C4C9]">Carregando…</div>}
-        <div className="-mt-2">
-          {data?.map((v) => (
+        <BarraLista busca={q} onBusca={setQ} placeholder="Número da venda" mostrando={lista.length} total={todas.length} unidade={['venda', 'vendas']} onLimpar={limpar}
+          filtros={[
+            { label: 'Forma', value: fForma, onChange: setFForma, options: [['todos', 'Todas'], ...Object.entries(FORMA)] },
+            { label: 'Situação', value: fSit, onChange: setFSit, options: [['todos', 'Todas'], ['paid', 'Pagas'], ['canceled', 'Canceladas']] },
+          ]} />
+        <div>
+          {lista.map((v) => (
             <div key={v.id} className="flex flex-wrap items-center gap-x-3 gap-y-2 py-3 border-b border-line">
               <div className="flex-[1_1_150px] min-w-0">
                 <div className="text-[15px] font-bold">#{v.number} · <span className="num">{brlc(v.total)}</span></div>
@@ -45,7 +59,7 @@ export function UltimasVendas({ op, onClose, onCancelada }: { op: Operador; onCl
               )}
             </div>
           ))}
-          {data && !data.length && <div className="py-3 text-sm text-[#C4C4C9]">Nenhuma venda neste caixa ainda.</div>}
+          {data && !lista.length && <SemResultado filtrado={!!qd || fForma !== 'todos' || fSit !== 'todos'} vazio="Nenhuma venda neste caixa ainda." onLimpar={limpar} />}
         </div>
       </Sheet>
       {cancelar && <CancelarVenda op={op} venda={cancelar} onClose={() => setCancelar(null)} onDone={() => { setCancelar(null); refetch(); onCancelada() }} />}

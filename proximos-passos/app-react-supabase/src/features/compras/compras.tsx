@@ -6,6 +6,7 @@ import { brlc, centavos, parseBRL, reais } from '@/lib/format'
 import { Icon } from '@/components/icon'
 import { Sheet, bigBtn } from '@/components/sheet'
 import { useToast } from '@/components/toast'
+import { BarraLista, SemResultado, norm } from '@/components/filtros'
 import { useEstoque } from '@/features/estoque/dados'
 import { card, chip, chipCls, pill, pillCls, qtd, seg, segBar, segCls } from '@/lib/visual'
 
@@ -42,6 +43,11 @@ export function Compras({ contas = false }: { contas?: boolean }) {
   const qc = useQueryClient()
   const toast = useToast()
   const [abaCompras, setAba] = useState<Aba>('fornecedores')
+  const [qF, setQF] = useState('')
+  const [fTipo, setFTipo] = useState('todos')
+  const [qC, setQC] = useState('')
+  const [fSitC, setFSitC] = useState('abertas')
+  const [fCatC, setFCatC] = useState('todos')
   const aba: Aba = contas ? 'contas' : abaCompras
   const [modal, setModal] = useState<null | 'forn' | 'conta' | 'enviar' | Conta | { receber: PedidoCompra }>(null)
   const accountId = est.data?.accountId
@@ -79,7 +85,19 @@ export function Compras({ contas = false }: { contas?: boolean }) {
     ['Próximos 7 dias', brlc(abertas.filter((b) => { const d = diasAte(b.due_on); return d >= 0 && d <= 7 }).reduce((a, b) => a + b.amount, 0)), '#F5F5F2'],
     ['Pago este mês', brlc(data.contas.filter((b) => b.paid_at?.startsWith(mes)).reduce((a, b) => a + (b.paid_amount ?? 0), 0)), '#4ADE80'],
   ]
-  const ordenadas = [...abertas, ...data.contas.filter((b) => b.paid_at && b.paid_at.startsWith(mes))]
+  // Fornecedores e contas seguem o padrão de busca, filtros e contagem do sistema.
+  const tiposForn = [...new Set(data.fornecedores.flatMap((f) => (f.kind ?? '').split(',').map((x) => x.trim()).filter(Boolean)))].sort()
+  const qfn = norm(qF.trim())
+  const fornecedores = data.fornecedores.filter((f) => (!qfn || norm(`${f.name} ${f.kind ?? ''} ${f.phone ?? ''}`).includes(qfn))
+    && (fTipo === 'todos' || (f.kind ?? '').split(',').map((x) => x.trim()).includes(fTipo)))
+  const limparF = () => { setQF(''); setFTipo('todos') }
+  const catsConta = [...new Set(data.contas.map((b) => b.category).filter(Boolean))] as string[]
+  const qcn = norm(qC.trim())
+  const situacaoConta = (b: Conta) => b.paid_at ? 'pagas' : b.days_late > 0 ? 'vencidas' : diasAte(b.due_on) <= 7 ? 'semana' : 'abertas'
+  const ordenadas = [...abertas, ...data.contas.filter((b) => b.paid_at)]
+    .filter((b) => (!qcn || norm(`${b.description} ${b.category ?? ''}`).includes(qcn)) && (fCatC === 'todos' || b.category === fCatC)
+      && (fSitC === 'todas' || (fSitC === 'abertas' ? !b.paid_at : situacaoConta(b) === fSitC)))
+  const limparC = () => { setQC(''); setFSitC('abertas'); setFCatC('todos') }
 
   return (
     <div className="p-4 tablet:p-8 flex flex-col gap-4 max-w-[1400px] mx-auto w-full">
@@ -94,11 +112,14 @@ export function Compras({ contas = false }: { contas?: boolean }) {
       {aba === 'fornecedores' && (
         <>
           <div className="flex flex-wrap items-center gap-3">
-            <div className="flex-[1_1_260px] text-[15px] text-[#C4C4C9]">{data.fornecedores.length} {data.fornecedores.length === 1 ? 'fornecedor' : 'fornecedores'}</div>
+            <div className="flex-[1_1_600px] min-w-0">
+              <BarraLista busca={qF} onBusca={setQF} placeholder="Buscar fornecedor, tipo ou telefone" mostrando={fornecedores.length} total={data.fornecedores.length} unidade={['fornecedor', 'fornecedores']} onLimpar={limparF}
+                filtros={[{ label: 'Tipo', value: fTipo, onChange: setFTipo, options: [['todos', 'Todos'], ...tiposForn.map((t) => [t, t] as [string, string])] }]} />
+            </div>
             <button onClick={() => setModal('forn')} className="h-12 px-[18px] rounded-[3px_10px_2px_9px] bg-brand text-brand-ink text-[15px] font-extrabold flex items-center gap-2 cursor-pointer"><Icon name="plus" />Novo fornecedor</button>
           </div>
           <div className="grid gap-3 grid-cols-[repeat(auto-fill,minmax(min(100%,280px),1fr))]">
-            {data.fornecedores.map((f) => (
+            {fornecedores.map((f) => (
               <div key={f.id} className="p-[18px] rounded-[4px_13px_5px_11px] bg-surface border border-line flex flex-col gap-3">
                 <div className="flex items-center gap-3">
                   <span className="w-[42px] h-[42px] rounded-[3px_10px_2px_9px] bg-line-2 text-sm font-extrabold flex items-center justify-center flex-none">{iniciais(f.name)}</span>
@@ -112,6 +133,7 @@ export function Compras({ contas = false }: { contas?: boolean }) {
               </div>
             ))}
           </div>
+          {data.fornecedores.length > 0 && fornecedores.length === 0 && <SemResultado filtrado vazio="" onLimpar={limparF} />}
           {data.fornecedores.length === 0 && <div className="py-10 text-center text-[15px] text-[#C4C4C9]">Cadastre seus fornecedores para pedir pelo WhatsApp com a sugestão de compra pronta.</div>}
         </>
       )}
@@ -173,6 +195,11 @@ export function Compras({ contas = false }: { contas?: boolean }) {
             <button onClick={() => setModal('conta')} className="h-12 px-[18px] rounded-[3px_10px_2px_9px] bg-brand text-brand-ink text-[15px] font-extrabold flex items-center gap-2 cursor-pointer"><Icon name="plus" />Nova conta</button>
           </div>
           <div className="grid gap-2.5 grid-cols-[repeat(auto-fit,minmax(min(100%,200px),1fr))]">{stats.map(([l, v, c]) => <Stat key={l} l={l} v={v} c={c} />)}</div>
+          <BarraLista busca={qC} onBusca={setQC} placeholder="Buscar conta" mostrando={ordenadas.length} total={data.contas.length} unidade={['conta', 'contas']} onLimpar={limparC}
+            filtros={[
+              { label: 'Situação', value: fSitC, onChange: setFSitC, todos: 'abertas', options: [['abertas', 'Em aberto'], ['vencidas', 'Vencidas'], ['semana', 'Vencem em 7 dias'], ['pagas', 'Pagas'], ['todas', 'Todas']] },
+              { label: 'Tipo', value: fCatC, onChange: setFCatC, options: [['todos', 'Todos'], ...catsConta.map((c) => [c, c] as [string, string])] },
+            ]} />
           <div className={`${card} overflow-hidden`}>
             {ordenadas.map((b) => {
               const d = diasAte(b.due_on)
@@ -196,7 +223,7 @@ export function Compras({ contas = false }: { contas?: boolean }) {
                 </div>
               )
             })}
-            {ordenadas.length === 0 && <div className="py-10 text-center text-[15px] text-[#C4C4C9]">Nenhuma conta em aberto.</div>}
+            {ordenadas.length === 0 && <SemResultado filtrado={!!qcn || fSitC !== 'abertas' || fCatC !== 'todos'} vazio="Nenhuma conta em aberto." onLimpar={limparC} />}
           </div>
         </>
       )}

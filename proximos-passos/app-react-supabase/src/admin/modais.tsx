@@ -176,6 +176,24 @@ export const modais = {
       spec.okLabel = p ? 'Salvar nova versão' : 'Criar rascunho'
       spec.ok = () => { if (!this.need(['nome', 'marca'])) return; if (bad || dupE) return; const o = { name: F.nome, brand: F.marca, category: F.cat, subcategory: F.sub || '', ean, volume: num(F.vol) || 1, unit: F.un || 'ml', packaging: F.emb || '', abv: F.abv ? num(F.abv) : '', image: F.img || '', description: F.desc || '' }; this.call('catalog/save', { product: p ? { id: p.uuid, ...o } : { ...o, status: 'draft' } }, p ? 'Nova versão salva.' : 'Produto criado como rascunho.') }
     }
+    if (m.kind === 'sug') {
+      const x = (s.suggestions || []).find((y) => y.id === m.id), ean = String(F.ean || '').replace(/\D/g, ''), bad = ean && !gtOk(ean), dupE = ean && s.catalog.find((c) => c.st !== 'arquivado' && c.ean === ean)
+      spec.title = 'Sugestão ' + x.id + ' · ' + x.nome; spec.sub = 'Enviada pela ' + x.adegaNome + ' em ' + fD(x.criado) + '. Preço, custo e estoque continuam da adega.'
+      spec.fields = [f('acao', 'Decisão', 'chips', { full: 1, opts: [['approve', 'Aprovar no catálogo'], ['link', 'Ligar a um produto que já existe'], ['reject', 'Recusar']] })]
+      if (F.acao === 'approve') spec.fields.push(f('nome', 'Nome no catálogo', 'text', { req: 1, full: 1 }), f('marca', 'Marca', 'text'), f('cat', 'Categoria', 'select', { opts: ['Cervejas', 'Destilados', 'Energéticos', 'Refrigerantes', 'Gelo', 'Drinks prontos', 'Vinhos', 'Água', 'Petiscos', 'Outros', ...new Set(s.catalog.map((c) => c.cat))].filter((v, i, a) => a.indexOf(v) === i) }), f('ean', 'EAN / GTIN', 'text', { hint: ean ? (bad ? '' : 'dígito verificador ok') : 'Sem EAN o produto entra como rascunho' }), f('vol', 'Volume', 'number'), f('un', 'Unidade', 'select', { opts: ['ml', 'L', 'g', 'kg', 'un'] }))
+      if (F.acao === 'link') spec.fields.push(f('link', 'Produto do catálogo', 'select', { full: 1, opts: [['', 'Escolha…'], ...s.catalog.filter((c) => c.st !== 'arquivado').map((c) => [c.id, c.id + ' · ' + c.nome + (c.ean ? ' · ' + c.ean : '')])] }))
+      if (F.acao === 'reject') spec.fields.push(f('motivo', 'Motivo', 'area', { req: 1, full: 1, ph: 'Ex.: produto artesanal, só existe nesta adega' }))
+      if (F.acao === 'approve' && bad) spec.notes.push(nt('EAN inválido: o dígito verificador não confere.', 'red'))
+      if (F.acao === 'approve' && dupE) spec.notes.push(nt('Já existe ' + dupE.id + ' com este EAN (' + dupE.nome + '). Use "Ligar a um produto que já existe".', 'red'))
+      if (x.mesmoEan) spec.notes.push(nt('Outras ' + x.mesmoEan + ' sugestão(ões) com o mesmo código de barras seguem a mesma decisão.', 'green'))
+      spec.prevTitle = 'O que acontece'; spec.prev = F.acao === 'reject' ? [pv('Produto da adega', 'continua só na ' + x.adegaNome), pv('Catálogo', 'sem mudança')] : [pv('Produto da adega', 'fica ligado ao catálogo', '#4ADE80'), pv('Catálogo', F.acao === 'approve' ? (ean && !bad ? 'novo produto publicado' : 'novo rascunho') : 'sem produto novo'), pv('Outras adegas', F.acao === 'approve' && ean && !bad ? 'passam a achar no catálogo' : '—')]
+      spec.danger = F.acao === 'reject'; spec.okLabel = F.acao === 'approve' ? 'Aprovar' : F.acao === 'link' ? 'Ligar' : 'Recusar'
+      spec.ok = () => {
+        if (F.acao === 'approve') { if (!this.need(['nome'])) return; if (bad || dupE) return; return this.call('catalog/suggestion', { id: x.uuid, action: 'approve', data: { name: F.nome, brand: F.marca || '', category: F.cat, ean, volume: F.vol || '', unit: F.un || 'ml', publish: true } }, x.nome + ' entrou no catálogo.') }
+        if (F.acao === 'link') { const c = s.catalog.find((y) => y.id === F.link); if (!c) return this.setState({ formErr: { link: 'Escolha o produto' } }); return this.call('catalog/suggestion', { id: x.uuid, action: 'link', data: { catalog_id: c.uuid } }, x.nome + ' ligado a ' + c.id + '.') }
+        if (!this.need(['motivo'])) return; return this.call('catalog/suggestion', { id: x.uuid, action: 'reject', data: { reason: F.motivo } }, 'Sugestão recusada.', { tone: '#E5241B' })
+      }
+    }
     if (m.kind === 'catMerge') {
       const a = s.catalog.find((x) => x.id === m.keep), b = s.catalog.find((x) => x.id === m.drop); spec.title = 'Mesclar produtos'; spec.prevTitle = 'Resultado'
       spec.prev = [pv('Fica', a.id + ' · ' + a.nome), pv('Vai para arquivados', b.id + ' · ' + b.nome, '#FF6B5E'), pv('Adegas transferidas', b.uso + ' → passam a usar ' + a.id), pv('Dados locais das adegas', 'preservados', '#4ADE80')]

@@ -112,7 +112,7 @@ function Onboarding() {
       await qc.invalidateQueries({ queryKey: ['my_stores'] })
       setStoreId(r.store_id)
       toast(dono ? `${f.nome.trim()} criada` : 'Tudo pronto! Seu teste grátis de 14 dias começou.')
-      navigate(f.produtos === 'depois' || dono ? '/' : '/estoque', { replace: true })
+      navigate(f.produtos === 'depois' || dono ? '/' : f.produtos === 'catalogo' ? '/estoque?catalogo=1' : '/estoque', { replace: true })
     } catch (e) {
       toast((e as Error).message)
       setBusy(false)

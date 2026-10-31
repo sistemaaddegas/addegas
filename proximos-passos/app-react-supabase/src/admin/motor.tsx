@@ -207,6 +207,10 @@ export function montar(snap) {
     origem: c.origin || 'Addegas', st: CATST[c.status] || 'rascunho', atual: c.updated_at || c.created_at, uso: c.usage || 0, pend: 0, img: c.image, desc: c.description || '', ver: c.version || 1,
     hist: (c.history || []).map((h) => ({ when: h.when, who: h.who, diff: diffTxt(null, h.after) || 'atualização' })).concat([{ when: c.created_at, who: c.origin === 'Importação' ? 'Importação' : 'Addegas', diff: 'cadastro inicial' }]),
   }))
+  const SUGST = { pendente: 'pendente', aprovada: 'aprovada', vinculada: 'vinculada', recusada: 'recusada' }
+  const catCod = Object.fromEntries(catalog.map((c) => [c.uuid, c.id]))
+  const suggestions = (snap.suggestions || []).map((x) => ({ id: cod('SG-', x.number, 3), uuid: x.id, adega: accCod[x.account_id] || null, adegaNome: x.account, nome: x.name, ean: x.ean || '',
+    vol: x.volume_ml, cat: x.category || '', st: SUGST[x.status] || 'pendente', catalogo: catCod[x.catalog_product_id] || null, motivo: x.reason || '', criado: x.created_at, revisto: x.reviewed_at, who: x.who || '', mesmoEan: x.same_ean || 0 }))
   const LAYER = { front: 'fe', back: 'be', security: 'sec' }, SEVR = { error: 'erro', warn: 'aviso', info: 'info', debug: 'info' }
   const logs = (snap.logs || []).map((l) => {
     const c = l.context || {}, layer = LAYER[l.source] || 'be'
@@ -234,7 +238,7 @@ export function montar(snap) {
   return {
     me: { email: me.email, nome: me.name, role: ROLEKEY[me.role], uid: me.user_id, roleLabel: me.role_label, acts },
     roles: (snap.roles || []).map((r) => ({ key: ROLEKEY[r.code], code: r.code, label: r.name, acts: r.actions })), actionNames: snap.action_names || {},
-    plans, adegas, invoices, refunds, discounts, audit, queue, tpls, sends, tickets, groups: imps, etapas, leads, catalog, logs, team, staffNames, funnels,
+    plans, adegas, invoices, refunds, discounts, audit, queue, tpls, sends, tickets, groups: imps, etapas, leads, catalog, suggestions, logs, team, staffNames, funnels,
     stock, kits, gifts, mkt, camps, feat, alerts: (st.alerts || {}).items || [], ret: st.retention || { fe: '30', be: '90', sec: '5' },
     cfg: { ...(st.automation || {}), sessao: (st.staff_session || {}).sessao || '30' }, updRule: (st.catalog_update_rule || {}).rule || 'manual',
   }

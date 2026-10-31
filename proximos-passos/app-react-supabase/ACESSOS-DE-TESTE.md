@@ -64,6 +64,8 @@ Perdeu o celular do autenticador? No banco local, apague o fator e o painel pede
 Dados de teste do painel que ficaram no banco: lead "Adega Teste Painel", produto "Cerveja Teste Painel 350 ml" (arquivado),
 funil "Caixa do dia", melhoria "Melhoria criada no teste", desconto de R$ 20 para a Adega do Porto, acesso temporário da
 Adega do Porto por 3 dias e o alerta "Latência alta da API" ligado.
+Catálogo: a Adega Esquina importou o produto "teste" do catálogo e criou "Cachaça da Casa 700ml" (aprovado no
+catálogo como "Cachaça da Casa 700 ml"); a sugestão "Gelo de coco" foi recusada. As outras sugestões seguem na fila.
 
 ## Caixa: quem opera
 

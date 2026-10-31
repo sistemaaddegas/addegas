@@ -4,6 +4,7 @@ import { useAuth } from '@/lib/auth'
 import { supabase } from '@/lib/supabase'
 import { Icon } from '@/components/icon'
 import { useToast } from '@/components/toast'
+import { BarraLista, SemResultado, norm } from '@/components/filtros'
 
 type Nota = { id: string; title: string; body: string | null; priority: 'alta' | 'media' | 'baixa'; done: boolean; created_at: string }
 
@@ -34,6 +35,9 @@ function papel(id: string, n: Nota): { wrap: CSSProperties; st: CSSProperties } 
 }
 
 export function Anotacoes() {
+  const [q, setQ] = useState('')
+  const [fPrio, setFPrio] = useState('todos')
+  const [fSit, setFSit] = useState('todos')
   const { storeId } = useAuth()
   const qc = useQueryClient()
   const toast = useToast()
@@ -67,17 +71,26 @@ export function Anotacoes() {
   if (isLoading) return <div className="p-4 tablet:p-8 text-[#C4C4C9]">Carregando…</div>
   if (error || !data) return <div className="p-4 tablet:p-8 text-bad">Não deu para carregar as anotações. {error?.message}</div>
 
-  const notas = [...data].sort((a, b) => Number(a.done) - Number(b.done) || PO[a.priority] - PO[b.priority])
+  const qn = norm(q.trim())
+  const notas = data.filter((n) => (!qn || norm(`${n.title} ${n.body ?? ''}`).includes(qn)) && (fPrio === 'todos' || n.priority === fPrio)
+      && (fSit === 'todos' || (fSit === 'feitas') === n.done))
+    .sort((a, b) => Number(a.done) - Number(b.done) || PO[a.priority] - PO[b.priority])
+  const limpar = () => { setQ(''); setFPrio('todos'); setFSit('todos') }
   return (
     <div className="p-4 tablet:p-8 flex flex-col gap-[18px] max-w-[1400px] mx-auto w-full">
       <div className="flex flex-wrap items-center gap-3">
         <div className="flex-[1_1_260px] text-[15px] text-[#C4C4C9]">Recados rápidos da adega. Toque no papel para escrever.</div>
         <button onClick={nova} className="h-12 px-[18px] rounded-[3px_10px_2px_9px] bg-brand text-brand-ink text-[15px] font-extrabold flex items-center gap-2 cursor-pointer"><Icon name="plus" />Nova anotação</button>
       </div>
+      <BarraLista busca={q} onBusca={setQ} placeholder="Buscar nas anotações" mostrando={notas.length} total={data.length} unidade={['anotação', 'anotações']} onLimpar={limpar}
+        filtros={[
+          { label: 'Prioridade', value: fPrio, onChange: setFPrio, options: [['todos', 'Todas'], ['alta', 'Alta'], ['media', 'Média'], ['baixa', 'Baixa']] },
+          { label: 'Situação', value: fSit, onChange: setFSit, options: [['todos', 'Todas'], ['abertas', 'A fazer'], ['feitas', 'Feitas']] },
+        ]} />
       <div className="grid gap-x-[18px] gap-y-[22px] items-start pt-1.5 px-1 pb-5 grid-cols-[repeat(auto-fill,minmax(min(100%,220px),1fr))]">
         {notas.map((n) => <Papel key={n.id} n={n} onMudar={mudar} onApagar={apagar} />)}
       </div>
-      {notas.length === 0 && <div className="py-12 px-4 text-center text-[#C4C4C9] text-[15px]">Nenhuma anotação. Crie a primeira.</div>}
+      {notas.length === 0 && <SemResultado filtrado={!!qn || fPrio !== 'todos' || fSit !== 'todos'} vazio="Nenhuma anotação. Crie a primeira." onLimpar={limpar} />}
     </div>
   )
 }

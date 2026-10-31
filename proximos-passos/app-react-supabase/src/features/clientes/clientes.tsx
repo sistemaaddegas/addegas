@@ -7,11 +7,11 @@ import { Icon } from '@/components/icon'
 import { Sheet, bigBtn } from '@/components/sheet'
 import { usePermissoes } from '@/app/shell-dados'
 import { useToast } from '@/components/toast'
+import { BarraLista, SemResultado, norm } from '@/components/filtros'
 import { card, chip, chipCls } from '@/lib/visual'
 import { useCaderneta, useFiados, type Fiado, type Lancamento } from './dados'
 
 const campo = 'h-[52px] px-3.5 rounded-[3px_10px_2px_9px] bg-surface-2 border border-line-2 text-base outline-none focus:border-brand'
-const norm = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
 const iniciais = (n: string) => n.trim().split(/\s+/).slice(0, 2).map((p) => p[0]?.toUpperCase()).join('')
 const telefone = (t: string | null) => !t ? 'Sem telefone' : t.length === 11 ? `(${t.slice(0, 2)}) ${t.slice(2, 7)}-${t.slice(7)}` : t.length === 10 ? `(${t.slice(0, 2)}) ${t.slice(2, 6)}-${t.slice(6)}` : t
 const dataCurta = (iso: string) => new Date(iso).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })
@@ -35,6 +35,7 @@ export function Clientes() {
   const { storeId } = useAuth()
   const { data, error, isLoading } = useFiados(storeId)
   const [q, setQ] = useState('')
+  const [fSit, setFSit] = useState('todos')
   const [sel, setSel] = useState<string | null>(null)
   const [novo, setNovo] = useState(false)
   const { data: perm } = usePermissoes()
@@ -50,7 +51,11 @@ export function Clientes() {
     ['Perto do limite', `${perto.length} ${perto.length === 1 ? 'cliente' : 'clientes'}`, '#FF6B5E'],
   ]
   const qn = norm(q.trim()), qd = q.replace(/\D/g, '')
-  const lista = data.filter((c) => !qn || norm(c.name).includes(qn) || (qd && (c.phone ?? '').includes(qd)))
+  const hojeISO = new Date().toLocaleDateString('sv-SE', { timeZone: 'America/Sao_Paulo' })
+  const situacao = (c: Fiado) => c.balance <= 0 ? 'quitado' : c.promised_date && c.promised_date < hojeISO ? 'atrasado' : c.credit_limit && c.balance / c.credit_limit >= 0.8 ? 'perto' : 'devendo'
+  const lista = data.filter((c) => (!qn || norm(c.name).includes(qn) || (qd && (c.phone ?? '').includes(qd)))
+    && (fSit === 'todos' || (fSit === 'devendo' ? c.balance > 0 : situacao(c) === fSit)))
+  const limpar = () => { setQ(''); setFSit('todos') }
   const atual = data.find((c) => c.fiado_account_id === sel) ?? null
 
   return (
@@ -65,11 +70,10 @@ export function Clientes() {
       </div>
 
       <div className="flex flex-wrap gap-2.5 items-center">
-        <div className="flex-[1_1_260px] flex items-center gap-2.5 h-12 px-3.5 rounded-[3px_10px_2px_9px] bg-surface border border-line text-[#C4C4C9] max-w-[520px]">
-          <Icon name="search" />
-          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar por nome ou telefone" className="flex-1 min-w-0 h-full bg-transparent border-none text-[15px] text-ink outline-none" />
+        <div className="flex-[1_1_600px] min-w-0">
+          <BarraLista busca={q} onBusca={setQ} placeholder="Buscar por nome ou telefone" mostrando={lista.length} total={data.length} unidade={['cliente', 'clientes']} onLimpar={limpar}
+            filtros={[{ label: 'Situação', value: fSit, onChange: setFSit, options: [['todos', 'Todos'], ['devendo', 'Devendo'], ['atrasado', 'Pagamento atrasado'], ['perto', 'Perto do limite'], ['quitado', 'Sem dívida']] }]} />
         </div>
-        <span className="flex-1" />
         {perm?.pode('fiado_ajustar') && <button onClick={() => setNovo(true)} className="h-12 px-[18px] rounded-[3px_10px_2px_9px] bg-brand text-brand-ink text-[15px] font-extrabold flex items-center gap-2 cursor-pointer"><Icon name="plus" />Novo cliente</button>}
       </div>
 
@@ -95,7 +99,7 @@ export function Clientes() {
             </div>
           )
         })}
-        {lista.length === 0 && <div className="py-10 px-4 text-center text-[15px] text-[#C4C4C9]">{data.length ? 'Ninguém encontrado.' : 'Ninguém comprou fiado ainda.'}</div>}
+        {lista.length === 0 && <SemResultado filtrado={!!q.trim() || fSit !== 'todos'} vazio="Ninguém comprou fiado ainda." onLimpar={limpar} />}
       </div>
 
       {atual && <Detalhe c={atual} storeId={storeId!} onClose={() => setSel(null)} />}

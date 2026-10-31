@@ -5,6 +5,7 @@ import { funcao, rpc, supabase } from '@/lib/supabase'
 import { Icon } from '@/components/icon'
 import { Sheet, bigBtn } from '@/components/sheet'
 import { useToast } from '@/components/toast'
+import { BarraLista, SemResultado, norm } from '@/components/filtros'
 import { card, chip, chipCls, pill, pillCls } from '@/lib/visual'
 
 type Papel = 'owner' | 'manager' | 'cashier' | 'stock_keeper' | 'courier'
@@ -42,7 +43,10 @@ export function Equipe() {
   const qc = useQueryClient()
   const toast = useToast()
   const [sheet, setSheet] = useState<Membro | 'novo' | null>(null)
-  const [verInativos, setVerInativos] = useState(false)
+  const [q, setQ] = useState('')
+  const [fSit, setFSit] = useState('ativos')
+  const [fPapel, setFPapel] = useState('todos')
+  const [fAcesso, setFAcesso] = useState('todos')
 
   const { data, error, isLoading } = useQuery({
     queryKey: ['equipe', storeId],
@@ -73,8 +77,11 @@ export function Equipe() {
 
   const dono = data.eu.role === 'owner'
   const gere = dono || data.eu.permissions.includes('equipe')
-  const lista = data.membros.filter((m) => verInativos || m.active).sort((a, b) => Number(b.active) - Number(a.active) || EDITAVEIS.indexOf(a.role) - EDITAVEIS.indexOf(b.role))
-  const inativos = data.membros.filter((m) => !m.active).length
+  const qn = norm(q.trim())
+  const lista = data.membros.filter((m) => (!qn || norm(m.display_name).includes(qn)) && (fSit === 'todos' || (fSit === 'ativos') === m.active)
+      && (fPapel === 'todos' || m.role === fPapel) && (fAcesso === 'todos' || (fAcesso === 'login') === !!m.user_id))
+    .sort((a, b) => Number(b.active) - Number(a.active) || EDITAVEIS.indexOf(a.role) - EDITAVEIS.indexOf(b.role))
+  const limpar = () => { setQ(''); setFSit('ativos'); setFPapel('todos'); setFAcesso('todos') }
 
   const permitir = async (role: Papel, code: string, on: boolean) => {
     try {
@@ -99,6 +106,14 @@ export function Equipe() {
           <div className="text-[17px] font-extrabold">Pessoas</div>
           {gere && <button onClick={() => setSheet('novo')} className="h-10 px-3.5 rounded-[2px_8px_3px_7px] bg-brand text-brand-ink text-sm font-extrabold flex items-center gap-1.5 cursor-pointer"><Icon name="plus" size={18} />Convidar</button>}
         </div>
+        <div className="mb-2">
+          <BarraLista busca={q} onBusca={setQ} placeholder="Buscar pessoa" mostrando={lista.length} total={data.membros.length} unidade={['pessoa', 'pessoas']} onLimpar={limpar}
+            filtros={[
+              { label: 'Situação', value: fSit, onChange: setFSit, todos: 'ativos', options: [['ativos', 'Ativas'], ['inativos', 'Desativadas'], ['todos', 'Todas']] },
+              { label: 'Função', value: fPapel, onChange: setFPapel, options: [['todos', 'Todas'], ...(Object.keys(PAPEL) as Papel[]).map((k) => [k, PAPEL[k][0]] as [string, string])] },
+              { label: 'Acesso', value: fAcesso, onChange: setFAcesso, options: [['todos', 'Todos'], ['login', 'Com login'], ['caixa', 'Só no caixa']] },
+            ]} />
+        </div>
         {lista.map((p) => {
           const [l, c, bg] = PAPEL[p.role]
           return (
@@ -112,11 +127,7 @@ export function Equipe() {
             </div>
           )
         })}
-        {inativos > 0 && (
-          <button onClick={() => setVerInativos(!verInativos)} className="self-start mt-2 p-0 bg-transparent text-brand text-sm font-bold cursor-pointer">
-            {verInativos ? 'Esconder desativados' : `Ver ${inativos} ${inativos === 1 ? 'desativado' : 'desativados'}`}
-          </button>
-        )}
+        {lista.length === 0 && <SemResultado filtrado vazio="" onLimpar={limpar} />}
       </div>
 
       <div className={`${card} p-5`}>

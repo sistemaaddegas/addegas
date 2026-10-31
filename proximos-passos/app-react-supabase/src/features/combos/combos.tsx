@@ -6,6 +6,7 @@ import { brlc, centavos, reais } from '@/lib/format'
 import { Icon } from '@/components/icon'
 import { Sheet, bigBtn } from '@/components/sheet'
 import { useToast } from '@/components/toast'
+import { BarraLista, SemResultado, norm } from '@/components/filtros'
 import { useEstoque, type ProdutoLoja } from '@/features/estoque/dados'
 import { chip, qtd } from '@/lib/visual'
 
@@ -59,11 +60,19 @@ export function Combos() {
   const qc = useQueryClient()
   const toast = useToast()
   const [edit, setEdit] = useState<Combo | 'novo' | null>(null)
+  const [q, setQ] = useState('')
+  const [fSit, setFSit] = useState('todos')
+  const [fCat, setFCat] = useState('todos')
 
   if (isLoading || est.isLoading) return <div className="p-4 tablet:p-8 text-[#C4C4C9]">Carregando…</div>
   if (error || est.error || !data || !est.data) return <div className="p-4 tablet:p-8 text-bad">Não deu para carregar as promoções. {(error ?? est.error)?.message}</div>
 
   const prod = new Map(est.data.produtos.map((p) => [p.product_id, p]))
+  const qn = norm(q.trim())
+  const ativoNaLoja = (c: Combo) => c.active && data.loja.get(c.id)?.active !== false
+  const combos = data.combos.filter((c) => (!qn || norm(`${c.name} ${c.bundle_items.map((i) => prod.get(i.product_id)?.name ?? '').join(' ')}`).includes(qn))
+    && (fSit === 'todos' || (fSit === 'ativas') === ativoNaLoja(c)) && (fCat === 'todos' || (fCat === 'sim') === c.show_in_catalog))
+  const limpar = () => { setQ(''); setFSit('todos'); setFCat('todos') }
   const custo = (c: Combo) => c.bundle_items.reduce((a, i) => a + (prod.get(i.product_id)?.avg_cost ?? 0) * Number(i.quantity), 0)
   const separado = (c: Combo) => c.bundle_items.reduce((a, i) => a + (prod.get(i.product_id)?.price ?? 0) * Number(i.quantity), 0)
   const verCusto = est.data.produtos.some((p) => p.avg_cost != null)
@@ -86,8 +95,13 @@ export function Combos() {
         <button onClick={() => setEdit('novo')} className="h-12 px-[18px] rounded-[3px_10px_2px_9px] bg-brand text-brand-ink text-[15px] font-extrabold flex items-center gap-2 cursor-pointer"><Icon name="plus" />Criar promoção</button>
       </div>
 
+      <BarraLista busca={q} onBusca={setQ} placeholder="Buscar promoção ou produto" mostrando={combos.length} total={data.combos.length} unidade={['promoção', 'promoções']} onLimpar={limpar}
+        filtros={[
+          { label: 'Situação', value: fSit, onChange: setFSit, options: [['todos', 'Todas'], ['ativas', 'Ativas'], ['pausadas', 'Pausadas']] },
+          { label: 'No WhatsApp', value: fCat, onChange: setFCat, options: [['todos', 'Tanto faz'], ['sim', 'Aparece'], ['nao', 'Não aparece']] },
+        ]} />
       <div className="grid gap-3 items-start grid-cols-[repeat(auto-fill,minmax(min(100%,300px),1fr))]">
-        {data.combos.map((c) => {
+        {combos.map((c) => {
           const lb = data.loja.get(c.id)
           const preco = lb?.price ?? c.price
           const cu = custo(c)
@@ -113,7 +127,7 @@ export function Combos() {
           )
         })}
       </div>
-      {data.combos.length === 0 && <div className="py-10 text-center text-[15px] text-[#C4C4C9]">Nenhuma promoção ainda. Monte um combo com produtos que vencem logo ou que vendem juntos.</div>}
+      {combos.length === 0 && <SemResultado filtrado={!!qn || fSit !== 'todos' || fCat !== 'todos'} vazio="Nenhuma promoção ainda. Monte um combo com produtos que vencem logo ou que vendem juntos." onLimpar={limpar} />}
 
       {edit && <Editor combo={edit === 'novo' ? null : edit} produtos={est.data.produtos} accountId={est.data.accountId} verCusto={verCusto}
         onClose={() => setEdit(null)} onDone={recarregar} />}
