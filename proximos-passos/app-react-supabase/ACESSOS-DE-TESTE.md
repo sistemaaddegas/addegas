@@ -57,7 +57,7 @@ Senha de todos: **`addegas123`**. Cada adega tem um dono (`<slug>@massa.test`) e
 Na loja principal da Bom Gole: 166 produtos, 109 lotes com validade, 48 clientes no fiado, 30 pedidos abertos e 40
 entregues, 34 fornecedores, 45 contas a pagar, 30 pedidos de compra, 41 itens na sugestão de compra, 32 combos e
 promoções, 32 pessoas na equipe, 32 anotações, 32 tickets e 32 dias de caixa fechado. As lojas extras têm metade do volume.
-No painel da equipe: 191 produtos no catálogo, 141 sugestões na fila, 70 contatos no CRM, 257 tickets, 80 faturas e
+No painel da equipe: cerca de 190 produtos no catálogo, 140 sugestões na fila, 70 contatos no CRM, 250 tickets, 80 faturas e
 330 ocorrências do sistema.
 
 ## Painel da equipe Addegas (http://localhost:5173/admin/)
@@ -80,17 +80,9 @@ Perdeu o celular do autenticador? No banco local, apague o fator e o painel pede
 
 ### Criados durante os testes (somem no próximo `db:reset`)
 
-| Login | Senha | Quem é |
-|---|---|---|
-| `dono-teste@adega.test` | `cadastro2026` | Dono Teste, dono da "Adega do Teste" (criada pelo cadastro) |
-| `teste.prov@adega-esquina` | `novasenha123` | Teste Provisório, caixa na Adega Esquina |
-| `testeporte@adega-esquina` | desconhecida (provisória) | Teste Login, caixa **desativado** na Adega Esquina |
-
-Dados de teste do painel que ficaram no banco: lead "Adega Teste Painel", produto "Cerveja Teste Painel 350 ml" (arquivado),
-funil "Caixa do dia", melhoria "Melhoria criada no teste", desconto de R$ 20 para a Adega do Porto, acesso temporário da
-Adega do Porto por 3 dias e o alerta "Latência alta da API" ligado.
-Catálogo: a Adega Esquina importou o produto "teste" do catálogo e criou "Cachaça da Casa 700ml" (aprovado no
-catálogo como "Cachaça da Casa 700 ml"); a sugestão "Gelo de coco" foi recusada. As outras sugestões seguem na fila.
+Nenhum no momento. O banco local foi recriado em 31/10/2026 (seed + massa), e os acessos e dados criados nos testes
+anteriores (dono-teste, teste.prov, testeporte e os dados de teste do painel) saíram junto. O 2FA do
+`admin@addegas.com.br` foi mantido: o mesmo código do aplicativo autenticador continua valendo.
 
 ## Caixa: quem opera
 
