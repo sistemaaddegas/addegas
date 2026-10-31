@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router'
 import { useQuery } from '@tanstack/react-query'
 import { rpc } from '@/lib/supabase'
@@ -23,6 +23,8 @@ export function Lojas() {
   const { session, storeId, setStoreId, signOut } = useAuth()
   const navigate = useNavigate()
   const { data: stores, isLoading, error } = useMyStores()
+  const [q, setQ] = useState('')
+  const visiveis = (stores ?? []).filter((s) => !q.trim() || `${s.name} ${s.neighborhood ?? ''}`.toLowerCase().includes(q.trim().toLowerCase()))
   // Equipe Addegas não tem adega nem cadastra uma: o lugar dela é o painel interno (admin.).
   const equipe = session?.user.app_metadata?.kind === 'staff'
 
@@ -41,7 +43,10 @@ export function Lojas() {
           : stores?.length ? `Você tem acesso a ${stores.length} ${stores.length === 1 ? 'loja' : 'lojas'}.`
           : 'Você ainda não tem acesso a nenhuma loja. Se é o dono, cadastre sua adega; se trabalha numa, peça ao dono para liberar.'}
       </div>
-      {stores?.map((s) => {
+      {(stores?.length ?? 0) > 4 && <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar loja" aria-label="Buscar loja"
+        className="h-12 px-3.5 rounded-[3px_10px_2px_9px] bg-surface-2 border border-line-2 text-[15px] outline-none focus:border-brand" />}
+      {(stores?.length ?? 0) > 4 && q.trim() && <div className="text-[13px] text-[#C4C4C9] -mt-1">Mostrando {visiveis.length} de {stores!.length} lojas</div>}
+      {visiveis.map((s) => {
         const atual = s.store_id === storeId
         return (
           <button key={s.store_id} onClick={() => go(s)}

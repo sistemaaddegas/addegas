@@ -27,6 +27,7 @@ export function ReceberPedidos({ pedidos, onClose, onEscolher }: { pedidos: Pedi
   return (
     <Sheet title="Receber pedido" onClose={onClose}>
       <div className="text-sm text-[#C4C4C9] -mt-2">Pedidos aceitos que ainda não foram pagos no caixa. Ao receber, o pedido vira venda e entra no faturamento.</div>
+      {pedidos.length > 0 && <div className="text-[13px] text-[#C4C4C9]">{pedidos.length} {pedidos.length === 1 ? 'pedido para receber' : 'pedidos para receber'}</div>}
       {pedidos.map((o) => {
         const c = canal(o.channel)
         return (

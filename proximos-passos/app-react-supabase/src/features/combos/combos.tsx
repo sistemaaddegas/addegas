@@ -199,6 +199,7 @@ function Editor({ combo, produtos, accountId, verCusto, onClose, onDone }: {
         <div className="flex items-center gap-2.5 h-11 px-3 rounded-[3px_10px_2px_9px] bg-surface-2 border border-line-2 text-[#C4C4C9]">
           <Icon name="search" /><input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar no estoque" className="flex-1 min-w-0 h-full bg-transparent border-none text-[15px] text-ink outline-none" />
         </div>
+        <div className="text-[13px] text-[#C4C4C9]">{(() => { const n = produtos.filter((p) => !busca || p.name.toLowerCase().includes(busca)).length; return n === produtos.length ? `${produtos.length} produtos no estoque` : `${n} de ${produtos.length} produtos${n > 40 ? ' (mostrando 40)' : ''}` })()}</div>
         <div className="max-h-[230px] overflow-y-auto rounded-[3px_10px_2px_9px] border border-line-2 bg-surface">
           {lista.map((p) => (
             <div key={p.product_id} onClick={() => muda(p.product_id, 1)} className="flex items-center gap-3 py-2.5 px-3 border-b border-line cursor-pointer hover:bg-surface-2">

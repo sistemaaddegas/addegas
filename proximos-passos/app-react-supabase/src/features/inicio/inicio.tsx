@@ -230,6 +230,7 @@ function EscolherRapido({ atuais, opcoes, onClose, onSalvar }: { atuais: Item[];
       <div className="flex items-center gap-2.5 h-12 px-3.5 rounded-[3px_10px_2px_9px] bg-surface-2 border border-line-2 text-[#C4C4C9]">
         <Icon name="search" /><input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar produto" className="flex-1 min-w-0 h-full bg-transparent outline-none text-base text-ink" />
       </div>
+      <div className="text-[13px] text-[#C4C4C9] -mt-1">{lista.length === opcoes.length ? `${opcoes.length} produtos e combos` : `Mostrando ${lista.length} de ${opcoes.length}`}</div>
       <div className="-mt-1">
         {lista.map((o) => {
           const n = sel.findIndex((x) => x.key === o.key)

@@ -231,6 +231,10 @@ export function Pdv({ op, onTrocar }: { op: Operador; onTrocar: () => void }) {
           {chips.map((c, i) => (
             <button key={c.id} onClick={() => setFiltro(c.id)} style={chip(filtro === c.id, i)} className="h-10 px-4 text-sm font-bold cursor-pointer whitespace-nowrap flex-none">{c.label}</button>
           ))}
+          {cat && <span className="self-center ml-auto pl-2 text-[13px] text-[#C4C4C9] whitespace-nowrap flex-none">
+            {visiveis.length === cat.itens.length ? `${cat.itens.length} produtos` : `Mostrando ${visiveis.length} de ${cat.itens.length}`}
+            {(q || filtro !== 'todos') && <button onClick={() => { setQ(''); setFiltro('todos') }} className="ml-2 text-brand font-bold cursor-pointer">Limpar filtros</button>}
+          </span>}
         </div>
 
         <div className="grid gap-2.5 content-start grid-cols-2 tablet:grid-cols-[repeat(auto-fill,minmax(160px,1fr))]">

@@ -267,6 +267,7 @@ function FiadoPara({ escolha, onEscolha }: { escolha: FiadoEscolha | null; onEsc
           placeholder="Telefone ou nome" autoFocus className={`${campo} flex-1 min-w-0`} />
         <button type="button" onClick={buscar} className="h-12 px-4 rounded-[3px_10px_2px_9px] bg-brand text-brand-ink font-extrabold cursor-pointer">Buscar</button>
       </div>
+      {achados && achados.length > 0 && <span className="text-[13px] text-[#ADADB4]">{achados.length} {achados.length === 1 ? 'cliente encontrado' : 'clientes encontrados'}</span>}
       {achados?.map((a) => (
         <button key={a.fiado_account_id} type="button" onClick={() => onEscolha({ id: a.fiado_account_id, name: a.name, balance: a.balance, credit_limit: a.credit_limit })}
           className="flex items-center gap-3 p-3 rounded-[3px_10px_2px_9px] border border-line-2 bg-surface text-left cursor-pointer">

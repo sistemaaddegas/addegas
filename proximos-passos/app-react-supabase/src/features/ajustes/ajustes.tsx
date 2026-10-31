@@ -109,7 +109,7 @@ export function AjustesTela() {
 
       <div className={`${card} p-5 gap-2.5`}>
         <div className="flex items-center justify-between">
-          <div className="text-[17px] font-extrabold">Lojas</div>
+          <div className="text-[17px] font-extrabold">Lojas <span className="text-[13px] font-bold text-[#C4C4C9]">{d.lojas.length} {d.lojas.length === 1 ? 'loja' : 'lojas'}</span></div>
           <span className="flex gap-2">
             <button onClick={() => navigate('/lojas')} className="h-[38px] px-3 rounded-[2px_8px_3px_7px] border border-line-2 bg-surface-2 text-[13px] font-bold flex items-center gap-1.5 cursor-pointer">Trocar de loja</button>
             {dono && <button onClick={() => navigate('/cadastro?nova=1')} className="h-[38px] px-3 rounded-[2px_8px_3px_7px] border border-brand text-brand text-[13px] font-bold flex items-center gap-1.5 cursor-pointer"><Icon name="plus" size={16} />Nova loja</button>}

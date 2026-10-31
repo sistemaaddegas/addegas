@@ -4,6 +4,7 @@ import { useAuth } from '@/lib/auth'
 import { funcao, rpc, supabase } from '@/lib/supabase'
 import { Icon } from '@/components/icon'
 import { useToast } from '@/components/toast'
+import { BarraLista, SemResultado, norm } from '@/components/filtros'
 import { useContaAtual } from '@/features/assinatura/assinatura'
 import { irr } from '@/lib/visual'
 
@@ -11,7 +12,7 @@ type Tipo = 'problema' | 'melhoria' | 'duvida'
 type Urg = 'espera' | 'atrapalha' | 'parou'
 export type Chamado = {
   ticket_id: string; number: number; kind: string; subject: string; description: string; priority: string
-  status: 'novo' | 'em_andamento' | 'aguardando_cliente' | 'resolvido' | 'fechado'; created_at: string; attachments: number
+  status: 'novo' | 'em_andamento' | 'aguardando_cliente' | 'aguardando_equipe' | 'resolvido' | 'fechado'; created_at: string; attachments: number
   messages: { side: 'cliente' | 'equipe'; body: string; created_at: string }[]
 }
 
@@ -26,7 +27,8 @@ const URGS: [Urg, string, string][] = [['espera', 'Pode esperar', '#4ADE80'], ['
 const NOME_TIPO: Record<string, string> = { problema: 'Problema', melhoria: 'Melhoria', duvida: 'Dúvida', financeiro: 'Financeiro' }
 const STATUS: Record<Chamado['status'], [string, string, string]> = {
   novo: ['Aberto', '#FBC009', '#0A0A0B'], em_andamento: ['Em análise', '#1E90FF', '#FFFFFF'],
-  aguardando_cliente: ['Respondido', '#F97316', '#0A0A0B'], resolvido: ['Resolvido', '#16C60C', '#0A0A0B'], fechado: ['Fechado', '#3A3A40', '#F5F5F2'],
+  aguardando_cliente: ['Respondido', '#F97316', '#0A0A0B'], aguardando_equipe: ['Com a equipe técnica', '#FF8A00', '#0A0A0B'],
+  resolvido: ['Resolvido', '#16C60C', '#0A0A0B'], fechado: ['Fechado', '#3A3A40', '#F5F5F2'],
 }
 const rotulo = 'text-[13px] font-extrabold text-[#ADADB4] uppercase tracking-[.08em]'
 const chip = (on: boolean, k: number): CSSProperties => ({ height: 40, padding: '0 14px', borderRadius: irr(k), border: on ? 'none' : '1px solid #2A2A2E', background: on ? '#FBC009' : '#141416', color: on ? '#0A0A0B' : '#F5F5F2', fontSize: 14, fontWeight: on ? 800 : 600 })
@@ -69,6 +71,13 @@ export function Suporte() {
   const [img, setImg] = useState<File | null>(null)
   const [busy, setBusy] = useState(false)
   const [aberto, setAberto] = useState<string | null>(null)
+  const [q, setQ] = useState('')
+  const [fSit, setFSit] = useState('todos')
+  const [fTipo, setFTipo] = useState('todos')
+  const qn = norm(q.trim())
+  const meus = (lista ?? []).filter((c) => (!qn || norm(`${c.number} #${c.number} ${c.subject} ${c.description}`).includes(qn)) && (fTipo === 'todos' || c.kind === fTipo)
+    && (fSit === 'todos' || (fSit === 'fechados' ? ['resolvido', 'fechado'].includes(c.status) : fSit === 'respondido' ? c.status === 'aguardando_cliente' : !['resolvido', 'fechado'].includes(c.status))))
+  const limpar = () => { setQ(''); setFSit('todos'); setFTipo('todos') }
   const preview = useObjectUrl(img)
 
   const ok = !!ass && desc.trim().length >= 5 && !busy
@@ -156,15 +165,21 @@ export function Suporte() {
       <div className="flex flex-col gap-3">
         <div className={`${rotulo} px-0.5`}>Meus tickets</div>
         {isLoading && <div className="text-sm text-[#C4C4C9]">Carregando…</div>}
+        {!!lista?.length && <BarraLista busca={q} onBusca={setQ} placeholder="Número, assunto ou texto" mostrando={meus.length} total={lista.length} unidade={['ticket', 'tickets']} onLimpar={limpar}
+          filtros={[
+            { label: 'Situação', value: fSit, onChange: setFSit, options: [['todos', 'Todas'], ['abertos', 'Em aberto'], ['respondido', 'Respondidos'], ['fechados', 'Resolvidos e fechados']] },
+            { label: 'Tipo', value: fTipo, onChange: setFTipo, options: [['todos', 'Todos'], ...Object.entries(NOME_TIPO)] },
+          ]} />}
         {lista?.length === 0 && <div className="p-4 rounded-[3px_11px_4px_10px] bg-surface-2 border border-line text-sm text-[#C4C4C9]">Nenhum chamado ainda.</div>}
-        {lista?.map((c) => <CartaoChamado key={c.ticket_id} c={c} aberto={aberto === c.ticket_id} onToggle={() => setAberto(aberto === c.ticket_id ? null : c.ticket_id)} />)}
+        {!!lista?.length && !meus.length && <SemResultado filtrado vazio="" onLimpar={limpar} />}
+        {meus.map((c) => <CartaoChamado key={c.ticket_id} c={c} aberto={aberto === c.ticket_id} onToggle={() => setAberto(aberto === c.ticket_id ? null : c.ticket_id)} />)}
       </div>
     </div>
   )
 }
 
 function CartaoChamado({ c, aberto, onToggle }: { c: Chamado; aberto: boolean; onToggle: () => void }) {
-  const [st, bg, fg] = STATUS[c.status]
+  const [st, bg, fg] = STATUS[c.status] ?? STATUS.em_andamento
   const qc = useQueryClient()
   const toast = useToast()
   const [resp, setResp] = useState('')

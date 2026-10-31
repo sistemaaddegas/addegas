@@ -131,13 +131,25 @@ export class Painel extends Component {
   flt(s, k, label, opts, d) { return { label, val: this.fv(s, k, d), opts: opts.map((x) => Array.isArray(x) ? { v: x[0], l: x[1] } : { v: x, l: x }), on: (e) => this.setF(s, k, e.target.value) } }
   tbl(key, o) {
     const s = this.state, so = s.sort[key] || o.def || {}; let rs = o.rows; const c0 = o.cols.find((c) => c.k === so.k)
+    // Padrão de toda listagem: busca e "X de Y registros". Tabela sem busca própria ganha uma busca no texto das
+    // células; as tabelas de referência fixas (prazos, matriz de permissões, conexões, retenção, etapas de funil) não.
+    const total = o.rows.length, fixa = /^(tk-sla|perm|int|ret|imp|fun-|fseg-)/.test(key)
+    let search = o.search, clear = o.clear || null
+    if (!search && !fixa && total) {
+      const sk = 't:' + key, q = nz(this.fv(sk, 'q', '').trim())
+      search = this.srch(sk, 'Buscar nesta lista')
+      if (q) rs = rs.filter((r) => nz(r.cells.map((c) => (c.t || '') + ' ' + (c.sub || '')).join(' ')).includes(q))
+      const antes = clear
+      clear = () => { this.setState((st) => ({ f: { ...st.f, [sk]: {} } })); if (antes) antes() }
+    }
     if (c0 && c0.sv) rs = [...rs].sort((a, b) => { const x = c0.sv(a.d), y = c0.sv(b.d); return (x > y ? 1 : x < y ? -1 : 0) * (so.dir || 1) })
+    const count = o.count || (fixa || !total ? '' : rs.length === total ? total + (total === 1 ? ' registro' : ' registros') : rs.length + ' de ' + total + ' registros')
     const tm = o.cols.map((c) => c.w || 'minmax(0,1fr)').join(' ')
     const hc = { background: 'none', border: 'none', padding: 0, color: '#8A8A90', fontSize: 12, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '.06em', textAlign: 'left', display: 'flex', alignItems: 'center', gap: 2, whiteSpace: 'nowrap' }
-    return { type: 'table', title: o.title, sub: o.sub, acts: o.acts, span: o.span, search: o.search, filters: o.filters || [], count: o.count || '', hasTools: !!(o.search || (o.filters && o.filters.length) || o.count),
+    return { type: 'table', title: o.title, sub: o.sub, acts: o.acts, span: o.span, search, filters: o.filters || [], count, hasTools: !!(search || (o.filters && o.filters.length) || count),
       cols: o.cols.map((c) => ({ label: c.label, arrow: so.k === c.k && c.sv ? (so.dir === -1 ? ' ↓' : ' ↑') : '', st: { ...hc, cursor: c.sv ? 'pointer' : 'default' }, go: c.sv ? () => this.setState((st) => { const cur = st.sort[key] || o.def || {}; return { sort: { ...st.sort, [key]: { k: c.k, dir: cur.k === c.k ? -(cur.dir || 1) : 1 } } } }) : () => {} })),
       rows: rs.map((r) => ({ cells: r.cells, go: r.go || null, st: { display: 'grid', gridTemplateColumns: tm, gap: 14, alignItems: 'center', padding: '11px 10px', borderTop: '1px solid #1C1C1F', cursor: r.go ? 'pointer' : 'default', boxShadow: r.hl ? 'inset 3px 0 0 ' + r.hl : 'none' } })),
-      headSt: { display: 'grid', gridTemplateColumns: tm, gap: 14, padding: '0 10px 8px' }, inner: { minWidth: o.minW || 0 }, hasRows: rs.length > 0, noRows: rs.length === 0, emptyT: (o.empty || [])[0] || 'Nada por aqui', emptyS: (o.empty || [])[1] || '', clear: o.clear || null }
+      headSt: { display: 'grid', gridTemplateColumns: tm, gap: 14, padding: '0 10px 8px' }, inner: { minWidth: o.minW || 0 }, hasRows: rs.length > 0, noRows: rs.length === 0, emptyT: rs.length < total ? 'Nenhum resultado' : (o.empty || [])[0] || 'Nada por aqui', emptyS: rs.length < total ? 'Nada nesta lista bate com a busca.' : (o.empty || [])[1] || '', clear }
   }
   kpi(label, value, o = {}) { return { label, value: String(value), sub: o.sub || '', def: o.def || '', delta: o.delta || '', deltaSt: { fontSize: 13, fontWeight: 800, color: o.dc || '#B4B4B9' }, dot: { ...dot(o.tone || Y), marginTop: 4 }, go: o.go || null, st: { display: 'flex', flexDirection: 'column', gap: 6, padding: '14px 16px', minHeight: 112, borderRadius: R[(o.i || 0) % 5], border: '1px solid #232327', background: '#141416', color: '#F5F5F2', textAlign: 'left', cursor: o.go ? 'pointer' : 'default', minWidth: 0 } } }
   note(tone, nt, text, o = {}) { const T = { yellow: ['#1A1508', '#3A2F0A', Y, 'alert'], red: ['#200B09', '#5A1712', '#FF6B5E', 'alert'], green: ['#0D1A0F', '#1C4A22', '#4ADE80', 'check'], blue: ['#0B1424', '#1C3A66', '#7CB3FF', 'clock'], dark: ['#0E0E10', '#232327', '#A1A1A6', 'lock'] }[tone]; return { type: 'note', nt, text, bullets: o.bullets || null, span: o.span, nacts: o.acts || [], hasNActs: !!(o.acts && o.acts.length), icon: ic(T[3], 20, 2.2), iconSt: { color: T[2], flex: 'none', marginTop: 1 }, bg: T[0], bd: T[1] } }

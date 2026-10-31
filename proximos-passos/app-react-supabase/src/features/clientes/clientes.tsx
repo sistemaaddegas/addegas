@@ -233,7 +233,8 @@ function Detalhe({ c, storeId, onClose }: { c: Fiado; storeId: string; onClose: 
       )}
 
       <div>
-        <div className="text-sm font-extrabold text-[#C4C4C9] uppercase tracking-[.05em] mb-1">Caderneta</div>
+        <div className="flex items-baseline justify-between mb-1"><span className="text-sm font-extrabold text-[#C4C4C9] uppercase tracking-[.05em]">Caderneta</span>
+          {!!caderneta?.length && <span className="text-[13px] text-[#C4C4C9]">{caderneta.length} {caderneta.length === 1 ? 'lançamento' : 'lançamentos'}</span>}</div>
         {(caderneta ?? []).map((e: Lancamento) => (
           <div key={e.id} className="flex items-center gap-3 py-[11px] border-b border-line text-sm">
             <span className="w-11 text-[#ADADB4]">{dataCurta(e.created_at)}</span>

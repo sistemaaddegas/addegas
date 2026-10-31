@@ -48,6 +48,9 @@ export function Compras({ contas = false }: { contas?: boolean }) {
   const [qC, setQC] = useState('')
   const [fSitC, setFSitC] = useState('abertas')
   const [fCatC, setFCatC] = useState('todos')
+  const [qS, setQS] = useState('')
+  const [fFornP, setFFornP] = useState('todos')
+  const [fSitP, setFSitP] = useState('todos')
   const aba: Aba = contas ? 'contas' : abaCompras
   const [modal, setModal] = useState<null | 'forn' | 'conta' | 'enviar' | Conta | { receber: PedidoCompra }>(null)
   const accountId = est.data?.accountId
@@ -98,6 +101,10 @@ export function Compras({ contas = false }: { contas?: boolean }) {
     .filter((b) => (!qcn || norm(`${b.description} ${b.category ?? ''}`).includes(qcn)) && (fCatC === 'todos' || b.category === fCatC)
       && (fSitC === 'todas' || (fSitC === 'abertas' ? !b.paid_at : situacaoConta(b) === fSitC)))
   const limparC = () => { setQC(''); setFSitC('abertas'); setFCatC('todos') }
+  const sugestao = data.sugestao.filter((g) => !qS.trim() || norm(g.name).includes(norm(qS.trim())))
+  const pedidos = data.pedidos.filter((pc) => (fFornP === 'todos' || (pc.supplier_id ?? 'sem') === fFornP)
+    && (fSitP === 'todos' || (fSitP === 'falta') === pc.purchase_order_items.some((i) => Number(i.received_qty) < Number(i.quantity))))
+  const limparP = () => { setFFornP('todos'); setFSitP('todos') }
 
   return (
     <div className="p-4 tablet:p-8 flex flex-col gap-4 max-w-[1400px] mx-auto w-full">
@@ -141,8 +148,9 @@ export function Compras({ contas = false }: { contas?: boolean }) {
       {aba === 'sugestao' && (
         <>
           <div className="text-sm text-[#C4C4C9] leading-normal max-w-[720px]">Quanto comprar para cobrir 7 dias de venda, pela média das últimas 4 semanas, sem ficar abaixo do mínimo.</div>
+          <BarraLista busca={qS} onBusca={setQS} placeholder="Buscar produto" mostrando={sugestao.length} total={data.sugestao.length} unidade={['produto', 'produtos']} onLimpar={() => setQS('')} />
           <div className={`${card} overflow-hidden`}>
-            {data.sugestao.map((g) => (
+            {sugestao.map((g) => (
               <div key={g.product_id} className="flex flex-wrap items-center gap-x-3.5 gap-y-2.5 py-3.5 px-[18px] border-b border-[#1F1F22]">
                 <div className="flex-[1_1_220px] min-w-0">
                   <div className="text-[15px] font-bold">{g.name}</div>
@@ -166,8 +174,14 @@ export function Compras({ contas = false }: { contas?: boolean }) {
           {data.pedidos.length > 0 && (
             <>
               <div className="text-[17px] font-extrabold mt-2">Pedidos enviados</div>
+              <BarraLista mostrando={pedidos.length} total={data.pedidos.length} unidade={['pedido', 'pedidos']} onLimpar={limparP}
+                filtros={[
+                  { label: 'Fornecedor', value: fFornP, onChange: setFFornP, options: [['todos', 'Todos'], ...data.fornecedores.map((f) => [f.id, f.name] as [string, string]), ['sem', 'Sem fornecedor']] },
+                  { label: 'Situação', value: fSitP, onChange: setFSitP, options: [['todos', 'Todos'], ['falta', 'Falta chegar'], ['chegou', 'Já chegou']] },
+                ]} />
               <div className={`${card} overflow-hidden`}>
-                {data.pedidos.map((pc) => {
+                {pedidos.length === 0 && <SemResultado filtrado vazio="" onLimpar={limparP} />}
+                {pedidos.map((pc) => {
                   const falta = pc.purchase_order_items.filter((i) => Number(i.received_qty) < Number(i.quantity))
                   return (
                     <div key={pc.id} className="flex flex-wrap items-center gap-x-3.5 gap-y-2.5 py-3.5 px-[18px] border-b border-[#1F1F22]">

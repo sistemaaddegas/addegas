@@ -72,6 +72,7 @@ export function NovoPedido({ storeId, onClose, onDone }: { storeId: string; onCl
         <div className="flex items-center gap-2.5 h-11 px-3 rounded-[3px_10px_2px_9px] bg-surface-2 border border-line-2 text-[#C4C4C9]">
           <Icon name="search" /><input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar produto ou combo" className="flex-1 min-w-0 h-full bg-transparent text-[15px] text-ink outline-none" />
         </div>
+        {busca && <div className="text-[13px] text-[#C4C4C9]">{lista.length ? `${lista.length}${lista.length === 8 ? '+' : ''} ${lista.length === 1 ? 'resultado' : 'resultados'}` : 'Nenhum produto com esse nome.'}</div>}
         {lista.map((p) => (
           <button key={p.key} onClick={() => { muda(p.key, 1); setQ('') }} className="flex items-center gap-3 py-2.5 px-3 rounded-[2px_8px_3px_7px] border border-line bg-surface text-left cursor-pointer">
             <span className="flex-1 text-sm font-semibold">{p.name}</span><span className="text-[13px] text-[#ADADB4] num">{brlc(p.price)}</span><Icon name="plus" size={18} />

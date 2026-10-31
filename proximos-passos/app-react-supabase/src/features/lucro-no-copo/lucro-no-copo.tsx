@@ -6,6 +6,7 @@ import { brlc } from '@/lib/format'
 import { Icon } from '@/components/icon'
 import { Sheet } from '@/components/sheet'
 import { useToast } from '@/components/toast'
+import { norm } from '@/components/filtros'
 import { useEstoque } from '@/features/estoque/dados'
 import { card, chip, chipCls, irr, qtd } from '@/lib/visual'
 
@@ -39,6 +40,7 @@ export function LucroNoCopo() {
   const [escolher, setEscolher] = useState<SlotK | null>(null)
   const [salvando, setSalvando] = useState<string | null>(null)
   const [corNova, setCorNova] = useState(CORES[0][0])
+  const [qDrink, setQDrink] = useState('')
   // Preparo do copo: simulação visual (D09: Lucro no Copo é calculadora na v1; não baixa o estoque).
   const [servido, setServido] = useState<Partial<Record<SlotK, true>>>({})
   const [preparado, setPreparado] = useState(false)
@@ -163,7 +165,14 @@ export function LucroNoCopo() {
         </div>
         <div className="flex flex-wrap gap-1.5 items-center">
           <span className="text-xs font-extrabold text-[#ADADB4] uppercase tracking-[.08em] mr-1">Drinks</span>
-          {(extra.data?.receitas ?? []).map((r, k) => (
+          {(extra.data?.receitas ?? []).length > 6 && (
+            <input value={qDrink} onChange={(e) => setQDrink(e.target.value)} placeholder="Buscar drink" aria-label="Buscar drink"
+              className="h-9 w-[150px] px-3 rounded-[2px_8px_3px_7px] bg-surface border border-line text-sm outline-none focus:border-brand" />
+          )}
+          <span className="text-xs font-bold text-[#ADADB4] mr-1">
+            {(() => { const t = (extra.data?.receitas ?? []).length, n = (extra.data?.receitas ?? []).filter((r) => !qDrink.trim() || norm(r.name).includes(norm(qDrink.trim()))).length; return n === t ? `${t} ${t === 1 ? 'salvo' : 'salvos'}` : `${n} de ${t}` })()}
+          </span>
+          {(extra.data?.receitas ?? []).filter((r) => !qDrink.trim() || norm(r.name).includes(norm(qDrink.trim()))).map((r, k) => (
             <button key={r.id} onClick={() => abrir(r)} className={chipCls}
               style={r.color ? { ...chip(false, k), background: r.color, color: tinta(r.color), border: `2px solid ${receita === r.id ? '#F5F5F2' : r.color}`, transform: receita === r.id ? 'rotate(-1deg)' : 'none' } : chip(receita === r.id, k)}>{r.name}</button>
           ))}

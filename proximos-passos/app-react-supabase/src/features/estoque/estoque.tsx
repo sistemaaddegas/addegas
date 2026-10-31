@@ -176,12 +176,15 @@ export function Estoque() {
 
       {aba === 'contagem' && (
         <>
+          <BarraLista busca={q} onBusca={setQ} placeholder="Buscar por nome ou código de barras" mostrando={lista.length} total={produtos.length} unidade={['produto', 'produtos']} onLimpar={limpar}
+            filtros={[{ label: 'Categoria', value: fCat, onChange: setFCat, options: [['todos', 'Todas'], ...categorias.map((c) => [c.id, c.name] as [string, string]), ['sem', 'Sem categoria']] }]} />
           <div className="flex flex-wrap items-center gap-3">
             <div className="flex-[1_1_260px] text-sm text-[#C4C4C9]">{contados.length ? `${contados.length} ${contados.length === 1 ? 'produto contado' : 'produtos contados'}` : 'Digite a quantidade encontrada na prateleira'}</div>
             <button onClick={salvarContagem} disabled={salvando} className="h-[46px] px-[18px] rounded-[3px_10px_2px_9px] bg-brand text-brand-ink text-[15px] font-extrabold cursor-pointer disabled:opacity-60">{salvando ? 'Salvando…' : 'Salvar contagem'}</button>
           </div>
           <div className={`${card} overflow-hidden`}>
-            {produtos.map((p) => {
+            {lista.length === 0 && <SemResultado filtrado={filtrado} vazio="Nenhum produto para contar." onLimpar={limpar} />}
+            {lista.map((p) => {
               const v = contagem[p.product_id] ?? ''
               const d = v !== '' ? parseBRL(v) - p.stock : 0
               return (
