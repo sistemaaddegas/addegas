@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 import { Icon } from '@/components/icon'
+import { POR_PADRAO, POR_PAGINA, numerosPagina } from '@/lib/paginas'
 
 /** Busca sem acento e sem caixa: "água" acha "Agua". */
 export const norm = (s: string | null | undefined) => (s ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
@@ -56,28 +57,40 @@ export function SemResultado({ filtrado, vazio, onLimpar }: { filtrado: boolean;
 }
 
 /** Página atual de uma lista; `k` guarda os filtros da hora, então mudar busca ou filtro volta para a página 1. */
-export type Pg = { k: string; n: number }
+export type Pg = { k: string; n: number; por?: number }
 export const PG0: Pg = { k: '', n: 0 }
 
-export function paginar<T>(itens: T[], pg: Pg, chave: string, por = 25) {
+/** Página atual da lista. Mudou a busca ou um filtro (a chave), volta para a página 1; o "por página" fica. */
+export function paginar<T>(itens: T[], pg: Pg, chave: string) {
+  const por = pg.por ?? POR_PADRAO
   const paginas = Math.max(1, Math.ceil(itens.length / por))
   const n = Math.min(pg.k === chave ? pg.n : 0, paginas - 1)
-  return { itens: itens.slice(n * por, (n + 1) * por), n, paginas, de: n * por + 1, ate: Math.min(itens.length, (n + 1) * por), total: itens.length, chave }
+  return { itens: itens.slice(n * por, (n + 1) * por), n, por, paginas, de: n * por + 1, ate: Math.min(itens.length, (n + 1) * por), total: itens.length, chave }
 }
 
-/** "Mostrando 1–25 de 60 · Página 1 de 3" com Anterior e Próxima; some quando cabe tudo numa página. */
+/** "Mostrando 1–10 de 48", quantos por página (5, 10, 15, 20, 50, 100) e os números das páginas com ‹ e ›. */
 export function Paginacao({ p, onPg }: { p: ReturnType<typeof paginar>; onPg: (pg: Pg) => void }) {
-  if (p.paginas <= 1) return null
-  const ir = (n: number) => onPg({ k: p.chave, n })
-  const btn = 'h-9 px-3.5 rounded-[2px_8px_3px_7px] border border-line-2 text-[13.5px] font-extrabold cursor-pointer disabled:opacity-40 disabled:cursor-default'
+  if (!p.total) return null
+  const ir = (n: number) => onPg({ k: p.chave, n, por: p.por })
+  const btn = 'h-9 min-w-9 px-2.5 rounded-[2px_8px_3px_7px] border text-[13.5px] font-extrabold tabular-nums cursor-pointer disabled:opacity-40 disabled:cursor-default'
   return (
     <div className="flex flex-wrap items-center gap-x-3.5 gap-y-2 py-3 px-4">
       <span className="text-sm font-bold">Mostrando {p.de}–{p.ate} de {p.total}</span>
-      <span className="text-[13px] text-[#ADADB4]">Página {p.n + 1} de {p.paginas}</span>
-      <span className="ml-auto flex gap-2">
-        <button onClick={() => ir(p.n - 1)} disabled={p.n === 0} className={btn}>‹ Anterior</button>
-        <button onClick={() => ir(p.n + 1)} disabled={p.n >= p.paginas - 1} className={btn}>Próxima ›</button>
-      </span>
+      <label className="flex items-center gap-1.5 text-[13px] text-[#ADADB4]">
+        Por página
+        <select value={p.por} onChange={(e) => onPg({ k: p.chave, n: 0, por: Number(e.target.value) })} aria-label="Itens por página"
+          className="h-9 px-2 rounded-[2px_8px_3px_7px] bg-surface-2 border border-line-2 text-[13.5px] font-extrabold text-[#F5F5F2] cursor-pointer outline-none focus:border-brand">
+          {POR_PAGINA.map((n) => <option key={n} value={n}>{n}</option>)}
+        </select>
+      </label>
+      <nav aria-label="Páginas" className="ml-auto flex flex-wrap items-center gap-1.5">
+        <button onClick={() => ir(p.n - 1)} disabled={p.n === 0} aria-label="Página anterior" className={`${btn} border-line-2`}>‹</button>
+        {numerosPagina(p.n, p.paginas).map((i, k) => i === '…'
+          ? <span key={'r' + k} className="px-1 text-[#ADADB4]">…</span>
+          : <button key={i} onClick={() => ir(i)} aria-current={i === p.n ? 'page' : undefined}
+              className={`${btn} ${i === p.n ? 'bg-brand border-brand text-brand-ink' : 'border-line-2'}`}>{i + 1}</button>)}
+        <button onClick={() => ir(p.n + 1)} disabled={p.n >= p.paginas - 1} aria-label="Próxima página" className={`${btn} border-line-2`}>›</button>
+      </nav>
     </div>
   )
 }

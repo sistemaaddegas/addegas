@@ -9,6 +9,7 @@ import { telasB } from './telas-b'
 import { telasC } from './telas-c'
 import { modais } from './modais'
 import { Desenho } from './desenho'
+import { POR_PADRAO, POR_PAGINA, numerosPagina } from '@/lib/paginas'
 
 const MSG0 = { tpl: 'cobranca_proxima', canal: 'WhatsApp', aud: 'filtro', adega: '', plano: 'todos', assin: 'todas', venc: 'todos', regiao: 'todas', teste: 'todos', ativ: 'todos', seg: '', quando: 'agora', data: '' }
 const VAZIO = { adegas: [], plans: [], invoices: [], refunds: [], discounts: [], audit: [], queue: [], tpls: [], sends: [], tickets: null, groups: [], etapas: [], leads: [], catalog: [], suggestions: [], logs: [], team: [], staffNames: [], funnels: [], stock: {}, kits: {}, gifts: [], mkt: [], camps: [], feat: [], alerts: [], roles: [], actionNames: {} }
@@ -144,20 +145,26 @@ export class Painel extends Component {
     }
     if (c0 && c0.sv) rs = [...rs].sort((a, b) => { const x = c0.sv(a.d), y = c0.sv(b.d); return (x > y ? 1 : x < y ? -1 : 0) * (so.dir || 1) })
     const count = o.count || (fixa ? '' : !total ? '0 registros' : rs.length === total ? total + (total === 1 ? ' registro' : ' registros') : rs.length + ' de ' + total + ' registros')
-    // Enumeração: 25 por página, com "Mostrando 1–25 de N" e Anterior / Próxima.
-    const POR = 25, achados = rs.length, pk = 'p:' + key, paginas = Math.max(1, Math.ceil(achados / POR))
-    const pg = Math.min(this.fv(pk, 'pg', 0), paginas - 1), irPara = (n) => this.setF(pk, 'pg', n)
-    const pager = fixa || !achados ? null : {
-      txt: 'Mostrando ' + (pg * POR + 1) + '–' + Math.min(achados, (pg + 1) * POR) + ' de ' + achados + (achados < total ? ' (filtrados de ' + total + ')' : ''),
-      prev: pg > 0 ? () => irPara(pg - 1) : null, next: pg < paginas - 1 ? () => irPara(pg + 1) : null, pag: paginas > 1 ? 'Página ' + (pg + 1) + ' de ' + paginas : '',
-    }
-    rs = rs.slice(pg * POR, (pg + 1) * POR)
+    const { pg, por, pager } = this.paginador('p:' + key, rs.length, total)
+    if (!fixa) rs = rs.slice(pg * por, (pg + 1) * por)
     const tm = o.cols.map((c) => c.w || 'minmax(0,1fr)').join(' ')
     const hc = { background: 'none', border: 'none', padding: 0, color: '#8A8A90', fontSize: 12, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '.06em', textAlign: 'left', display: 'flex', alignItems: 'center', gap: 2, whiteSpace: 'nowrap' }
     return { type: 'table', title: o.title, sub: o.sub, acts: o.acts, span: o.span, search, filters: o.filters || [], count, hasTools: !!(search || (o.filters && o.filters.length) || count),
       cols: o.cols.map((c) => ({ label: c.label, arrow: so.k === c.k && c.sv ? (so.dir === -1 ? ' ↓' : ' ↑') : '', st: { ...hc, cursor: c.sv ? 'pointer' : 'default' }, go: c.sv ? () => this.setState((st) => { const cur = st.sort[key] || o.def || {}; return { sort: { ...st.sort, [key]: { k: c.k, dir: cur.k === c.k ? -(cur.dir || 1) : 1 } } } }) : () => {} })),
       rows: rs.map((r) => ({ cells: r.cells, go: r.go || null, st: { display: 'grid', gridTemplateColumns: tm, gap: 14, alignItems: 'center', padding: '11px 10px', borderTop: '1px solid #1C1C1F', cursor: r.go ? 'pointer' : 'default', boxShadow: r.hl ? 'inset 3px 0 0 ' + r.hl : 'none' } })),
-      headSt: { display: 'grid', gridTemplateColumns: tm, gap: 14, padding: '0 10px 8px' }, inner: { minWidth: o.minW || 0 }, hasRows: rs.length > 0, noRows: rs.length === 0, emptyT: rs.length < total ? 'Nenhum resultado' : (o.empty || [])[0] || 'Nada por aqui', emptyS: rs.length < total ? 'Nada nesta lista bate com a busca.' : (o.empty || [])[1] || '', clear, pager }
+      headSt: { display: 'grid', gridTemplateColumns: tm, gap: 14, padding: '0 10px 8px' }, inner: { minWidth: o.minW || 0 }, hasRows: rs.length > 0, noRows: rs.length === 0, emptyT: rs.length < total ? 'Nenhum resultado' : (o.empty || [])[0] || 'Nada por aqui', emptyS: rs.length < total ? 'Nada nesta lista bate com a busca.' : (o.empty || [])[1] || '', clear, pager: fixa ? null : pager }
+  }
+  /** Paginação padrão: "Mostrando 1–10 de N", quantos por página (5 a 100) e os números das páginas. Some só com a lista vazia. */
+  paginador(k, achados, total) {
+    const por = this.fv(k, 'por', POR_PADRAO), paginas = Math.max(1, Math.ceil(achados / por))
+    const pg = Math.min(this.fv(k, 'pg', 0), paginas - 1), ir = (n) => this.setF(k, 'pg', n)
+    const pager = !achados ? null : {
+      txt: 'Mostrando ' + (pg * por + 1) + '–' + Math.min(achados, (pg + 1) * por) + ' de ' + achados + (achados < total ? ' (filtrados de ' + total + ')' : ''),
+      prev: pg > 0 ? () => ir(pg - 1) : null, next: pg < paginas - 1 ? () => ir(pg + 1) : null,
+      nums: numerosPagina(pg, paginas).map((i) => i === '…' ? { gap: true } : { label: String(i + 1), on: i === pg, go: () => ir(i) }),
+      por: { val: por, opts: POR_PAGINA, on: (e) => this.setState((st) => ({ f: { ...st.f, [k]: { ...(st.f[k] || {}), por: +e.target.value, pg: 0 } } })) },
+    }
+    return { pg, por, pager }
   }
   kpi(label, value, o = {}) { return { label, value: String(value), sub: o.sub || '', def: o.def || '', delta: o.delta || '', deltaSt: { fontSize: 13, fontWeight: 800, color: o.dc || '#B4B4B9' }, dot: { ...dot(o.tone || Y), marginTop: 4 }, go: o.go || null, st: { display: 'flex', flexDirection: 'column', gap: 6, padding: '14px 16px', minHeight: 112, borderRadius: R[(o.i || 0) % 5], border: '1px solid #232327', background: '#141416', color: '#F5F5F2', textAlign: 'left', cursor: o.go ? 'pointer' : 'default', minWidth: 0 } } }
   note(tone, nt, text, o = {}) { const T = { yellow: ['#1A1508', '#3A2F0A', Y, 'alert'], red: ['#200B09', '#5A1712', '#FF6B5E', 'alert'], green: ['#0D1A0F', '#1C4A22', '#4ADE80', 'check'], blue: ['#0B1424', '#1C3A66', '#7CB3FF', 'clock'], dark: ['#0E0E10', '#232327', '#A1A1A6', 'lock'] }[tone]; return { type: 'note', nt, text, bullets: o.bullets || null, span: o.span, nacts: o.acts || [], hasNActs: !!(o.acts && o.acts.length), icon: ic(T[3], 20, 2.2), iconSt: { color: T[2], flex: 'none', marginTop: 1 }, bg: T[0], bd: T[1] } }
@@ -245,7 +252,7 @@ export class Painel extends Component {
   }
   /**
    * Padrão de listagem também fora das tabelas: listas, linhas do tempo, conversas, cartões e kanban ganham a
-   * contagem; a partir de 8 itens, a busca; e acima de 25 (fora o kanban), a paginação.
+   * contagem; a partir de 8 itens, a busca; e (fora o kanban) a paginação.
    */
   listaPadrao(b, chave) {
     if (!['list', 'timeline', 'thread', 'cards', 'kanban'].includes(b.type) || b.semBusca) return b
@@ -262,11 +269,8 @@ export class Painel extends Component {
       const n = cols.reduce((a, c) => a + c.items.length, 0)
       return { ...b, cols, lista: { busca, txt: n === total ? nome(total) : n + ' de ' + nome(total) } }
     }
-    const achados = itens.filter(ok), POR = 25, paginas = Math.max(1, Math.ceil(achados.length / POR))
-    const pg = Math.min(this.fv(k, 'pg', 0), paginas - 1), ir = (n) => this.setF(k, 'pg', n)
-    const pager = achados.length > POR ? { txt: 'Mostrando ' + (pg * POR + 1) + '–' + Math.min(achados.length, (pg + 1) * POR) + ' de ' + achados.length, pag: 'Página ' + (pg + 1) + ' de ' + paginas,
-      prev: pg > 0 ? () => ir(pg - 1) : null, next: pg < paginas - 1 ? () => ir(pg + 1) : null } : null
-    return { ...b, items: achados.slice(pg * POR, (pg + 1) * POR), empty: q && !achados.length ? 'Nada nesta lista bate com a busca.' : b.empty,
+    const achados = itens.filter(ok), { pg, por, pager } = this.paginador(k, achados.length, total)
+    return { ...b, items: achados.slice(pg * por, (pg + 1) * por), empty: q && !achados.length ? 'Nada nesta lista bate com a busca.' : b.empty,
       lista: { busca, txt: achados.length === total ? nome(total) : achados.length + ' de ' + nome(total), pager } }
   }
   estados(mob) {

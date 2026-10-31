@@ -105,16 +105,23 @@ function Campo({ f, modal }) {
 }
 
 const Contagem = ({ t }) => <span style={{ fontSize: 14.5, fontWeight: 800, color: '#F5F5F2', marginLeft: 'auto', whiteSpace: 'nowrap', padding: '6px 10px', borderRadius: '2px 7px 3px 6px', background: '#1C1C1F', border: '1px solid #2A2A2E' }}>{t}</span>
-const botaoPag = (on) => ({ height: 36, padding: '0 14px', borderRadius: '2px 8px 3px 7px', border: '1px solid #3A3A40', background: 'transparent', color: '#F5F5F2', fontSize: 13.5, fontWeight: 800, cursor: on ? 'pointer' : 'default', opacity: on ? 1 : .4 })
+const botaoPag = (on, atual) => ({ height: 36, minWidth: 36, padding: '0 10px', borderRadius: '2px 8px 3px 7px', border: '1px solid ' + (atual ? '#FBC009' : '#3A3A40'), background: atual ? '#FBC009' : 'transparent', color: atual ? '#0A0A0B' : '#F5F5F2', fontSize: 13.5, fontWeight: 800, fontVariantNumeric: 'tabular-nums', cursor: on ? 'pointer' : 'default', opacity: on || atual ? 1 : .4 })
+// "Mostrando 1–10 de N", quantos por página e os números das páginas.
 function Paginador({ p }) {
   return (
     <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '8px 14px', paddingTop: 10 }}>
       <span style={{ fontSize: 14, fontWeight: 700, color: '#E4E4E7' }}>{p.txt}</span>
-      {p.pag && <span style={{ fontSize: 13, color: '#8A8A90' }}>{p.pag}</span>}
-      {(p.prev || p.next) && <span style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
-        <button onClick={p.prev || undefined} disabled={!p.prev} style={botaoPag(!!p.prev)}>‹ Anterior</button>
-        <button onClick={p.next || undefined} disabled={!p.next} style={botaoPag(!!p.next)}>Próxima ›</button>
-      </span>}
+      <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: '#8A8A90' }}>Por página
+        <select value={p.por.val} onChange={p.por.on} aria-label="Itens por página" style={{ height: 36, padding: '0 6px', borderRadius: '2px 8px 3px 7px', background: '#141416', border: '1px solid #3A3A40', color: '#F5F5F2', fontSize: 13.5, fontWeight: 800, cursor: 'pointer', outline: 'none' }}>
+          {p.por.opts.map((n) => <option key={n} value={n}>{n}</option>)}
+        </select>
+      </label>
+      <nav aria-label="Páginas" style={{ marginLeft: 'auto', display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 6 }}>
+        <button onClick={p.prev || undefined} disabled={!p.prev} aria-label="Página anterior" style={botaoPag(!!p.prev, false)}>‹</button>
+        {p.nums.map((n, i) => n.gap ? <span key={'r' + i} style={{ padding: '0 2px', color: '#8A8A90' }}>…</span>
+          : <button key={i} onClick={n.go} aria-current={n.on ? 'page' : undefined} style={botaoPag(!n.on, n.on)}>{n.label}</button>)}
+        <button onClick={p.next || undefined} disabled={!p.next} aria-label="Próxima página" style={botaoPag(!!p.next, false)}>›</button>
+      </nav>
     </div>
   )
 }
