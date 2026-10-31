@@ -170,7 +170,10 @@ insert into lots values ('p17','L2309',24,4), ('p1','HK0811',48,9), ('p14','BL77
 
 -- Catálogo global da Addegas (E39) ------------------------------------------------------------
 insert into platform.catalog_products (ean, name, brand, volume_ml, suggested_category, status)
-select ean, name, split_part(name, ' ', 1), vol, cat, 'published' from prod where k not in ('p18','p19','p20');
+select ean, name, split_part(name, ' ', 1), vol,
+  case cat when 'cervejas' then 'Cervejas' when 'destilados' then 'Destilados' when 'energeticos' then 'Energéticos'
+    when 'semalcool' then 'Sem álcool' when 'gelo' then 'Gelo e carvão' else cat end, 'published'
+from prod where k not in ('p18','p19','p20');
 insert into platform.catalog_products (ean, name, brand, volume_ml, abv, suggested_category, status) values
   ('7891149103102', 'Budweiser lata 350ml',       'Budweiser', 350,  5.0, 'cervejas',    'published'),
   ('7891991015479', 'Corona Extra Long Neck 330ml','Corona',   330,  4.5, 'cervejas',    'published'),

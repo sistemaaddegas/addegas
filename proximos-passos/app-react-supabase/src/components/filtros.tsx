@@ -37,7 +37,8 @@ export function BarraLista({ busca, onBusca, placeholder = 'Buscar', filtros = [
       ))}
       {extra}
       <span className="ml-auto flex items-center gap-3 text-[13.5px] text-[#C4C4C9] whitespace-nowrap">
-        <span aria-live="polite">{mostrando === total ? `${total} ${nome(total)}` : `Mostrando ${mostrando} de ${total} ${nome(total)}`}</span>
+        <span aria-live="polite" className="h-9 px-3 rounded-[2px_7px_3px_6px] bg-surface-2 border border-line-2 text-[14px] font-extrabold text-ink flex items-center">
+          {mostrando === total ? `${total} ${nome(total)}` : `Mostrando ${mostrando} de ${total} ${nome(total)}`}</span>
         {ativo && onLimpar && <button onClick={onLimpar} className="text-brand font-bold cursor-pointer">Limpar filtros</button>}
       </span>
     </div>
