@@ -54,3 +54,30 @@ export function SemResultado({ filtrado, vazio, onLimpar }: { filtrado: boolean;
     </div>
   )
 }
+
+/** Página atual de uma lista; `k` guarda os filtros da hora, então mudar busca ou filtro volta para a página 1. */
+export type Pg = { k: string; n: number }
+export const PG0: Pg = { k: '', n: 0 }
+
+export function paginar<T>(itens: T[], pg: Pg, chave: string, por = 25) {
+  const paginas = Math.max(1, Math.ceil(itens.length / por))
+  const n = Math.min(pg.k === chave ? pg.n : 0, paginas - 1)
+  return { itens: itens.slice(n * por, (n + 1) * por), n, paginas, de: n * por + 1, ate: Math.min(itens.length, (n + 1) * por), total: itens.length, chave }
+}
+
+/** "Mostrando 1–25 de 60 · Página 1 de 3" com Anterior e Próxima; some quando cabe tudo numa página. */
+export function Paginacao({ p, onPg }: { p: ReturnType<typeof paginar>; onPg: (pg: Pg) => void }) {
+  if (p.paginas <= 1) return null
+  const ir = (n: number) => onPg({ k: p.chave, n })
+  const btn = 'h-9 px-3.5 rounded-[2px_8px_3px_7px] border border-line-2 text-[13.5px] font-extrabold cursor-pointer disabled:opacity-40 disabled:cursor-default'
+  return (
+    <div className="flex flex-wrap items-center gap-x-3.5 gap-y-2 py-3 px-4">
+      <span className="text-sm font-bold">Mostrando {p.de}–{p.ate} de {p.total}</span>
+      <span className="text-[13px] text-[#ADADB4]">Página {p.n + 1} de {p.paginas}</span>
+      <span className="ml-auto flex gap-2">
+        <button onClick={() => ir(p.n - 1)} disabled={p.n === 0} className={btn}>‹ Anterior</button>
+        <button onClick={() => ir(p.n + 1)} disabled={p.n >= p.paginas - 1} className={btn}>Próxima ›</button>
+      </span>
+    </div>
+  )
+}

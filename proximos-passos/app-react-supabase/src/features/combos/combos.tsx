@@ -6,7 +6,7 @@ import { brlc, centavos, reais } from '@/lib/format'
 import { Icon } from '@/components/icon'
 import { Sheet, bigBtn } from '@/components/sheet'
 import { useToast } from '@/components/toast'
-import { BarraLista, SemResultado, norm } from '@/components/filtros'
+import { BarraLista, SemResultado, norm, Paginacao, paginar, PG0, type Pg } from '@/components/filtros'
 import { useEstoque, type ProdutoLoja } from '@/features/estoque/dados'
 import { chip, qtd } from '@/lib/visual'
 
@@ -63,6 +63,7 @@ export function Combos() {
   const [q, setQ] = useState('')
   const [fSit, setFSit] = useState('todos')
   const [fCat, setFCat] = useState('todos')
+  const [pgP, setPgP] = useState<Pg>(PG0)
 
   if (isLoading || est.isLoading) return <div className="p-4 tablet:p-8 text-[#C4C4C9]">Carregando…</div>
   if (error || est.error || !data || !est.data) return <div className="p-4 tablet:p-8 text-bad">Não deu para carregar as promoções. {(error ?? est.error)?.message}</div>
@@ -73,6 +74,7 @@ export function Combos() {
   const combos = data.combos.filter((c) => (!qn || norm(`${c.name} ${c.bundle_items.map((i) => prod.get(i.product_id)?.name ?? '').join(' ')}`).includes(qn))
     && (fSit === 'todos' || (fSit === 'ativas') === ativoNaLoja(c)) && (fCat === 'todos' || (fCat === 'sim') === c.show_in_catalog))
   const limpar = () => { setQ(''); setFSit('todos'); setFCat('todos') }
+  const pagP = paginar(combos, pgP, q + fSit + fCat)
   const custo = (c: Combo) => c.bundle_items.reduce((a, i) => a + (prod.get(i.product_id)?.avg_cost ?? 0) * Number(i.quantity), 0)
   const separado = (c: Combo) => c.bundle_items.reduce((a, i) => a + (prod.get(i.product_id)?.price ?? 0) * Number(i.quantity), 0)
   const verCusto = est.data.produtos.some((p) => p.avg_cost != null)
@@ -101,7 +103,7 @@ export function Combos() {
           { label: 'No WhatsApp', value: fCat, onChange: setFCat, options: [['todos', 'Tanto faz'], ['sim', 'Aparece'], ['nao', 'Não aparece']] },
         ]} />
       <div className="grid gap-3 items-start grid-cols-[repeat(auto-fill,minmax(min(100%,300px),1fr))]">
-        {combos.map((c) => {
+        {pagP.itens.map((c) => {
           const lb = data.loja.get(c.id)
           const preco = lb?.price ?? c.price
           const cu = custo(c)
@@ -127,6 +129,7 @@ export function Combos() {
           )
         })}
       </div>
+      <Paginacao p={pagP} onPg={setPgP} />
       {combos.length === 0 && <SemResultado filtrado={!!qn || fSit !== 'todos' || fCat !== 'todos'} vazio="Nenhuma promoção ainda. Monte um combo com produtos que vencem logo ou que vendem juntos." onLimpar={limpar} />}
 
       {edit && <Editor combo={edit === 'novo' ? null : edit} produtos={est.data.produtos} accountId={est.data.accountId} verCusto={verCusto}

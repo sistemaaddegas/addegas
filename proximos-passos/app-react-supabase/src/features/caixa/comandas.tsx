@@ -46,6 +46,7 @@ export function BarraComandas({ comandas, atual, onEscolher, onNova, nBalcao }: 
   return (
     <div className="flex gap-1.5 overflow-x-auto no-scrollbar px-5 pb-3 flex-none">
       <button onClick={() => onEscolher(null)} className={btn} style={chip(atual === null, 0)}>Balcão{nBalcao > 0 && <span className="text-[11px] opacity-75">{nBalcao}</span>}</button>
+      {comandas.length > 0 && <span className="self-center px-1 text-[12px] font-bold text-[#ADADB4] whitespace-nowrap flex-none">{comandas.length} {comandas.length === 1 ? 'aberta' : 'abertas'}</span>}
       {comandas.map((c, k) => (
         <button key={c.id} onClick={() => onEscolher(c.id)} className={btn} style={chip(atual === c.id, k + 1)}>
           {c.label}<span className="text-[11px] opacity-75">{c.itens.reduce((a, i) => a + i.quantity, 0)}</span>

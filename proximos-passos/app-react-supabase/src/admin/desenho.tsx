@@ -104,10 +104,35 @@ function Campo({ f, modal }) {
   )
 }
 
+const Contagem = ({ t }) => <span style={{ fontSize: 14.5, fontWeight: 800, color: '#F5F5F2', marginLeft: 'auto', whiteSpace: 'nowrap', padding: '6px 10px', borderRadius: '2px 7px 3px 6px', background: '#1C1C1F', border: '1px solid #2A2A2E' }}>{t}</span>
+const botaoPag = (on) => ({ height: 36, padding: '0 14px', borderRadius: '2px 8px 3px 7px', border: '1px solid #3A3A40', background: 'transparent', color: '#F5F5F2', fontSize: 13.5, fontWeight: 800, cursor: on ? 'pointer' : 'default', opacity: on ? 1 : .4 })
+function Paginador({ p }) {
+  return (
+    <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '8px 14px', paddingTop: 10 }}>
+      <span style={{ fontSize: 14, fontWeight: 700, color: '#E4E4E7' }}>{p.txt}</span>
+      {p.pag && <span style={{ fontSize: 13, color: '#8A8A90' }}>{p.pag}</span>}
+      {(p.prev || p.next) && <span style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
+        <button onClick={p.prev || undefined} disabled={!p.prev} style={botaoPag(!!p.prev)}>‹ Anterior</button>
+        <button onClick={p.next || undefined} disabled={!p.next} style={botaoPag(!!p.next)}>Próxima ›</button>
+      </span>}
+    </div>
+  )
+}
+// Busca e contagem dos blocos que são lista (listas, linhas do tempo, conversas, cartões e kanban).
+function BarraBloco({ l, I }) {
+  return (
+    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center', marginBottom: 12 }}>
+      {l.busca && <div style={{ flex: '1 1 220px', maxWidth: 420, display: 'flex', alignItems: 'center', gap: 8, height: 40, padding: '0 12px', borderRadius: '3px 10px 2px 9px', background: '#141416', border: '1px solid #2A2A2E', color: '#A1A1A6' }}>{I.search}<input value={l.busca.val} onChange={l.busca.on} placeholder={l.busca.ph} style={{ flex: 1, minWidth: 0, height: '100%', background: 'transparent', border: 'none', outline: 'none', color: '#F5F5F2', fontSize: 14.5 }} /></div>}
+      <Contagem t={l.txt} />
+    </div>
+  )
+}
+
 function Bloco({ b, I }) {
   return (
     <div style={b.wrap}>
       {b.hasHead && <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'flex-start', gap: '10px 16px', marginBottom: 14 }}><div style={{ flex: '1 1 220px', minWidth: 0, display: 'flex', flexDirection: 'column', gap: 4 }}><div style={{ fontSize: 17, fontWeight: 800 }}>{b.title}</div>{b.sub && <div style={{ fontSize: 14, color: '#B4B4B9', lineHeight: 1.45, textWrap: 'pretty' }}>{b.sub}</div>}</div>{b.hasActs && <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>{b.acts.map((a, i) => <Btn key={i} a={a} />)}</div>}</div>}
+      {b.lista && <BarraBloco l={b.lista} I={I} />}
       {b.isKpis && <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(min(100%,190px),1fr))', gap: 10 }}>{b.items.map((k, i) => <button key={i} onClick={k.go || undefined} title={k.def} style={k.st}><span style={{ flex: 'none', display: 'flex', alignItems: 'flex-start', gap: 8, fontSize: 13, fontWeight: 700, color: '#C9C9CC', lineHeight: 1.25 }}><span style={k.dot} /><span style={{ minWidth: 0 }}>{k.label}</span></span><span style={{ flex: 'none', fontSize: 26, fontWeight: 900, letterSpacing: '-.02em', fontVariantNumeric: 'tabular-nums', lineHeight: 1.1 }}>{k.value}</span>{k.sub && <span style={{ fontSize: 13, color: '#B4B4B9', lineHeight: 1.35 }}>{k.sub}</span>}{k.delta && <span style={k.deltaSt}>{k.delta}</span>}</button>)}</div>}
       {b.isChart && <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 14 }}>{b.legend.map((l, i) => <span key={i} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: '#C9C9CC' }}><span style={l.sw} />{l.label}</span>)}</div>
@@ -130,14 +155,7 @@ function Bloco({ b, I }) {
           <div style={b.headSt}>{b.cols.map((c, i) => <button key={i} onClick={c.go} style={c.st}>{c.label}<span style={{ color: '#FBC009' }}>{c.arrow}</span></button>)}</div>
           {b.rows.map((r, i) => <div key={i} onClick={r.go || undefined} className={r.go ? 'h-row' : ''} style={r.st}>{r.cells.map((c, j) => <Celula key={j} c={c} />)}</div>)}
         </div></div>}
-        {b.pager && <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '8px 14px', paddingTop: 2 }}>
-          <span style={{ fontSize: 14, fontWeight: 700, color: '#E4E4E7' }}>{b.pager.txt}</span>
-          {b.pager.pag && <span style={{ fontSize: 13, color: '#8A8A90' }}>{b.pager.pag}</span>}
-          {(b.pager.prev || b.pager.next) && <span style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
-            <button onClick={b.pager.prev || undefined} disabled={!b.pager.prev} style={{ height: 36, padding: '0 14px', borderRadius: '2px 8px 3px 7px', border: '1px solid #3A3A40', background: 'transparent', color: '#F5F5F2', fontSize: 13.5, fontWeight: 800, cursor: b.pager.prev ? 'pointer' : 'default', opacity: b.pager.prev ? 1 : .4 }}>‹ Anterior</button>
-            <button onClick={b.pager.next || undefined} disabled={!b.pager.next} style={{ height: 36, padding: '0 14px', borderRadius: '2px 8px 3px 7px', border: '1px solid #3A3A40', background: 'transparent', color: '#F5F5F2', fontSize: 13.5, fontWeight: 800, cursor: b.pager.next ? 'pointer' : 'default', opacity: b.pager.next ? 1 : .4 }}>Próxima ›</button>
-          </span>}
-        </div>}
+        {b.pager && <Paginador p={b.pager} />}
         {b.noRows && <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, padding: '36px 16px', textAlign: 'center', border: '1.5px dashed #2A2A2E', borderRadius: '4px 12px 3px 10px' }}><span style={{ color: '#FBC009' }}>{I.search}</span><span style={{ fontSize: 16, fontWeight: 800 }}>{b.emptyT}</span><span style={{ fontSize: 14, color: '#B4B4B9', maxWidth: 420, lineHeight: 1.45 }}>{b.emptyS}</span>{b.clear && <button onClick={b.clear} style={{ marginTop: 4, height: 38, padding: '0 14px', borderRadius: '2px 8px 3px 7px', border: '1px solid #3A3A40', background: 'transparent', color: '#F5F5F2', fontSize: 14, fontWeight: 800, cursor: 'pointer' }}>Limpar filtros</button>}</div>}
       </div>}
       {b.isForm && <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>{b.fields.length > 0 && <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(min(100%,220px),1fr))', gap: 14 }}>{b.fields.map((f, i) => <Campo key={i} f={f} />)}</div>}{b.hasFActs && <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>{b.facts.map((a, i) => <Btn key={i} a={a} />)}</div>}</div>}
@@ -145,6 +163,7 @@ function Bloco({ b, I }) {
       {b.isMap && <><div style={{ position: 'relative', width: '100%', aspectRatio: '16/10', minHeight: 300, borderRadius: '4px 13px 5px 11px', overflow: 'hidden', background: '#0B0D10', backgroundImage: 'linear-gradient(#15181D 1px,transparent 1px),linear-gradient(90deg,#15181D 1px,transparent 1px)', backgroundSize: '40px 40px', border: '1px solid #232327' }}>{b.labels.map((l, i) => <span key={i} style={l.st}>{l.t}</span>)}{b.ring && <span style={b.ring} />}{b.pts.map((p, i) => <button key={i} onClick={p.go} title={p.tip} style={p.st} />)}<span style={{ position: 'absolute', left: 10, bottom: 8, right: 10, fontSize: 12, fontWeight: 700, color: '#A1A1A6', lineHeight: 1.35 }}>{b.foot}</span></div><div style={{ display: 'flex', flexWrap: 'wrap', gap: 14, marginTop: 10 }}>{b.legend.map((l, i) => <span key={i} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: '#C9C9CC' }}><span style={l.sw} />{l.label}</span>)}</div></>}
       {b.isKanban && <div style={{ display: 'grid', gridAutoFlow: 'column', gridAutoColumns: 'minmax(240px,1fr)', gap: 12, overflowX: 'auto', paddingBottom: 6, scrollbarWidth: 'thin' }}>{b.cols.map((c, i) => <div key={i} onDragOver={c.over} onDrop={c.drop} style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: 12, borderRadius: '3px 11px 4px 10px', background: '#0E0E10', border: '1px solid #1F1F22', minWidth: 0, minHeight: 160 }}><div style={{ display: 'flex', alignItems: 'center', gap: 8 }}><span style={c.dot} /><span style={{ flex: 1, minWidth: 0, fontSize: 14.5, fontWeight: 800 }}>{c.label}</span><span style={{ fontSize: 13, fontWeight: 800, color: '#B4B4B9' }}>{c.count}</span></div>{c.items.map((it, j) => <button key={j} draggable onDragStart={it.ds} onClick={it.go} style={it.st}><span style={{ fontSize: 14.5, fontWeight: 800, lineHeight: 1.25 }}>{it.t}</span><span style={{ fontSize: 13, color: '#B4B4B9', lineHeight: 1.35 }}>{it.sub}</span>{it.meta && <span style={it.metaSt}>{it.meta}</span>}</button>)}{c.empty && <span style={{ padding: '14px 4px', fontSize: 13, color: '#8A8A90', textAlign: 'center', border: '1px dashed #2A2A2E', borderRadius: '2px 8px 3px 7px' }}>Arraste um lead para cá</span>}</div>)}</div>}
       {b.isThread && <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>{b.items.map((m, i) => <div key={i} style={m.wrap}><div style={m.box}><div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px 10px', alignItems: 'center' }}><span style={{ fontSize: 13.5, fontWeight: 800 }}>{m.who}</span>{m.tag && <span style={m.tagSt}>{m.tag}</span>}<span style={{ fontSize: 12.5, color: '#B4B4B9' }}>{m.when}</span></div><div style={{ fontSize: 14.5, lineHeight: 1.5, color: '#F5F5F2', whiteSpace: 'pre-wrap', textWrap: 'pretty' }}>{m.t}</div>{m.att && <span style={{ fontSize: 12.5, color: '#FBC009', fontWeight: 700 }}>{m.att}</span>}</div></div>)}{!b.items.length && b.empty && <div style={{ padding: '12px 0', fontSize: 14, color: '#A1A1A6' }}>{b.empty}</div>}</div>}
+      {b.lista?.pager && <Paginador p={b.lista.pager} />}
       {b.isState && <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, padding: '48px 16px', textAlign: 'center' }}><span style={b.iconSt}>{b.icon}</span><span style={{ fontSize: 19, fontWeight: 900 }}>{b.st1}</span><span style={{ fontSize: 14.5, color: '#B4B4B9', maxWidth: 460, lineHeight: 1.5 }}>{b.st2}</span>{b.hasNActs && <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, justifyContent: 'center', marginTop: 6 }}>{b.nacts.map((a, i) => <Btn key={i} a={a} />)}</div>}</div>}
     </div>
   )

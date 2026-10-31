@@ -13,6 +13,8 @@ export function EscolherOperador({ onEntrar }: { onEntrar: (o: Operador) => void
   const { terminal, signOut } = useAuth()
   const { data: membros, isLoading } = useOperadores(terminal?.storeId ?? null)
   const [busy, setBusy] = useState<string | null>(null)
+  const [q, setQ] = useState('')
+  const visiveis = (membros ?? []).filter((m) => !q.trim() || m.display_name.toLowerCase().includes(q.trim().toLowerCase()))
   const toast = useToast()
 
   const entrar = (id: string) => {
@@ -29,9 +31,12 @@ export function EscolherOperador({ onEntrar }: { onEntrar: (o: Operador) => void
         <div className="text-[clamp(28px,3.2vw,40px)] font-black tracking-[-0.02em] leading-[1.05]" style={{ fontStretch: '100%' }}>Quem vai operar?</div>
         <div className="text-[15px] text-[#C4C4C9] mt-2">{terminal?.name} · Toque no seu nome</div>
       </div>
+      {(membros?.length ?? 0) > 9 && <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar seu nome" aria-label="Buscar seu nome"
+        className="h-12 px-3.5 rounded-[3px_10px_2px_9px] bg-surface border border-line text-[15px] outline-none focus:border-brand max-w-[420px]" />}
+      {!!membros?.length && <div className="text-[13px] font-bold text-[#C4C4C9] -mt-2">{visiveis.length === membros.length ? `${membros.length} ${membros.length === 1 ? 'pessoa' : 'pessoas'} na equipe` : `Mostrando ${visiveis.length} de ${membros.length}`}</div>}
       <div className="grid gap-2.5 grid-cols-2 tablet:grid-cols-3">
         {isLoading && <div className="text-[#C4C4C9]">Carregando a equipe…</div>}
-        {membros?.map((m, i) => (
+        {visiveis.map((m, i) => (
           <button key={m.id} onClick={() => entrar(m.id)} disabled={!!busy} style={{ borderRadius: IRR[i % 4] }}
             className="flex items-center gap-3 p-3.5 bg-surface border border-line text-left cursor-pointer transition hover:-translate-y-0.5 hover:border-brand active:scale-[.97] disabled:opacity-60">
             <span className="w-11 h-11 flex-none rounded-full bg-line-2 flex items-center justify-center text-sm font-extrabold">{iniciais(m.display_name)}</span>

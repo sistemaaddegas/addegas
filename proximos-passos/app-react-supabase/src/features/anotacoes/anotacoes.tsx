@@ -4,7 +4,7 @@ import { useAuth } from '@/lib/auth'
 import { supabase } from '@/lib/supabase'
 import { Icon } from '@/components/icon'
 import { useToast } from '@/components/toast'
-import { BarraLista, SemResultado, norm } from '@/components/filtros'
+import { BarraLista, SemResultado, norm, Paginacao, paginar, PG0, type Pg } from '@/components/filtros'
 
 type Nota = { id: string; title: string; body: string | null; priority: 'alta' | 'media' | 'baixa'; done: boolean; created_at: string }
 
@@ -38,6 +38,7 @@ export function Anotacoes() {
   const [q, setQ] = useState('')
   const [fPrio, setFPrio] = useState('todos')
   const [fSit, setFSit] = useState('todos')
+  const [pgN, setPgN] = useState<Pg>(PG0)
   const { storeId } = useAuth()
   const qc = useQueryClient()
   const toast = useToast()
@@ -76,6 +77,7 @@ export function Anotacoes() {
       && (fSit === 'todos' || (fSit === 'feitas') === n.done))
     .sort((a, b) => Number(a.done) - Number(b.done) || PO[a.priority] - PO[b.priority])
   const limpar = () => { setQ(''); setFPrio('todos'); setFSit('todos') }
+  const pagN = paginar(notas, pgN, q + fPrio + fSit)
   return (
     <div className="p-4 tablet:p-8 flex flex-col gap-[18px] max-w-[1400px] mx-auto w-full">
       <div className="flex flex-wrap items-center gap-3">
@@ -88,8 +90,9 @@ export function Anotacoes() {
           { label: 'Situação', value: fSit, onChange: setFSit, options: [['todos', 'Todas'], ['abertas', 'A fazer'], ['feitas', 'Feitas']] },
         ]} />
       <div className="grid gap-x-[18px] gap-y-[22px] items-start pt-1.5 px-1 pb-5 grid-cols-[repeat(auto-fill,minmax(min(100%,220px),1fr))]">
-        {notas.map((n) => <Papel key={n.id} n={n} onMudar={mudar} onApagar={apagar} />)}
+        {pagN.itens.map((n) => <Papel key={n.id} n={n} onMudar={mudar} onApagar={apagar} />)}
       </div>
+      <Paginacao p={pagN} onPg={setPgN} />
       {notas.length === 0 && <SemResultado filtrado={!!qn || fPrio !== 'todos' || fSit !== 'todos'} vazio="Nenhuma anotação. Crie a primeira." onLimpar={limpar} />}
     </div>
   )

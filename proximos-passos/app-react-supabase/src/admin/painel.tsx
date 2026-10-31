@@ -143,7 +143,7 @@ export class Painel extends Component {
       clear = () => { this.setState((st) => ({ f: { ...st.f, [sk]: {} } })); if (antes) antes() }
     }
     if (c0 && c0.sv) rs = [...rs].sort((a, b) => { const x = c0.sv(a.d), y = c0.sv(b.d); return (x > y ? 1 : x < y ? -1 : 0) * (so.dir || 1) })
-    const count = o.count || (fixa || !total ? '' : rs.length === total ? total + (total === 1 ? ' registro' : ' registros') : rs.length + ' de ' + total + ' registros')
+    const count = o.count || (fixa ? '' : !total ? '0 registros' : rs.length === total ? total + (total === 1 ? ' registro' : ' registros') : rs.length + ' de ' + total + ' registros')
     // Enumeração: 25 por página, com "Mostrando 1–25 de N" e Anterior / Próxima.
     const POR = 25, achados = rs.length, pk = 'p:' + key, paginas = Math.max(1, Math.ceil(achados / POR))
     const pg = Math.min(this.fv(pk, 'pg', 0), paginas - 1), irPara = (n) => this.setF(pk, 'pg', n)
@@ -226,6 +226,7 @@ export class Painel extends Component {
     catch (e) { console.error(e); page = { title: 'Não foi possível montar esta tela', blocks: [{ type: 'state', card: true, icon: ic('alert', 34), iconSt: { color: '#FF6B5E' }, st1: 'Erro ao montar a tela', st2: String(e && e.message || e), nacts: [this.A('Ir para a Visão geral', () => this.go('overview'), 'primary')], hasNActs: true }] } }
     let blocks = page.blocks
     if (s.loading || s.loadErr) blocks = this.estados(mob)
+    blocks = blocks.map((b, i) => this.listaPadrao(b, scr + ':' + i))
     blocks = blocks.map((b, i) => { const T = b.type; const span = mob ? 12 : (b.span && !wide && b.span < 12 ? (b.span >= 6 ? 12 : 6) : (b.span || 12)); const isCard = b.card || ['chart', 'list', 'note', 'kv', 'timeline', 'form', 'state', 'cards', 'thread'].includes(T) && !b.plain
       return { ...b, ['is' + T[0].toUpperCase() + T.slice(1)]: true, hasHead: !!b.title, hasActs: !!(b.acts && b.acts.length), sub: b.sub || '', hasFActs: !!(b.facts && b.facts.length), wrap: { gridColumn: 'span ' + span, minWidth: 0, ...(isCard ? { padding: mob ? 14 : 18, borderRadius: R[i % 5], background: T === 'note' ? b.bg : '#0E0E10', border: '1px solid ' + (T === 'note' ? b.bd : '#1F1F22') } : {}) } } })
     const q = nz(s.gq.trim()), PSTN = { publicado: 'Publicado', rascunho: 'Rascunho', arquivado: 'Arquivado' }
@@ -241,6 +242,32 @@ export class Painel extends Component {
       notifs, notifCount: notifs.length, notifEmpty: !notifs.length, notifOpen: s.nOpen, toggleNotif: () => this.setState((st) => ({ nOpen: !st.nOpen, pOpen: false, gOpen: false })), profOpen: s.pOpen, toggleProf: () => this.setState((st) => ({ pOpen: !st.pOpen, nOpen: false, gOpen: false })),
       logout: () => this.sair(), page: { title: page.title, sub: page.sub || '', back: page.back || null, backLabel: page.backLabel || 'Voltar', acts: page.acts || [], hasActs: !!(page.acts && page.acts.length) }, blocks,
       modal: this.modalVals(D), closeModal: () => this.setState({ modal: null }), toast: s.toast }
+  }
+  /**
+   * Padrão de listagem também fora das tabelas: listas, linhas do tempo, conversas, cartões e kanban ganham a
+   * contagem; a partir de 8 itens, a busca; e acima de 25 (fora o kanban), a paginação.
+   */
+  listaPadrao(b, chave) {
+    if (!['list', 'timeline', 'thread', 'cards', 'kanban'].includes(b.type) || b.semBusca) return b
+    const itens = b.type === 'kanban' ? b.cols.flatMap((c) => c.items) : (b.items || [])
+    const total = itens.length
+    if (!total) return b
+    const k = 'b:' + chave, q = nz(this.fv(k, 'q', '').trim())
+    const txt = (x) => nz([x.t, x.label, x.sub, x.meta, x.why, x.diff, x.who, x.v, x.value, ...(x.bullets || [])].filter((v) => typeof v === 'string').join(' '))
+    const ok = (x) => !q || txt(x).includes(q)
+    const busca = total >= 8 ? { val: this.fv(k, 'q', ''), ph: 'Buscar nesta lista', on: (e) => this.setF(k, 'q', e.target.value) } : null
+    const nome = (n) => n + (n === 1 ? ' registro' : ' registros')
+    if (b.type === 'kanban') {
+      const cols = b.cols.map((c) => { const its = c.items.filter(ok); return { ...c, items: its, count: its.length, empty: !its.length } })
+      const n = cols.reduce((a, c) => a + c.items.length, 0)
+      return { ...b, cols, lista: { busca, txt: n === total ? nome(total) : n + ' de ' + nome(total) } }
+    }
+    const achados = itens.filter(ok), POR = 25, paginas = Math.max(1, Math.ceil(achados.length / POR))
+    const pg = Math.min(this.fv(k, 'pg', 0), paginas - 1), ir = (n) => this.setF(k, 'pg', n)
+    const pager = achados.length > POR ? { txt: 'Mostrando ' + (pg * POR + 1) + '–' + Math.min(achados.length, (pg + 1) * POR) + ' de ' + achados.length, pag: 'Página ' + (pg + 1) + ' de ' + paginas,
+      prev: pg > 0 ? () => ir(pg - 1) : null, next: pg < paginas - 1 ? () => ir(pg + 1) : null } : null
+    return { ...b, items: achados.slice(pg * POR, (pg + 1) * POR), empty: q && !achados.length ? 'Nada nesta lista bate com a busca.' : b.empty,
+      lista: { busca, txt: achados.length === total ? nome(total) : achados.length + ' de ' + nome(total), pager } }
   }
   estados(mob) {
     const s = this.state

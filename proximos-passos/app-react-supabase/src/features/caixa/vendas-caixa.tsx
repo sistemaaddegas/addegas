@@ -5,7 +5,7 @@ import { brlc, centavos } from '@/lib/format'
 import { Icon } from '@/components/icon'
 import { Sheet, bigBtn, chipBtn, moneyInput } from '@/components/sheet'
 import { useToast } from '@/components/toast'
-import { BarraLista, SemResultado } from '@/components/filtros'
+import { BarraLista, SemResultado, Paginacao, paginar, PG0, type Pg } from '@/components/filtros'
 import { hora, pill, pillCls } from '@/lib/visual'
 import { imprimirCupom } from './cupom'
 import type { Operador } from './dados'
@@ -21,6 +21,7 @@ export function UltimasVendas({ op, onClose, onCancelada }: { op: Operador; onCl
   const [q, setQ] = useState('')
   const [fForma, setFForma] = useState('todos')
   const [fSit, setFSit] = useState('todos')
+  const [pgV, setPgV] = useState<Pg>(PG0)
   const { data, isLoading, refetch } = useQuery({
     queryKey: ['caixa', 'ultimas-vendas'],
     queryFn: async () => {
@@ -36,6 +37,7 @@ export function UltimasVendas({ op, onClose, onCancelada }: { op: Operador; onCl
   const lista = todas.filter((v) => (!qd || String(v.number).includes(qd)) && (fForma === 'todos' || v.sale_payments.some((p) => p.method === fForma))
     && (fSit === 'todos' || v.status === fSit))
   const limpar = () => { setQ(''); setFForma('todos'); setFSit('todos') }
+  const pagV = paginar(lista, pgV, q + fForma + fSit)
   return (
     <>
       <Sheet title="Últimas vendas" onClose={onClose}>
@@ -46,7 +48,7 @@ export function UltimasVendas({ op, onClose, onCancelada }: { op: Operador; onCl
             { label: 'Situação', value: fSit, onChange: setFSit, options: [['todos', 'Todas'], ['paid', 'Pagas'], ['canceled', 'Canceladas']] },
           ]} />
         <div>
-          {lista.map((v) => (
+          {pagV.itens.map((v) => (
             <div key={v.id} className="flex flex-wrap items-center gap-x-3 gap-y-2 py-3 border-b border-line">
               <div className="flex-[1_1_150px] min-w-0">
                 <div className="text-[15px] font-bold">#{v.number} · <span className="num">{brlc(v.total)}</span></div>
@@ -59,6 +61,7 @@ export function UltimasVendas({ op, onClose, onCancelada }: { op: Operador; onCl
               )}
             </div>
           ))}
+          <Paginacao p={pagV} onPg={setPgV} />
           {data && !lista.length && <SemResultado filtrado={!!qd || fForma !== 'todos' || fSit !== 'todos'} vazio="Nenhuma venda neste caixa ainda." onLimpar={limpar} />}
         </div>
       </Sheet>

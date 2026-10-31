@@ -6,7 +6,7 @@ import { brlc, centavos, parseBRL, reais } from '@/lib/format'
 import { Icon } from '@/components/icon'
 import { Sheet, bigBtn } from '@/components/sheet'
 import { useToast } from '@/components/toast'
-import { BarraLista, SemResultado, norm } from '@/components/filtros'
+import { BarraLista, SemResultado, norm, Paginacao, paginar, PG0, type Pg } from '@/components/filtros'
 import { useEstoque } from '@/features/estoque/dados'
 import { card, chip, chipCls, pill, pillCls, qtd, seg, segBar, segCls } from '@/lib/visual'
 
@@ -49,8 +49,12 @@ export function Compras({ contas = false }: { contas?: boolean }) {
   const [fSitC, setFSitC] = useState('abertas')
   const [fCatC, setFCatC] = useState('todos')
   const [qS, setQS] = useState('')
+  const [pgS, setPgS] = useState<Pg>(PG0)
   const [fFornP, setFFornP] = useState('todos')
   const [fSitP, setFSitP] = useState('todos')
+  const [pgF, setPgF] = useState<Pg>(PG0)
+  const [pgC, setPgC] = useState<Pg>(PG0)
+  const [pgP, setPgP] = useState<Pg>(PG0)
   const aba: Aba = contas ? 'contas' : abaCompras
   const [modal, setModal] = useState<null | 'forn' | 'conta' | 'enviar' | Conta | { receber: PedidoCompra }>(null)
   const accountId = est.data?.accountId
@@ -94,6 +98,7 @@ export function Compras({ contas = false }: { contas?: boolean }) {
   const fornecedores = data.fornecedores.filter((f) => (!qfn || norm(`${f.name} ${f.kind ?? ''} ${f.phone ?? ''}`).includes(qfn))
     && (fTipo === 'todos' || (f.kind ?? '').split(',').map((x) => x.trim()).includes(fTipo)))
   const limparF = () => { setQF(''); setFTipo('todos') }
+  const pagF = paginar(fornecedores, pgF, qF + fTipo)
   const catsConta = [...new Set(data.contas.map((b) => b.category).filter(Boolean))] as string[]
   const qcn = norm(qC.trim())
   const situacaoConta = (b: Conta) => b.paid_at ? 'pagas' : b.days_late > 0 ? 'vencidas' : diasAte(b.due_on) <= 7 ? 'semana' : 'abertas'
@@ -101,10 +106,13 @@ export function Compras({ contas = false }: { contas?: boolean }) {
     .filter((b) => (!qcn || norm(`${b.description} ${b.category ?? ''}`).includes(qcn)) && (fCatC === 'todos' || b.category === fCatC)
       && (fSitC === 'todas' || (fSitC === 'abertas' ? !b.paid_at : situacaoConta(b) === fSitC)))
   const limparC = () => { setQC(''); setFSitC('abertas'); setFCatC('todos') }
+  const pagC = paginar(ordenadas, pgC, qC + fSitC + fCatC)
   const sugestao = data.sugestao.filter((g) => !qS.trim() || norm(g.name).includes(norm(qS.trim())))
+  const pagS = paginar(sugestao, pgS, qS)
   const pedidos = data.pedidos.filter((pc) => (fFornP === 'todos' || (pc.supplier_id ?? 'sem') === fFornP)
     && (fSitP === 'todos' || (fSitP === 'falta') === pc.purchase_order_items.some((i) => Number(i.received_qty) < Number(i.quantity))))
   const limparP = () => { setFFornP('todos'); setFSitP('todos') }
+  const pagP = paginar(pedidos, pgP, fFornP + fSitP)
 
   return (
     <div className="p-4 tablet:p-8 flex flex-col gap-4 max-w-[1400px] mx-auto w-full">
@@ -126,7 +134,7 @@ export function Compras({ contas = false }: { contas?: boolean }) {
             <button onClick={() => setModal('forn')} className="h-12 px-[18px] rounded-[3px_10px_2px_9px] bg-brand text-brand-ink text-[15px] font-extrabold flex items-center gap-2 cursor-pointer"><Icon name="plus" />Novo fornecedor</button>
           </div>
           <div className="grid gap-3 grid-cols-[repeat(auto-fill,minmax(min(100%,280px),1fr))]">
-            {fornecedores.map((f) => (
+            {pagF.itens.map((f) => (
               <div key={f.id} className="p-[18px] rounded-[4px_13px_5px_11px] bg-surface border border-line flex flex-col gap-3">
                 <div className="flex items-center gap-3">
                   <span className="w-[42px] h-[42px] rounded-[3px_10px_2px_9px] bg-line-2 text-sm font-extrabold flex items-center justify-center flex-none">{iniciais(f.name)}</span>
@@ -140,6 +148,7 @@ export function Compras({ contas = false }: { contas?: boolean }) {
               </div>
             ))}
           </div>
+          <Paginacao p={pagF} onPg={setPgF} />
           {data.fornecedores.length > 0 && fornecedores.length === 0 && <SemResultado filtrado vazio="" onLimpar={limparF} />}
           {data.fornecedores.length === 0 && <div className="py-10 text-center text-[15px] text-[#C4C4C9]">Cadastre seus fornecedores para pedir pelo WhatsApp com a sugestão de compra pronta.</div>}
         </>
@@ -150,7 +159,7 @@ export function Compras({ contas = false }: { contas?: boolean }) {
           <div className="text-sm text-[#C4C4C9] leading-normal max-w-[720px]">Quanto comprar para cobrir 7 dias de venda, pela média das últimas 4 semanas, sem ficar abaixo do mínimo.</div>
           <BarraLista busca={qS} onBusca={setQS} placeholder="Buscar produto" mostrando={sugestao.length} total={data.sugestao.length} unidade={['produto', 'produtos']} onLimpar={() => setQS('')} />
           <div className={`${card} overflow-hidden`}>
-            {sugestao.map((g) => (
+            {pagS.itens.map((g) => (
               <div key={g.product_id} className="flex flex-wrap items-center gap-x-3.5 gap-y-2.5 py-3.5 px-[18px] border-b border-[#1F1F22]">
                 <div className="flex-[1_1_220px] min-w-0">
                   <div className="text-[15px] font-bold">{g.name}</div>
@@ -160,6 +169,7 @@ export function Compras({ contas = false }: { contas?: boolean }) {
                 <span className="w-[110px] text-right text-[15px] text-[#C4C4C9] num">{custo.get(g.product_id) != null ? brlc((custo.get(g.product_id) ?? 0) * Number(g.suggested)) : '—'}</span>
               </div>
             ))}
+            <Paginacao p={pagS} onPg={setPgS} />
             {data.sugestao.length === 0 && <div className="p-8 text-center text-[#C4C4C9] text-sm">Nada para comprar agora: o estoque cobre a próxima semana.</div>}
             {data.sugestao.length > 0 && (
               <div className="flex flex-wrap items-center gap-3 py-4 px-[18px]">
@@ -180,8 +190,9 @@ export function Compras({ contas = false }: { contas?: boolean }) {
                   { label: 'Situação', value: fSitP, onChange: setFSitP, options: [['todos', 'Todos'], ['falta', 'Falta chegar'], ['chegou', 'Já chegou']] },
                 ]} />
               <div className={`${card} overflow-hidden`}>
+                <Paginacao p={pagP} onPg={setPgP} />
                 {pedidos.length === 0 && <SemResultado filtrado vazio="" onLimpar={limparP} />}
-                {pedidos.map((pc) => {
+                {pagP.itens.map((pc) => {
                   const falta = pc.purchase_order_items.filter((i) => Number(i.received_qty) < Number(i.quantity))
                   return (
                     <div key={pc.id} className="flex flex-wrap items-center gap-x-3.5 gap-y-2.5 py-3.5 px-[18px] border-b border-[#1F1F22]">
@@ -215,7 +226,7 @@ export function Compras({ contas = false }: { contas?: boolean }) {
               { label: 'Tipo', value: fCatC, onChange: setFCatC, options: [['todos', 'Todos'], ...catsConta.map((c) => [c, c] as [string, string])] },
             ]} />
           <div className={`${card} overflow-hidden`}>
-            {ordenadas.map((b) => {
+            {pagC.itens.map((b) => {
               const d = diasAte(b.due_on)
               const venc = new Date(b.due_on + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })
               const [stL, stSt] = b.paid_at ? ['Pago', pill('#4ADE80', 'rgba(74,222,128,.12)')]
@@ -237,6 +248,7 @@ export function Compras({ contas = false }: { contas?: boolean }) {
                 </div>
               )
             })}
+            <Paginacao p={pagC} onPg={setPgC} />
             {ordenadas.length === 0 && <SemResultado filtrado={!!qcn || fSitC !== 'abertas' || fCatC !== 'todos'} vazio="Nenhuma conta em aberto." onLimpar={limparC} />}
           </div>
         </>
@@ -410,6 +422,7 @@ function EnviarPedido({ storeId, fornecedores, sugestao, custo, onClose, onDone 
         </div>
       </div>
       <div className="text-sm text-[#C4C4C9] -mb-2">Zere o que não for pedir a este fornecedor. O que sobrar continua na sugestão.</div>
+      <div className="text-[13px] font-bold text-[#C4C4C9]">{sugestao.length} {sugestao.length === 1 ? 'produto sugerido' : 'produtos sugeridos'} · {itens.length} no pedido</div>
       {sugestao.map((g) => (
         <div key={g.product_id} className="flex items-center gap-3 py-2 border-b border-line">
           <span className="flex-1 min-w-0 text-sm font-semibold">{g.name}</span>
@@ -441,6 +454,7 @@ function ReceberPedido({ pedido, nomeProd, onClose, onDone }: { pedido: PedidoCo
   return (
     <Sheet title="Chegou a mercadoria" onClose={onClose} footer={<button onClick={receber} disabled={busy} className={bigBtn}>{busy ? 'Lançando…' : 'Lançar entrada'}</button>}>
       <div className="grid grid-cols-[1fr_88px_110px] gap-2 text-[13px] font-bold text-[#ADADB4]"><span>Produto</span><span>Chegou (un)</span><span>Custo un. (R$)</span></div>
+      <div className="text-[13px] font-bold text-[#C4C4C9]">{falta.length} {falta.length === 1 ? 'item para conferir' : 'itens para conferir'}</div>
       {falta.map((i) => (
         <div key={i.product_id} className="grid grid-cols-[1fr_88px_110px] gap-2 items-center">
           <span className="text-sm font-semibold min-w-0">{nomeProd.get(i.product_id) ?? 'Produto'}</span>

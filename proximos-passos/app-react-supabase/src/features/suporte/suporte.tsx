@@ -4,7 +4,7 @@ import { useAuth } from '@/lib/auth'
 import { funcao, rpc, supabase } from '@/lib/supabase'
 import { Icon } from '@/components/icon'
 import { useToast } from '@/components/toast'
-import { BarraLista, SemResultado, norm } from '@/components/filtros'
+import { BarraLista, SemResultado, norm, Paginacao, paginar, PG0, type Pg } from '@/components/filtros'
 import { useContaAtual } from '@/features/assinatura/assinatura'
 import { irr } from '@/lib/visual'
 
@@ -74,10 +74,12 @@ export function Suporte() {
   const [q, setQ] = useState('')
   const [fSit, setFSit] = useState('todos')
   const [fTipo, setFTipo] = useState('todos')
+  const [pgT, setPgT] = useState<Pg>(PG0)
   const qn = norm(q.trim())
   const meus = (lista ?? []).filter((c) => (!qn || norm(`${c.number} #${c.number} ${c.subject} ${c.description}`).includes(qn)) && (fTipo === 'todos' || c.kind === fTipo)
     && (fSit === 'todos' || (fSit === 'fechados' ? ['resolvido', 'fechado'].includes(c.status) : fSit === 'respondido' ? c.status === 'aguardando_cliente' : !['resolvido', 'fechado'].includes(c.status))))
   const limpar = () => { setQ(''); setFSit('todos'); setFTipo('todos') }
+  const pagT = paginar(meus, pgT, q + fSit + fTipo)
   const preview = useObjectUrl(img)
 
   const ok = !!ass && desc.trim().length >= 5 && !busy
@@ -171,8 +173,9 @@ export function Suporte() {
             { label: 'Tipo', value: fTipo, onChange: setFTipo, options: [['todos', 'Todos'], ...Object.entries(NOME_TIPO)] },
           ]} />}
         {lista?.length === 0 && <div className="p-4 rounded-[3px_11px_4px_10px] bg-surface-2 border border-line text-sm text-[#C4C4C9]">Nenhum chamado ainda.</div>}
+        <Paginacao p={pagT} onPg={setPgT} />
         {!!lista?.length && !meus.length && <SemResultado filtrado vazio="" onLimpar={limpar} />}
-        {meus.map((c) => <CartaoChamado key={c.ticket_id} c={c} aberto={aberto === c.ticket_id} onToggle={() => setAberto(aberto === c.ticket_id ? null : c.ticket_id)} />)}
+        {pagT.itens.map((c) => <CartaoChamado key={c.ticket_id} c={c} aberto={aberto === c.ticket_id} onToggle={() => setAberto(aberto === c.ticket_id ? null : c.ticket_id)} />)}
       </div>
     </div>
   )

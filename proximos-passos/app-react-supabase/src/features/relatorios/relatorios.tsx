@@ -5,7 +5,7 @@ import { useAuth } from '@/lib/auth'
 import { rpc } from '@/lib/supabase'
 import { brlc } from '@/lib/format'
 import { canal } from '@/components/canal'
-import { BarraLista, SemResultado, norm } from '@/components/filtros'
+import { BarraLista, SemResultado, norm, Paginacao, paginar, PG0, type Pg } from '@/components/filtros'
 import { card, qtd, seg, segBar, segCls } from '@/lib/visual'
 
 type Relatorio = {
@@ -49,6 +49,7 @@ export function Relatorios() {
   const [qP, setQP] = useState('')
   const [fOp, setFOp] = useState('todos')
   const [fDif, setFDif] = useState('todos')
+  const [pgF, setPgF] = useState<Pg>(PG0)
   const dias = PERIODOS.find((p) => p[0] === periodo)![2]
   const ate = new Date(), de = new Date(); de.setDate(de.getDate() - dias)
 
@@ -73,6 +74,7 @@ export function Relatorios() {
   const fechamentos = r ? [...r.cash_closings].reverse().filter((c) => (fOp === 'todos' || c.operator === fOp)
     && (fDif === 'todos' || (fDif === 'ok' ? c.difference === 0 : fDif === 'faltou' ? c.difference < 0 : c.difference > 0))) : []
   const limparF = () => { setFOp('todos'); setFDif('todos') }
+  const pagF = paginar(fechamentos, pgF, fOp + fDif + periodo)
 
   return (
     <div className="p-4 tablet:p-8 flex flex-col gap-4 max-w-[1400px] mx-auto w-full">
@@ -129,7 +131,7 @@ export function Relatorios() {
                   { label: 'Operador', value: fOp, onChange: setFOp, options: [['todos', 'Todos'], ...operadores.map((o) => [o, o] as [string, string])] },
                   { label: 'Conferência', value: fDif, onChange: setFDif, options: [['todos', 'Todas'], ['ok', 'Sem diferença'], ['faltou', 'Faltou dinheiro'], ['sobrou', 'Sobrou dinheiro']] },
                 ]} /></div>
-              {fechamentos.map((c) => (
+              {pagF.itens.map((c) => (
                 <div key={c.closed_at} className="flex items-center gap-3 py-3 border-t border-line text-sm">
                   <div className="flex-1 min-w-0">
                     <div className="font-bold">{new Date(c.closed_at).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</div>
@@ -143,6 +145,7 @@ export function Relatorios() {
                   </div>
                 </div>
               ))}
+              <Paginacao p={pagF} onPg={setPgF} />
               {fechamentos.length === 0 && <SemResultado filtrado={fOp !== 'todos' || fDif !== 'todos'} vazio="Nenhum caixa fechado no período." onLimpar={limparF} />}
             </div>
           </div>

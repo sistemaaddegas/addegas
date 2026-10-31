@@ -7,7 +7,7 @@ import { Icon } from '@/components/icon'
 import { Sheet, bigBtn } from '@/components/sheet'
 import { usePermissoes } from '@/app/shell-dados'
 import { useToast } from '@/components/toast'
-import { BarraLista, SemResultado, norm } from '@/components/filtros'
+import { BarraLista, SemResultado, norm, Paginacao, paginar, PG0, type Pg } from '@/components/filtros'
 import { card, chip, chipCls } from '@/lib/visual'
 import { useCaderneta, useFiados, type Fiado, type Lancamento } from './dados'
 
@@ -36,6 +36,7 @@ export function Clientes() {
   const { data, error, isLoading } = useFiados(storeId)
   const [q, setQ] = useState('')
   const [fSit, setFSit] = useState('todos')
+  const [pgC, setPgC] = useState<Pg>(PG0)
   const [sel, setSel] = useState<string | null>(null)
   const [novo, setNovo] = useState(false)
   const { data: perm } = usePermissoes()
@@ -56,6 +57,7 @@ export function Clientes() {
   const lista = data.filter((c) => (!qn || norm(c.name).includes(qn) || (qd && (c.phone ?? '').includes(qd)))
     && (fSit === 'todos' || (fSit === 'devendo' ? c.balance > 0 : situacao(c) === fSit)))
   const limpar = () => { setQ(''); setFSit('todos') }
+  const pagC = paginar(lista, pgC, q + fSit)
   const atual = data.find((c) => c.fiado_account_id === sel) ?? null
 
   return (
@@ -78,7 +80,7 @@ export function Clientes() {
       </div>
 
       <div className={`${card} overflow-hidden`}>
-        {lista.map((c) => {
+        {pagC.itens.map((c) => {
           const pct = c.credit_limit ? (c.balance / c.credit_limit) * 100 : 0
           const pi = c.balance > 0 ? combinado(c.promised_date) : null
           return (
@@ -99,6 +101,7 @@ export function Clientes() {
             </div>
           )
         })}
+        <Paginacao p={pagC} onPg={setPgC} />
         {lista.length === 0 && <SemResultado filtrado={!!q.trim() || fSit !== 'todos'} vazio="Ninguém comprou fiado ainda." onLimpar={limpar} />}
       </div>
 

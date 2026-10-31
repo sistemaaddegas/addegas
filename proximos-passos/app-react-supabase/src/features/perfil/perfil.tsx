@@ -108,7 +108,7 @@ export function Perfil() {
           {p.avatar && <button onClick={() => gravar({ avatar: null }, 'Foto removida.')} className="h-11 px-4 rounded-[2px_8px_3px_7px] border border-[#3A3A40] text-sm font-bold cursor-pointer">Remover</button>}
         </div>
         <div className="self-stretch flex flex-col gap-2 pt-4 border-t border-line text-left">
-          <div className="text-xs font-extrabold text-[#A1A1A6] uppercase tracking-[.08em]">Lojas</div>
+          <div className="text-xs font-extrabold text-[#A1A1A6] uppercase tracking-[.08em]">Lojas{lojas?.length ? ` · ${lojas.length}` : ''}</div>
           {lojas?.map((l) => (
             <div key={l.store_id} className="flex items-center gap-2.5 py-2.5 px-3 rounded-[2px_8px_3px_7px] bg-surface-2 border border-line">
               <span className="text-brand flex"><Icon name="store" size={18} /></span>

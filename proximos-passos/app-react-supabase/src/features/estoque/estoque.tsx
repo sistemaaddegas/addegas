@@ -7,7 +7,7 @@ import { brlc, centavos, parseBRL, reais } from '@/lib/format'
 import { Icon } from '@/components/icon'
 import { Sheet, bigBtn } from '@/components/sheet'
 import { useToast } from '@/components/toast'
-import { BarraLista, SemResultado, norm } from '@/components/filtros'
+import { BarraLista, SemResultado, norm, Paginacao, paginar, PG0, type Pg } from '@/components/filtros'
 import { card, chip, chipCls, pill, pillCls, qtd, seg, segBar, segCls } from '@/lib/visual'
 import { useEstoque, type Categoria, type ProdutoLoja } from './dados'
 
@@ -34,6 +34,8 @@ export function Estoque() {
   const [fSit, setFSit] = useState('todos')
   const [fOrig, setFOrig] = useState('todos')
   const [fVal, setFVal] = useState('todos')
+  const [pgP, setPgP] = useState<Pg>(PG0)
+  const [pgL, setPgL] = useState<Pg>(PG0)
   const [params, setParams] = useSearchParams()
   const [contagem, setContagem] = useState<Record<string, string>>({})
   const [salvando, setSalvando] = useState(false)
@@ -70,8 +72,10 @@ export function Estoque() {
     && (fOrig === 'todos' || orig(p) === fOrig))
   const filtrado = !!qn || fCat !== 'todos' || fSit !== 'todos' || fOrig !== 'todos'
   const limpar = () => { setQ(''); setFCat('todos'); setFSit('todos'); setFOrig('todos') }
+  const pagP = paginar(lista, pgP, q + fCat + fSit + fOrig)
   const ORIGEM: Record<string, [string, string, string]> = { catalogo: ['Catálogo Addegas', '#4ADE80', 'rgba(74,222,128,.12)'], pendente: ['Em análise', '#FBC009', 'rgba(251,192,9,.12)'], recusada: ['Só nesta adega', '#ADADB4', '#232327'], local: ['Só nesta adega', '#ADADB4', '#232327'] }
   const lotesF = lotes.filter((l) => { const d = diasAte(l.expires_on); return fVal === 'todos' || (fVal === 'vencido' ? d < 0 : d >= 0 && d <= Number(fVal)) })
+  const pagL = paginar(lotesF, pgL, fVal)
   const contados = Object.entries(contagem).filter(([, v]) => v !== '')
 
   const salvarContagem = async () => {
@@ -127,7 +131,7 @@ export function Estoque() {
               <span>Produto</span><span>Categoria</span><span className="text-right">Estoque</span><span className="text-right">Mínimo</span>
               <span className="text-right">Custo</span><span className="text-right">Preço</span><span className="text-right">Margem</span>
             </div>
-            {lista.map((p) => (
+            {pagP.itens.map((p) => (
               <button key={p.product_id} onClick={() => setModal({ tipo: 'produto', p })} className="w-full text-left bg-transparent cursor-pointer border-b border-[#1F1F22] hover:bg-surface-2">
                 <div className="hidden tablet:grid grid-cols-[minmax(0,2.6fr)_minmax(0,1fr)_84px_84px_96px_96px_72px] gap-3 py-[13px] px-[18px] items-center text-sm num">
                   <div className="min-w-0"><div className="font-semibold truncate">{p.name}</div><div className="text-[13px] text-[#ADADB4] mt-[3px] flex items-center gap-2"><span>{p.ean ?? 'Sem código'}</span>{origem && <span className="text-[11px] font-bold" style={{ color: ORIGEM[orig(p)][1] }}>{ORIGEM[orig(p)][0]}</span>}</div></div>
@@ -144,6 +148,7 @@ export function Estoque() {
                 </div>
               </button>
             ))}
+            <Paginacao p={pagP} onPg={setPgP} />
             {lista.length === 0 && <SemResultado filtrado={filtrado} vazio="Nenhum produto ainda. Traga do catálogo Addegas ou cadastre um novo." onLimpar={limpar} />}
           </div>
         </>
@@ -155,7 +160,7 @@ export function Estoque() {
       )}
       {aba === 'validade' && (
         <div className={`${card} overflow-hidden`}>
-          {lotesF.map((l) => {
+          {pagL.itens.map((l) => {
             const d = diasAte(l.expires_on)
             return (
               <div key={l.id} className="flex flex-wrap items-center gap-x-3.5 gap-y-2.5 py-3.5 px-[18px] border-b border-[#1F1F22]">
@@ -170,6 +175,7 @@ export function Estoque() {
               </div>
             )
           })}
+          <Paginacao p={pagL} onPg={setPgL} />
           {lotesF.length === 0 && <SemResultado filtrado={fVal !== 'todos'} vazio="Nenhum lote com validade. Informe a validade na entrada de mercadoria." onLimpar={() => setFVal('todos')} />}
         </div>
       )}
@@ -184,7 +190,8 @@ export function Estoque() {
           </div>
           <div className={`${card} overflow-hidden`}>
             {lista.length === 0 && <SemResultado filtrado={filtrado} vazio="Nenhum produto para contar." onLimpar={limpar} />}
-            {lista.map((p) => {
+            <Paginacao p={pagP} onPg={setPgP} />
+            {pagP.itens.map((p) => {
               const v = contagem[p.product_id] ?? ''
               const d = v !== '' ? parseBRL(v) - p.stock : 0
               return (
@@ -381,6 +388,7 @@ function DoCatalogo({ storeId, onClose, onDone }: { storeId: string; onClose: ()
   const [q, setQ] = useState('')
   const [cat, setCat] = useState('todos')
   const [mostrar, setMostrar] = useState('novos')
+  const [pgK, setPgK] = useState<Pg>(PG0)
   const [sel, setSel] = useState<Record<string, string>>({})
   const [busy, setBusy] = useState(false)
   const { data: itens, isLoading } = useQuery({
@@ -394,6 +402,7 @@ function DoCatalogo({ storeId, onClose, onDone }: { storeId: string; onClose: ()
   const cats = [...new Set(todos.map((i) => i.category).filter(Boolean))] as string[]
   const escolhidos = Object.keys(sel)
   const limpar = () => { setQ(''); setCat('todos'); setMostrar('novos') }
+  const pagK = paginar(lista, pgK, q + cat + mostrar)
 
   const adicionar = async () => {
     if (!escolhidos.length) return
@@ -419,7 +428,7 @@ function DoCatalogo({ storeId, onClose, onDone }: { storeId: string; onClose: ()
         ]} />
       <div className="flex flex-col">
         {isLoading && <div className="py-6 text-center text-[#C4C4C9]">Carregando o catálogo…</div>}
-        {lista.map((i) => {
+        {pagK.itens.map((i) => {
           const on = i.id in sel
           const alternar = () => { if (i.already) return; setSel((x) => { const n = { ...x }; if (on) delete n[i.id]; else n[i.id] = ''; return n }) }
           return (
@@ -437,6 +446,7 @@ function DoCatalogo({ storeId, onClose, onDone }: { storeId: string; onClose: ()
             </div>
           )
         })}
+        <Paginacao p={pagK} onPg={setPgK} />
         {!isLoading && !lista.length && <SemResultado filtrado={!!qn || cat !== 'todos'} vazio={mostrar === 'novos' ? 'Você já tem todos os produtos do catálogo.' : 'O catálogo ainda está vazio.'} onLimpar={limpar} />}
       </div>
     </Sheet>

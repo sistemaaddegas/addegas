@@ -46,6 +46,7 @@ export function AjustesTela() {
   const qc = useQueryClient()
   const toast = useToast()
   const [calc, setCalc] = usePref('calculadora', true)
+  const [qLoja, setQLoja] = useState('')
   const { data: d, error, isLoading } = useQuery({
     queryKey: ['ajustes', storeId],
     enabled: !!storeId,
@@ -115,7 +116,9 @@ export function AjustesTela() {
             {dono && <button onClick={() => navigate('/cadastro?nova=1')} className="h-[38px] px-3 rounded-[2px_8px_3px_7px] border border-brand text-brand text-[13px] font-bold flex items-center gap-1.5 cursor-pointer"><Icon name="plus" size={16} />Nova loja</button>}
           </span>
         </div>
-        {d.lojas.map((x) => (
+        {d.lojas.length > 4 && <input value={qLoja} onChange={(e) => setQLoja(e.target.value)} placeholder="Buscar loja" aria-label="Buscar loja"
+          className="h-11 px-3 rounded-[3px_10px_2px_9px] bg-surface-2 border border-line-2 text-[15px] outline-none focus:border-brand" />}
+        {d.lojas.filter((x) => !qLoja.trim() || `${x.name} ${x.neighborhood ?? ''}`.toLowerCase().includes(qLoja.trim().toLowerCase())).map((x) => (
           <div key={x.store_id} className="flex items-center gap-3 p-3 rounded-[3px_10px_2px_9px] border" style={{ borderColor: x.store_id === storeId ? '#FBC009' : '#2A2A2E', background: x.store_id === storeId ? 'rgba(251,192,9,.06)' : 'transparent' }}>
             <span className="w-10 h-10 rounded-[2px_8px_3px_7px] bg-brand text-brand-ink font-black text-sm flex items-center justify-center flex-none">{x.name.split(/\s+/).map((w) => w[0]).slice(0, 2).join('').toUpperCase()}</span>
             <span className="flex-1 min-w-0"><span className="block text-[15px] font-bold">{x.name}</span><span className="block text-sm text-[#C4C4C9] mt-[3px]">{[x.neighborhood, x.city].filter(Boolean).join(' · ') || '—'}</span></span>

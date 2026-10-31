@@ -7,7 +7,7 @@ import { Icon } from '@/components/icon'
 import { Sheet, bigBtn } from '@/components/sheet'
 import { useToast } from '@/components/toast'
 import { canal } from '@/components/canal'
-import { BarraLista, norm } from '@/components/filtros'
+import { BarraLista, norm, Paginacao, paginar, PG0, type Pg } from '@/components/filtros'
 import { chip, chipCls, dot, ha, minutos, qtd, seg, segBar, segCls } from '@/lib/visual'
 import { usePedidos, type Entregador, type Pedido } from './dados'
 import { NovoPedido } from './novo-pedido'
@@ -51,6 +51,7 @@ export function Pedidos() {
   const [ch, setCh] = useState('todos')
   const [q, setQ] = useState('')
   const [fModo, setFModo] = useState('todos')
+  const [pgO, setPgO] = useState<Pg>(PG0)
   const [busy, setBusy] = useState<string | null>(null)
   const [recusar, setRecusar] = useState<Pedido | null>(null)
   const [chamar, setChamar] = useState<Pedido | null>(null)
@@ -69,6 +70,7 @@ export function Pedidos() {
   const lista = doCanal.filter((o) => (ABAS.find((a) => a.id === aba)!.status as readonly string[]).includes(o.status))
   const filtrado = !!qn || ch !== 'todos' || fModo !== 'todos'
   const limpar = () => { setQ(''); setCh('todos'); setFModo('todos') }
+  const pagO = paginar(lista, pgO, q + ch + fModo + aba)
   const filtros = ['todos', ...FILTROS, ...new Set(pedidos.map((o) => o.channel).filter((c) => !FILTROS.includes(c)))]
 
   const mudar = async (o: Pedido, status: string, motivo?: string, entregador?: string) => {
@@ -130,7 +132,7 @@ export function Pedidos() {
       </div>
 
       <div className="grid gap-3 items-start grid-cols-[repeat(auto-fill,minmax(min(100%,320px),1fr))]">
-        {lista.map((o) => {
+        {pagO.itens.map((o) => {
           const a = acao(o, entregadores)
           const late = o.status === 'new' && minutos(o.created_at) >= 5
           const c = canal(o.channel)
@@ -181,6 +183,7 @@ export function Pedidos() {
         })}
       </div>
 
+      <Paginacao p={pagO} onPg={setPgO} />
       {lista.length === 0 && (
         <div className="flex flex-col items-center gap-3.5 py-14 px-5 text-center">
           <img src="/icons/dd-amarelo.png" alt="" className="w-16 -rotate-6" />
@@ -195,6 +198,7 @@ export function Pedidos() {
       {chamar && (
         <Sheet title={`Quem leva o #${chamar.number}?`} onClose={() => setChamar(null)}>
           <div className="text-sm text-[#C4C4C9] -mt-2">{chamar.customer_name} · {chamar.address}</div>
+          <div className="text-[13px] font-bold text-[#C4C4C9]">{entregadores.length} {entregadores.length === 1 ? 'entregador' : 'entregadores'} · {entregadores.filter((e) => !ocupados.has(e.id)).length} livre(s)</div>
           {entregadores.map((e) => (
             <button key={e.id} onClick={() => mudar(chamar, 'out_for_delivery', undefined, e.id)} disabled={busy === chamar.id}
               className="flex items-center gap-3 h-[60px] px-4 rounded-[3px_10px_2px_9px] border border-line-2 bg-surface-2 text-left cursor-pointer disabled:opacity-60">

@@ -187,9 +187,14 @@ function TrocarLoja({ onClose }: { onClose: () => void }) {
   const { data: perm } = usePermissoes()
   const navigate = useNavigate()
   const toast = useToast()
+  const [q, setQ] = useState('')
+  const visiveis = (stores ?? []).filter((s) => !q.trim() || `${s.name} ${s.neighborhood ?? ''}`.toLowerCase().includes(q.trim().toLowerCase()))
   return (
     <Sheet title="Trocar de loja" onClose={onClose}>
-      {stores?.map((s) => {
+      {(stores?.length ?? 0) > 4 && <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar loja" aria-label="Buscar loja"
+        className="h-12 px-3.5 rounded-[3px_10px_2px_9px] bg-surface-2 border border-line-2 text-[15px] outline-none focus:border-brand" />}
+      {!!stores?.length && <div className="text-[13px] font-bold text-[#C4C4C9] -mt-1">{visiveis.length === stores.length ? `${stores.length} ${stores.length === 1 ? 'loja' : 'lojas'}` : `Mostrando ${visiveis.length} de ${stores.length} lojas`}</div>}
+      {visiveis.map((s) => {
         const atual = s.store_id === storeId
         return (
           <button key={s.store_id} onClick={() => { if (!atual) { setStoreId(s.store_id, s.slug); toast(`Agora em ${s.name}`); navigate('/') } onClose() }}
@@ -228,6 +233,7 @@ function Alertas({ onClose }: { onClose: () => void }) {
   const temServidor = data?.itens.some((a) => a.alertId)
   return (
     <Sheet title="Alertas" onClose={onClose} footer={temServidor ? <button onClick={lidos} className="w-full h-12 rounded-[3px_11px_4px_10px] border border-line-2 bg-surface-2 text-[15px] font-bold cursor-pointer">Marcar alertas como lidos</button> : undefined}>
+      {!!data?.itens.length && <div className="text-[13px] font-bold text-[#C4C4C9] -mt-2">{data.itens.length} {data.itens.length === 1 ? 'alerta' : 'alertas'}</div>}
       <div className="-mt-3">
         {data?.itens.map((a) => <LinhaAviso key={a.key} a={a} onAgir={() => agir(a)} />)}
         {data && !data.itens.length && <div className="py-3 text-sm text-[#C4C4C9]">Tudo em ordem por aqui.</div>}

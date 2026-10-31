@@ -5,7 +5,7 @@ import { funcao, rpc, supabase } from '@/lib/supabase'
 import { Icon } from '@/components/icon'
 import { Sheet, bigBtn } from '@/components/sheet'
 import { useToast } from '@/components/toast'
-import { BarraLista, SemResultado, norm } from '@/components/filtros'
+import { BarraLista, SemResultado, norm, Paginacao, paginar, PG0, type Pg } from '@/components/filtros'
 import { card, chip, chipCls, pill, pillCls } from '@/lib/visual'
 
 type Papel = 'owner' | 'manager' | 'cashier' | 'stock_keeper' | 'courier'
@@ -47,6 +47,7 @@ export function Equipe() {
   const [fSit, setFSit] = useState('ativos')
   const [fPapel, setFPapel] = useState('todos')
   const [fAcesso, setFAcesso] = useState('todos')
+  const [pgE, setPgE] = useState<Pg>(PG0)
 
   const { data, error, isLoading } = useQuery({
     queryKey: ['equipe', storeId],
@@ -82,6 +83,7 @@ export function Equipe() {
       && (fPapel === 'todos' || m.role === fPapel) && (fAcesso === 'todos' || (fAcesso === 'login') === !!m.user_id))
     .sort((a, b) => Number(b.active) - Number(a.active) || EDITAVEIS.indexOf(a.role) - EDITAVEIS.indexOf(b.role))
   const limpar = () => { setQ(''); setFSit('ativos'); setFPapel('todos'); setFAcesso('todos') }
+  const pagE = paginar(lista, pgE, q + fSit + fPapel + fAcesso)
 
   const permitir = async (role: Papel, code: string, on: boolean) => {
     try {
@@ -114,7 +116,7 @@ export function Equipe() {
               { label: 'Acesso', value: fAcesso, onChange: setFAcesso, options: [['todos', 'Todos'], ['login', 'Com login'], ['caixa', 'Só no caixa']] },
             ]} />
         </div>
-        {lista.map((p) => {
+        {pagE.itens.map((p) => {
           const [l, c, bg] = PAPEL[p.role]
           return (
             <div key={p.id} onClick={() => gere && p.role !== 'owner' && setSheet(p)} className={`flex items-center gap-3 py-3 border-t border-line ${gere && p.role !== 'owner' ? 'cursor-pointer' : ''}`} style={{ opacity: p.active ? 1 : 0.5 }}>
@@ -127,6 +129,7 @@ export function Equipe() {
             </div>
           )
         })}
+        <Paginacao p={pagE} onPg={setPgE} />
         {lista.length === 0 && <SemResultado filtrado vazio="" onLimpar={limpar} />}
       </div>
 
