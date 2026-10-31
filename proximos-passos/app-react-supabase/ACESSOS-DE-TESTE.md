@@ -3,7 +3,7 @@
 Só valem no ambiente local (Supabase local + `npm run dev`). Nada daqui existe no dev nem na produção.
 O `npm run db:reset` recria os acessos do seed; os criados durante os testes somem.
 
-> Atualizado em 30/10/2026 (painel da equipe). Todo acesso novo criado em teste entra aqui.
+> Atualizado em 31/10/2026 (massa de teste com 10 adegas). Todo acesso novo criado em teste entra aqui.
 
 ## Endereços
 
@@ -34,6 +34,31 @@ Senha de todos do seed: **`addegas123`**
 - Entregador e funcionário com usuário entram como `usuario@slug-da-loja`.
 - Joana serve para testar isolamento: ela não pode ver nada da Adega Esquina.
 - A equipe Addegas não entra no app da adega (lá aparece só um aviso). Ela entra no painel: veja a seção abaixo.
+
+### Massa de teste: 10 adegas com volume de cliente real (`npm run db:massa`)
+
+Carregada por cima do seed (não apaga nada). Depois de um `npm run db:reset`, rode `npm run db:massa` de novo.
+Senha de todos: **`addegas123`**. Cada adega tem um dono (`<slug>@massa.test`) e um gerente com login
+(`gerente.<slug>@massa.test`) em todas as lojas. No caixa, cada loja tem a própria equipe sem login: toca no nome.
+
+| Dono | Adega | Lojas | Tamanho | Assinatura |
+|---|---|---|---|---|
+| `bomgole@massa.test` | Adega Bom Gole | Moema, Itaim Bibi, Vila Olímpia | grande: toda lista passa de 25 | ativa há 12 meses |
+| `vilarica@massa.test` | Empório Vila Rica | Tatuapé, Anália Franco | grande | ativa há 10 meses |
+| `paulista24@massa.test` | Adega 24h Paulista | Bela Vista, Consolação | grande | ativa há 8 meses |
+| `copocheio@massa.test` | Adega Copo Cheio | Mooca, Belém | grande | ativa há 9 meses |
+| `chico@massa.test` | Adega do Chico | Santana | média: fica perto de 25 | ativa há 7 meses |
+| `butanta@massa.test` | Distribuidora Butantã | Butantã, Rio Pequeno | média | ativa há 4 meses |
+| `lapagelada@massa.test` | Lapa Gelada | Lapa | média | ativa há 6 meses |
+| `pontofrio@massa.test` | Adega Ponto Frio | Cambuí (Campinas) | pequena: listas abaixo de 25 | ativa há 5 meses |
+| `santomalte@massa.test` | Santo Malte | Centro (Santo André) | pequena | **em carência** (fatura vencida) |
+| `noitefeliz@massa.test` | Adega Noite Feliz | Centro (Guarulhos) | pequena | **em teste grátis** |
+
+Na loja principal da Bom Gole: 166 produtos, 109 lotes com validade, 48 clientes no fiado, 30 pedidos abertos e 40
+entregues, 34 fornecedores, 45 contas a pagar, 30 pedidos de compra, 41 itens na sugestão de compra, 32 combos e
+promoções, 32 pessoas na equipe, 32 anotações, 32 tickets e 32 dias de caixa fechado. As lojas extras têm metade do volume.
+No painel da equipe: 191 produtos no catálogo, 141 sugestões na fila, 70 contatos no CRM, 257 tickets, 80 faturas e
+330 ocorrências do sistema.
 
 ## Painel da equipe Addegas (http://localhost:5173/admin/)
 

@@ -12,6 +12,7 @@ Banco, regras de acesso, funções e testes do sistema da adega e do painel inte
 npm run db:start      # sobe Postgres, Auth, Storage, Realtime e Studio locais
 npm run db:reset      # recria o banco: aplica todas as migrations e o seed.sql (dados de exemplo)
 npm run db:test       # recria o banco SEM o seed e roda os testes pgTAP (depois, db:reset traz os dados de volta)
+npm run db:massa      # soma ao banco 10 adegas com volume de cliente real (supabase/seeds/massa-10-adegas.sql)
 npm run db:lint       # procura erros nas funções e no schema
 npm run db:types      # gera src/types/database.ts a partir do banco local
 npm run db:stop       # desliga os containers
@@ -28,6 +29,8 @@ O `db:start` imprime as chaves locais; copie a URL e a chave `anon` (ou a `PUBLI
 
 ## Dados de exemplo (`seed.sql`)
 O `db:reset` carrega os dados do protótipo (`index.html`): Adega Esquina (Vila Madalena) e Adega Esquina 2 (Pinheiros), 20 produtos, 5 combos e promoções, equipe, fiado, mesas abertas, 9 pedidos em várias etapas, fornecedores, contas, drinks do Lucro no Copo, e 13 dias de vendas anteriores para os relatórios. Tudo entra pelas RPCs do sistema, então estoque, custo médio, saldos e auditoria batem. Os testes rodam sem o seed (`db:test`), porque partem do banco limpo.
+
+Para ver o sistema com volume, rode `npm run db:massa` depois do reset: entram 10 adegas (16 lojas) usando tudo, com 30 dias de caixa, centenas de produtos, fiado, pedidos, compras, contas, tickets, faturas e contatos no CRM. Nas adegas grandes toda lista passa de 25 registros (aparece a paginação); nas pequenas fica abaixo. Os acessos estão no `ACESSOS-DE-TESTE.md`. O script não apaga nada e se recusa a rodar duas vezes.
 
 Senha de todos: `addegas123`.
 
@@ -146,6 +149,7 @@ supabase/
   config.toml          configuração local (portas, Auth, Storage)
   migrations/          uma por mudança, em ordem de timestamp
   seed.sql             dados de exemplo locais (os do index.html)
+  seeds/massa-10-adegas.sql  massa de teste com 10 adegas (npm run db:massa)
   tests/database/      testes pgTAP
   tests/concorrencia/  carga de vendas em paralelo
   tests/funcoes/       fluxo ponta a ponta pelas Edge Functions
