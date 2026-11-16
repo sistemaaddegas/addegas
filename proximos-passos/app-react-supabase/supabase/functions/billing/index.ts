@@ -14,6 +14,8 @@ type Ctx = {
 };
 
 const APP_URL = Deno.env.get("APP_URL") ?? "https://app.addegas.com.br";
+// Portal criado pelo scripts/stripe-sync.mjs (sem ele, vale o padrão salvo no painel do Stripe).
+const PORTAL = Deno.env.get("STRIPE_PORTAL_CONFIGURATION_ID") || undefined;
 
 Deno.serve(async (req) => {
   const pre = preflight(req);
@@ -59,7 +61,7 @@ Deno.serve(async (req) => {
     }
 
     if (route === "portal") {
-      const portal = await stripe<{ url: string }>("POST", "/billing_portal/sessions", { customer, return_url: `${APP_URL}/assinatura` });
+      const portal = await stripe<{ url: string }>("POST", "/billing_portal/sessions", { customer, return_url: `${APP_URL}/assinatura`, configuration: PORTAL });
       return ok(req, cid, { url: portal.url });
     }
 

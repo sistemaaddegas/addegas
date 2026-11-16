@@ -11,6 +11,7 @@
     "db:start": "supabase start",
     "db:stop": "supabase stop",
     "db:reset": "supabase db reset",
+    "stripe:sync": "node scripts/stripe-sync.mjs",
     "db:massa": "docker exec -i supabase_db_addegas psql -U postgres -v ON_ERROR_STOP=1 -q < supabase/seeds/massa-10-adegas.sql",
     "db:test": "supabase db reset --no-seed && supabase test db",
     "db:lint": "supabase db lint --level warning --fail-on error",
