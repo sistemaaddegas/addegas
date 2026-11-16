@@ -1,4 +1,4 @@
-import { useEffect, type ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { supabase } from '@/lib/supabase'
 import { BrowserRouter, Navigate, Outlet, Route, Routes, useLocation } from 'react-router'
@@ -29,6 +29,9 @@ import { Equipe } from '@/features/equipe/equipe'
 import { AjustesTela } from '@/features/ajustes/ajustes'
 import { WhatsApp } from '@/features/whatsapp/whatsapp'
 import { LucroNoCopo } from '@/features/lucro-no-copo/lucro-no-copo'
+import { Contingencia } from '@/features/caixa/contingencia'
+import { useRetrato, type Retrato } from '@/features/caixa/retrato'
+import { useOnline } from '@/lib/rede'
 
 type Stage = 'guest' | 'password' | 'store' | 'app'
 
@@ -65,6 +68,21 @@ function Gate({ stage }: { stage: Stage }) {
   return stage === 'app' ? <AppShell><Outlet /></AppShell> : <Outlet />
 }
 
+/**
+ * Aparelho de caixa sem internet (D14, E54): a tela vira o modo contingência, mesmo se o app abriu sem rede
+ * e o login ainda não pôde ser renovado. Só existe onde o caixa já carregou uma vez (o retrato).
+ */
+function CaixaSemInternet({ children }: { children: ReactNode }) {
+  const retrato = useRetrato()
+  return retrato ? <ComRetrato retrato={retrato}>{children}</ComRetrato> : children
+}
+function ComRetrato({ retrato, children }: { retrato: Retrato; children: ReactNode }) {
+  const online = useOnline()
+  const [ativo, setAtivo] = useState(!online)
+  useEffect(() => { if (!online) setAtivo(true) }, [online])
+  return ativo ? <Contingencia retrato={retrato} online={online} onVoltar={() => setAtivo(false)} /> : children
+}
+
 // Telas do menu (NAV); um item sem tela aqui mostra o Placeholder.
 const TELAS: Record<string, ReactNode> = { '/': <Inicio />, '/caixa': <Caixa />, '/pedidos': <Pedidos />, '/estoque': <Estoque />, '/clientes': <Clientes />, '/relatorios': <Relatorios />, '/combos': <Combos />, '/compras': <Compras />, '/contas': <Compras contas />, '/anotacoes': <Anotacoes />, '/equipe': <Equipe />, '/ajustes': <AjustesTela />, '/whatsapp': <WhatsApp />, '/lucro-no-copo': <LucroNoCopo /> }
 const Placeholder = ({ title }: { title: string }) => <div className="p-8 display text-3xl">{title}</div>
@@ -75,6 +93,7 @@ export function App() {
       <UpdatePrompt />
       <InstallInvite />
       <IosInstallTutorial />
+      <CaixaSemInternet>
       <Routes>
         <Route element={<Gate stage="guest" />}>
           <Route path="/entrar" element={<Entrar />} />
@@ -95,6 +114,7 @@ export function App() {
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
+      </CaixaSemInternet>
     </BrowserRouter>
   )
 }

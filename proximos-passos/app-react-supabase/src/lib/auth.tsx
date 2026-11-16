@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useRef, useState, type ReactNode 
 import type { Session } from '@supabase/supabase-js'
 import { useQueryClient } from '@tanstack/react-query'
 import { rpc, supabase } from './supabase'
+import { apagarRetrato } from '@/features/caixa/retrato'
 
 /** Aparelho pareado como caixa (E09): entra com um usuário técnico, e quem opera escolhe o próprio nome. */
 export type Terminal = { id: string; storeId: string; name: string }
@@ -25,6 +26,8 @@ const Ctx = createContext<AuthCtx>({
 })
 
 const STORE_KEY = 'addegas.store'
+const TERMINAL_KEY = 'addegas.terminal'
+const terminalGuardado = (): Terminal | null => { try { return JSON.parse(localStorage.getItem(TERMINAL_KEY) ?? 'null') } catch { return null } }
 export const SLUG_KEY = 'addegas.slug'
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -45,12 +48,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         checkedUser = s.user.id
         setLoading(true)
         if (s.user.app_metadata?.kind === 'terminal') {
-          // A RLS só deixa o terminal ler a própria linha; revogado = nenhuma linha.
-          const { data } = await supabase.from('terminals').select('id, store_id, name').eq('active', true).limit(1)
+          // A RLS só deixa o terminal ler a própria linha; revogado = nenhuma linha. Sem internet não dá para
+          // conferir: vale o aparelho guardado, e o caixa abre no modo contingência (D14) em vez de desconectar.
+          const { data, error } = await supabase.from('terminals').select('id, store_id, name').eq('active', true).limit(1)
           const t = data?.[0]
-          setTerminal(t ? { id: t.id, storeId: t.store_id, name: t.name } : null)
+          const term = error ? terminalGuardado() : t ? { id: t.id, storeId: t.store_id, name: t.name } : null
+          setTerminal(term)
           setNeedsNewPassword(false)
-          if (!t) await supabase.auth.signOut()
+          if (!error) {
+            try { if (term) localStorage.setItem(TERMINAL_KEY, JSON.stringify(term)); else localStorage.removeItem(TERMINAL_KEY) } catch { /* sem armazenamento */ }
+            if (!t) { apagarRetrato(); await supabase.auth.signOut() }
+          }
         } else {
           setTerminal(null)
           setNeedsNewPassword(recovering.current || await rpc<boolean>('must_change_password').catch(() => false))
@@ -77,6 +85,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await supabase.auth.signOut()
     queryClient.clear() // nada da pessoa anterior fica em cache no aparelho
     localStorage.removeItem(STORE_KEY)
+    localStorage.removeItem(TERMINAL_KEY)
+    apagarRetrato() // as vendas anotadas sem internet ficam (IndexedDB) e voltam a aparecer quando o caixa entrar
     setStore(null)
     recovering.current = false
     setNeedsNewPassword(false)

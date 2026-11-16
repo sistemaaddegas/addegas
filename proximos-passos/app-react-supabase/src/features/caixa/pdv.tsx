@@ -7,7 +7,10 @@ import { Icon } from '@/components/icon'
 import { Sheet } from '@/components/sheet'
 import { useToast } from '@/components/toast'
 import { chip, irr } from '@/lib/visual'
-import { useCaixaAberto, useCatalogo, type Operador, type Produto } from './dados'
+import { useCaixaAberto, useCatalogo, useOperadores, type Operador, type Produto } from './dados'
+import { salvarRetrato } from './retrato'
+import { AvisoPendentes } from './contingencia'
+import { useOnline } from '@/lib/rede'
 import { AbrirCaixa, Cobrar, Desconto, FecharCaixa, VendaFeita, type Venda } from './modais'
 import { ReceberPedidos, usePedidosAReceber, type PedidoCaixa } from './pedidos-caixa'
 import { BarraComandas, NovaComanda, TirarItem, linhasDaComanda, useComandas } from './comandas'
@@ -20,6 +23,8 @@ export function Pdv({ op, onTrocar }: { op: Operador; onTrocar: () => void }) {
   const { terminal } = useAuth()
   const { data: cat } = useCatalogo(terminal!.storeId)
   const { data: sessao, isLoading: carregandoCaixa } = useCaixaAberto(terminal!.id)
+  const { data: equipe } = useOperadores(terminal!.storeId)
+  const online = useOnline()
   const qc = useQueryClient()
   const toast = useToast()
   const [q, setQ] = useState('')
@@ -56,6 +61,13 @@ export function Pdv({ op, onTrocar }: { op: Operador; onTrocar: () => void }) {
   const nItens = (linhasTab ?? linhas).reduce((a, l) => a + l.qty, 0)
   const temItens = nItens > 0
   const aberto = !!sessao
+
+  // Retrato para vender sem internet (D14): atualizado a cada carga com internet.
+  useEffect(() => {
+    if (!cat || !equipe) return
+    salvarRetrato({ storeId: terminal!.storeId, terminalId: terminal!.id, terminalName: terminal!.name, op, operadores: equipe, cats: cat.cats, pix: cat.pix,
+      itens: cat.itens.map(({ key, kind, id, name, price, catId, catName, color, ean }) => ({ key, kind, id, name, price, catId, catName, color, ean })) })
+  }, [cat, equipe, op, terminal])
 
   // A atualização do app (E54) espera a venda terminar.
   useEffect(() => { setCartOpen(carrinho.length > 0) }, [carrinho.length])
@@ -218,6 +230,8 @@ export function Pdv({ op, onTrocar }: { op: Operador; onTrocar: () => void }) {
             <button onClick={() => setModal('fechar')} className="h-[46px] px-3.5 rounded-[3px_10px_2px_9px] bg-[#E5241B] text-white text-sm font-extrabold cursor-pointer flex items-center gap-2 flex-none"><Icon name="wallet" size={18} />Fechar caixa</button>
           )}
         </div>
+
+        <AvisoPendentes op={op} online={online} />
 
         {!aberto && !carregandoCaixa && (
           <div className="flex flex-wrap items-center gap-3 px-4 py-3.5 rounded-[3px_11px_4px_10px] bg-[rgba(255,107,94,.10)] border border-[rgba(255,107,94,.3)]">

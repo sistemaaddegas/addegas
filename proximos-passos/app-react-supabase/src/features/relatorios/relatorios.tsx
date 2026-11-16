@@ -9,7 +9,7 @@ import { BarraLista, SemResultado, norm, Paginacao, paginar, PG0, type Pg } from
 import { card, qtd, seg, segBar, segCls } from '@/lib/visual'
 
 type Relatorio = {
-  totals: { revenue: number; count: number; avg_ticket: number; discounts: number; canceled_count: number }
+  totals: { revenue: number; count: number; avg_ticket: number; discounts: number; canceled_count: number; contingency_count: number }
   by_channel: Record<string, number>
   by_method: Record<string, number>
   top_products: { name: string; quantity: number; revenue: number; margin: number | null }[]
@@ -95,11 +95,13 @@ export function Relatorios() {
               </div>
             ))}
           </div>
-          {(r.totals.discounts > 0 || r.totals.canceled_count > 0) && (
+          {(r.totals.discounts > 0 || r.totals.canceled_count > 0 || r.totals.contingency_count > 0) && (
             <div className="text-sm text-[#C4C4C9] -mt-1">
-              {r.totals.discounts > 0 && `Descontos dados: ${brlc(r.totals.discounts)}`}
-              {r.totals.discounts > 0 && r.totals.canceled_count > 0 && ' · '}
-              {r.totals.canceled_count > 0 && `${r.totals.canceled_count} ${r.totals.canceled_count === 1 ? 'venda cancelada' : 'vendas canceladas'}`}
+              {[r.totals.discounts > 0 && `Descontos dados: ${brlc(r.totals.discounts)}`,
+                r.totals.canceled_count > 0 && `${r.totals.canceled_count} ${r.totals.canceled_count === 1 ? 'venda cancelada' : 'vendas canceladas'}`,
+                // D14: anotadas no aparelho sem internet e lançadas depois; o gerente confere com a gaveta e o extrato.
+                r.totals.contingency_count > 0 && `${r.totals.contingency_count} ${r.totals.contingency_count === 1 ? 'venda feita' : 'vendas feitas'} sem internet (conferir)`,
+              ].filter(Boolean).join(' · ')}
             </div>
           )}
 

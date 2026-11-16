@@ -10,7 +10,7 @@ import { hora, pill, pillCls } from '@/lib/visual'
 import { imprimirCupom } from './cupom'
 import type { Operador } from './dados'
 
-type VendaLinha = { id: string; number: number; total: number; status: 'paid' | 'canceled'; created_at: string; order_id: string | null; sale_payments: { method: string }[] }
+type VendaLinha = { id: string; number: number; total: number; status: 'paid' | 'canceled'; created_at: string; order_id: string | null; origin: string; sale_payments: { method: string }[] }
 const FORMA: Record<string, string> = { cash: 'Dinheiro', pix: 'Pix', credit: 'Crédito', debit: 'Débito', fiado: 'Fiado', voucher: 'Vale' }
 const MOTIVOS = ['Lançado errado', 'Cliente desistiu', 'Cobrança duplicada']
 
@@ -26,7 +26,7 @@ export function UltimasVendas({ op, onClose, onCancelada }: { op: Operador; onCl
     queryKey: ['caixa', 'ultimas-vendas'],
     queryFn: async () => {
       // A RLS deixa o aparelho ver só as vendas dele.
-      const { data, error } = await supabase.from('sales').select('id, number, total, status, created_at, order_id, sale_payments(method)')
+      const { data, error } = await supabase.from('sales').select('id, number, total, status, created_at, order_id, origin, sale_payments(method)')
         .order('created_at', { ascending: false }).limit(30)
       if (error) throw new Error(error.message)
       return data as unknown as VendaLinha[]
@@ -55,6 +55,7 @@ export function UltimasVendas({ op, onClose, onCancelada }: { op: Operador; onCl
                 <div className="text-[13px] text-[#C4C4C9] mt-0.5">{hora(v.created_at)} · {[...new Set(v.sale_payments.map((p) => FORMA[p.method] ?? p.method))].join(' + ') || '—'}{v.order_id ? ' · pedido' : ''}</div>
               </div>
               {v.status === 'canceled' && <span className={pillCls} style={pill('#FF6B5E', 'rgba(255,107,94,.12)')}>Cancelada</span>}
+              {v.origin === 'contingency' && <span className={pillCls} style={pill('#FBC009', 'rgba(251,192,9,.12)')}>Sem internet</span>}
               <button onClick={() => imprimirCupom(v.id).catch((e) => toast((e as Error).message))} title="Imprimir cupom" className="h-9 px-3 rounded-[2px_7px_3px_6px] border border-line-2 bg-surface-2 text-[13px] font-bold flex items-center gap-1.5 cursor-pointer"><Icon name="receipt" size={16} />Cupom</button>
               {v.status === 'paid' && !v.order_id && (
                 <button onClick={() => setCancelar(v)} className="h-9 px-3 rounded-[2px_7px_3px_6px] border border-[#FF2D2D] text-[#FF6B5E] text-[13px] font-bold cursor-pointer">Cancelar</button>

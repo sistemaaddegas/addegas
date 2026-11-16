@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
 import type { PixConfig } from '@/lib/pix'
+import { mudarOperadorDoRetrato } from './retrato'
 
 function rows<T>(r: { data: T[] | null; error: { message: string } | null }): T[] {
   if (r.error) throw new Error(r.error.message)
@@ -113,6 +114,7 @@ export function useOperador(terminalId: string | undefined) {
   })
   const salvar = useCallback((o: Operador | null) => {
     try { if (o) localStorage.setItem(OP_KEY, JSON.stringify(o)); else localStorage.removeItem(OP_KEY) } catch { /* sem armazenamento */ }
+    mudarOperadorDoRetrato(o)
     setOp(o)
   }, [])
 

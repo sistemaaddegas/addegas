@@ -127,7 +127,7 @@ export function Desconto({ subtotal, atual, onClose, onApply }: { subtotal: numb
 type Metodo = 'pix' | 'cash' | 'credit' | 'debit' | 'fiado'
 const METODOS: [Metodo, string, IconName][] = [['pix', 'Pix', 'qr'], ['cash', 'Dinheiro', 'cash'], ['credit', 'Crédito', 'card'], ['debit', 'Débito', 'card'], ['fiado', 'Fiado', 'book']]
 
-function QrPix({ texto }: { texto: string }) {
+export function QrPix({ texto }: { texto: string }) {
   const { size, path } = useMemo(() => {
     const qr = qrcode(0, 'M')
     qr.addData(texto)
