@@ -96,6 +96,7 @@ Como achar, na conta da Vercel dona de `addegas.com.br`:
 | D62 | App | **PWA**, sem loja de aplicativos, no padrão do NEXUM-PRO (manifest, service worker, convite de instalação, tutorial do iPhone, telas de abertura), mais a casca offline para o modo contingência e a atualização que não derruba o caixa. | E54, E53 |
 | D63 | Papéis e permissões | O sistema adota a landing: 5 papéis (com **estoquista**), desconto dono livre / gerente 15% / caixa 5%, acima do limite vende quem tiver limite (sem PIN desde 30/10/2026), permissão nova `ver_lucro` (gerente vê vendas, não margem). | E12, E10, E00, E53 |
 | D55b | Limite de fiado | Opcional por pessoa, desligado por padrão. | E23 |
+| D64b | Ambientes (16/11/2026) | **Um projeto só no Supabase: `addegas`** (`sltaztpifjfiypeqhcdz`, São Paulo), na organização Addegas. Não haverá `addegas-dev` e `addegas-prd`: os testes são feitos nele, e ele vira a produção. Antes de abrir para clientes: trocar para as chaves `live` do Stripe (e criar o webhook de produção), limpar os dados de teste e apontar `APP_URL` para `app.addegas.com.br`. O seed e a massa de teste nunca vão para esse banco. | E02, E34, E52 |
 
 ### Como funciona o QR do Pix no caixa (D15)
 1. Em Ajustes, o dono cadastra a chave Pix da loja, o nome do recebedor e a cidade (são os campos que o padrão do Banco Central exige).

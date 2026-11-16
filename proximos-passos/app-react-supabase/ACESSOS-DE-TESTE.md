@@ -125,6 +125,10 @@ O pagamento é pelo checkout embutido, dentro da tela Assinatura do app (dono da
 - Pede confirmação do banco (3DS): `4000 0025 0000 3155`.
 - Aprovado e depois contestado (chargeback): `4000 0000 0000 0259`.
 
+Webhook na nuvem (16/11/2026): `we_1UcW7QLbBMxnpVY1uf9qjfQg`, apontando para
+`https://sltaztpifjfiypeqhcdz.supabase.co/functions/v1/hooks-stripe` (projeto `addegas`), com os 20 eventos. O segredo
+`whsec_` está só nos segredos das funções da nuvem. Esse projeto ainda não tem acessos de teste: o seed e a massa são só do local.
+
 Webhook no local: sem o Stripe CLI, os eventos não chegam sozinhos. A tela já libera a assinatura na volta do
 pagamento; para os demais (renovação, estorno, contestação), rode `stripe listen` (ver `npm run stripe:sync`).
 

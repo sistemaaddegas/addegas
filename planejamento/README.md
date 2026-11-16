@@ -23,13 +23,13 @@ Verificação: 357 testes pgTAP (16/11), advisors sem aviso, 1000 vendas em para
 | --- | --- | --- |
 | E00 · Decisões bloqueantes | 🟡 Decisões tomadas | Pedido de ajuste ao design (plano único, permissões, apps "em breve") |
 | E01 · Estrutura e ambiente local | ✅ Pronta | — |
-| E02 · Ambientes e segredos | 🟡 Preparada | Criar `addegas-dev` e `addegas-prd` no Supabase, segredos no GitHub e nas funções; o CI (`banco.yml`) e o backup (`backup.yml`) já estão escritos |
+| E02 · Ambientes e segredos | 🟡 Nuvem no ar (16/11): projeto único `addegas` (D64b) com as 25 migrations, as 11 funções, os segredos e as 8 rotinas | Segredos no GitHub para o CI (`banco.yml`) e o backup (`backup.yml`); configuração do Auth na nuvem; primeiro acesso da equipe |
 | E03 a E05 · Banco, borda Vercel, rastreio | ✅ Back-end pronto | Variáveis da Vercel ao criar o projeto do app |
 | E06 a E15 · Identidade, permissões, auditoria, admin-api, arquivos | ✅ Back-end pronto | Telas; captcha do cadastro ligado na nuvem |
 | E16 a E26 · Núcleo da adega | ✅ Back-end pronto | Telas (caixa, venda, comandas, fiado, relatórios) |
 | E27 a E31 · Gestão complementar | ✅ Back-end pronto | Telas |
 | E32, E33, E35 · Plano, ciclo da assinatura, e-mails | ✅ Back-end pronto | Domínio de envio no Resend (`dominio-e-email.md`) |
-| E34 · Stripe | 🟡 Teste ligado (16/11): checkout embutido e 20 eventos tratados | Chaves de produção e webhook na nuvem (`WEBHOOK_URL=... npm run stripe:sync`) |
+| E34 · Stripe | 🟡 Teste ligado na nuvem (16/11): checkout embutido, 20 eventos tratados e webhook `we_1UcW7QLbBMxnpVY1uf9qjfQg` entregando no projeto `addegas` | Chaves de produção e webhook de produção (`WEBHOOK_URL=... npm run stripe:sync -- --nuvem`, com `STRIPE_SECRET_KEY=sk_live_...`) |
 | E36 a E40 · Painel Addegas | ✅ Back-end pronto | Telas do admin; cadastrar a equipe (`admin/staff/invite`) |
 | E41, E42, E45 · Pedidos, webhooks, WhatsApp | ✅ Back-end pronto | Instância da W-API e o webhook apontando para `/api/hooks/wapi` |
 | E43, E44 · iFood e outros apps | ⏸️ Em espera (D21) | — |

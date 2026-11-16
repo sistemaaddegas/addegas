@@ -4,16 +4,20 @@
 //
 // Local (lê a chave do supabase/functions/.env e usa o banco do Docker):
 //   npm run stripe:sync
-// Nuvem (uma vez por ambiente, com a chave do ambiente e a conexão direta do banco):
-//   STRIPE_SECRET_KEY=sk_... DATABASE_URL=postgresql://... WEBHOOK_URL=https://<projeto>.supabase.co/functions/v1/hooks-stripe \
-//   APP_URL=https://app.addegas.com.br node scripts/stripe-sync.mjs
+// Nuvem, no projeto ligado pelo `supabase link` (usa o login do CLI; grava os ids e o whsec_ direto nos segredos
+// das funções, sem mostrar o segredo na tela):
+//   WEBHOOK_URL=https://<projeto>.supabase.co/functions/v1/hooks-stripe npm run stripe:sync -- --nuvem
+//   (a chave vem do supabase/functions/.env ou de STRIPE_SECRET_KEY; na produção, a sk_live_ só por STRIPE_SECRET_KEY)
+// Nuvem com conexão direta do banco (precisa do psql):
+//   STRIPE_SECRET_KEY=sk_... DATABASE_URL=postgresql://... WEBHOOK_URL=... APP_URL=https://app.addegas.com.br node scripts/stripe-sync.mjs
 // Idempotente: procura por lookup_key/metadata antes de criar; rodar de novo não duplica nada.
 import { execFileSync } from 'node:child_process'
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 
 const ENV_FILE = new URL('../supabase/functions/.env', import.meta.url)
-const local = !process.env.DATABASE_URL
-const envLocal = local && existsSync(ENV_FILE) ? readFileSync(ENV_FILE, 'utf8') : ''
+const nuvem = process.argv.includes('--nuvem')
+const local = !process.env.DATABASE_URL && !nuvem
+const envLocal = !process.env.DATABASE_URL && existsSync(ENV_FILE) ? readFileSync(ENV_FILE, 'utf8') : ''
 const doEnv = (k) => envLocal.match(new RegExp(`^${k}=(.*)$`, 'm'))?.[1]?.trim()
 
 const KEY = process.env.STRIPE_SECRET_KEY || doEnv('STRIPE_SECRET_KEY')
@@ -54,14 +58,26 @@ async function stripe(method, path, params) {
   return json
 }
 
+// Supabase CLI pelo npx (no Windows o npx é um .cmd, por isso o shell).
+function cli(args) {
+  return execFileSync('npx', ['supabase', ...args], { encoding: 'utf8', shell: process.platform === 'win32', stdio: ['ignore', 'pipe', 'pipe'] })
+}
+
 function sql(query) {
+  if (nuvem) {
+    const out = cli(['db', 'query', '--linked', JSON.stringify(query)])
+    const rows = JSON.parse(out.slice(out.indexOf('{'))).rows ?? []
+    return rows.map((r) => Object.values(r).join('|')).join('\n')
+  }
   const args = local
     ? ['exec', 'supabase_db_addegas', 'psql', '-U', 'postgres', '-qtA', '-c', query]
     : [process.env.DATABASE_URL, '-qtA', '-c', query]
   return execFileSync(local ? 'docker' : 'psql', args, { encoding: 'utf8' }).trim()
 }
 
+const paraNuvem = {}
 function gravarEnv(k, v) {
+  if (nuvem) paraNuvem[k] = v
   if (!local || !existsSync(ENV_FILE)) return
   const txt = readFileSync(ENV_FILE, 'utf8')
   writeFileSync(ENV_FILE, new RegExp(`^${k}=.*$`, 'm').test(txt) ? txt.replace(new RegExp(`^${k}=.*$`, 'm'), `${k}=${v}`) : `${txt.trimEnd()}\n${k}=${v}\n`)
@@ -149,7 +165,12 @@ if (process.env.WEBHOOK_URL) {
     console.log(`webhook: ${existe.id} (eventos atualizados; versão da API ${existe.api_version}; o segredo whsec_ fica no painel do Stripe)`)
   } else {
     const h = await stripe('POST', '/webhook_endpoints', { url: process.env.WEBHOOK_URL, enabled_events: EVENTOS, api_version: API_VERSION, description: 'Addegas · hooks-stripe' })
-    console.log(`webhook: ${h.id}\nSegredo (guarde em STRIPE_WEBHOOK_SECRET nos segredos das funções; só aparece agora): ${h.secret}`)
+    if (nuvem) {
+      paraNuvem.STRIPE_WEBHOOK_SECRET = h.secret
+      console.log(`webhook: ${h.id} (o segredo whsec_ vai direto para os segredos das funções)`)
+    } else {
+      console.log(`webhook: ${h.id}\nSegredo (guarde em STRIPE_WEBHOOK_SECRET nos segredos das funções; só aparece agora): ${h.secret}`)
+    }
   }
 } else {
   console.log(`\nWebhook local: com o Stripe CLI, rode
@@ -157,5 +178,9 @@ if (process.env.WEBHOOK_URL) {
 e copie o whsec_ que ele mostra para STRIPE_WEBHOOK_SECRET no supabase/functions/.env.`)
 }
 
+if (nuvem) {
+  cli(['secrets', 'set', ...Object.entries(paraNuvem).map(([k, v]) => `${k}=${v}`)])
+  console.log(`\nSegredos das funções na nuvem atualizados: ${Object.keys(paraNuvem).join(', ')}.`)
+}
 if (local) console.log('\nIds gravados no banco local e no supabase/functions/.env. Reinicie o "supabase functions serve" para as funções lerem.')
-else console.log(`\nDefina nos segredos das funções: STRIPE_EXTRA_STORE_PRICE_IDS=${extraIds.join(',')} STRIPE_PORTAL_CONFIGURATION_ID=${portal}`)
+else if (!nuvem) console.log(`\nDefina nos segredos das funções: STRIPE_EXTRA_STORE_PRICE_IDS=${extraIds.join(',')} STRIPE_PORTAL_CONFIGURATION_ID=${portal}`)
