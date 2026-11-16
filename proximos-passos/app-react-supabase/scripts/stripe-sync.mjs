@@ -27,6 +27,8 @@ if (local && !/^(sk|rk)_test_/.test(KEY)) {
   process.exit(1)
 }
 
+// Mesma versão fixada nas Edge Functions (supabase/functions/_shared/stripe.ts).
+const API_VERSION = '2024-06-20'
 const INTERVALS = { monthly: { interval: 'month', count: 1 }, semiannual: { interval: 'month', count: 6 }, annual: { interval: 'year', count: 1 } }
 const NOMES = { monthly: 'mensal', semiannual: 'semestral', annual: 'anual' }
 
@@ -44,7 +46,7 @@ async function stripe(method, path, params) {
   const body = params ? form(params).toString() : undefined
   const res = await fetch(`https://api.stripe.com/v1${path}${method === 'GET' && body ? `?${body}` : ''}`, {
     method,
-    headers: { Authorization: `Bearer ${KEY}`, 'Content-Type': 'application/x-www-form-urlencoded' },
+    headers: { Authorization: `Bearer ${KEY}`, 'Content-Type': 'application/x-www-form-urlencoded', 'Stripe-Version': API_VERSION },
     body: method === 'POST' ? body : undefined,
   })
   const json = await res.json()
@@ -128,13 +130,25 @@ gravarEnv('STRIPE_PORTAL_CONFIGURATION_ID', portal)
 console.log(`portal do cliente: ${portal}`)
 
 // 3. Webhook: na nuvem, cria o endpoint; no local, o Stripe CLI repassa os eventos (stripe listen).
-const EVENTOS = ['customer.subscription.created', 'customer.subscription.updated', 'customer.subscription.deleted', 'invoice.paid', 'invoice.payment_failed']
+// Tudo o que mexe na assinatura: contratação, renovação, troca de ciclo e lojas, cancelamento, cartão recusado,
+// confirmação do banco (3DS), fatura anulada ou incobrável, estorno e contestação (cron/index.ts trata cada um).
+const EVENTOS = [
+  'checkout.session.completed', 'checkout.session.async_payment_succeeded', 'checkout.session.async_payment_failed',
+  'customer.subscription.created', 'customer.subscription.updated', 'customer.subscription.deleted',
+  'customer.subscription.paused', 'customer.subscription.resumed',
+  'invoice.paid', 'invoice.payment_failed', 'invoice.payment_action_required', 'invoice.voided', 'invoice.marked_uncollectible',
+  'charge.refunded', 'charge.refund.updated',
+  'charge.dispute.created', 'charge.dispute.updated', 'charge.dispute.closed', 'charge.dispute.funds_withdrawn', 'charge.dispute.funds_reinstated',
+]
 if (process.env.WEBHOOK_URL) {
   const hooks = await stripe('GET', '/webhook_endpoints', { limit: 100 })
   const existe = hooks.data.find((h) => h.url === process.env.WEBHOOK_URL)
-  if (existe) console.log(`webhook: ${existe.id} (já existia; o segredo whsec_ fica no painel do Stripe)`)
-  else {
-    const h = await stripe('POST', '/webhook_endpoints', { url: process.env.WEBHOOK_URL, enabled_events: EVENTOS, description: 'Addegas · hooks-stripe' })
+  if (existe) {
+    // Já existia: só atualiza a lista de eventos (a versão da API do endpoint não muda depois de criado).
+    await stripe('POST', `/webhook_endpoints/${existe.id}`, { enabled_events: EVENTOS })
+    console.log(`webhook: ${existe.id} (eventos atualizados; versão da API ${existe.api_version}; o segredo whsec_ fica no painel do Stripe)`)
+  } else {
+    const h = await stripe('POST', '/webhook_endpoints', { url: process.env.WEBHOOK_URL, enabled_events: EVENTOS, api_version: API_VERSION, description: 'Addegas · hooks-stripe' })
     console.log(`webhook: ${h.id}\nSegredo (guarde em STRIPE_WEBHOOK_SECRET nos segredos das funções; só aparece agora): ${h.secret}`)
   }
 } else {

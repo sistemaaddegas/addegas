@@ -7,53 +7,57 @@ import { logError } from "../_shared/log.ts";
 import { priv, privRows } from "../_shared/supabase.ts";
 import { sendEmail, sendWhatsApp } from "../_shared/senders.ts";
 import { stripe, stripeConfigured } from "../_shared/stripe.ts";
+import { syncDispute, syncInvoice, syncRefunds, syncSubscription } from "../_shared/billing-sync.ts";
 
 type InboxRow = { id: string; event_type: string; payload: Record<string, any> };
 type OutboxRow = { id: string; channel: "whatsapp" | "email"; to_address: string; template_code: string; vars: Record<string, string> };
 
+/**
+ * Eventos do Stripe que mexem na assinatura (a lista assinada no endpoint fica no scripts/stripe-sync.mjs). Cada um
+ * busca o estado atual no Stripe (billing-sync.ts), então repetir ou receber fora de ordem não estraga nada.
+ */
 async function processStripeEvent(row: InboxRow, cid: string) {
   const obj = row.payload?.data?.object ?? {};
+  const ctx = { cid };
   switch (row.event_type) {
-    case "invoice.paid": {
-      const line = obj.lines?.data?.[0]?.period ?? {};
-      const acc = await priv<string>("billing_record_invoice", {
-        p_customer_id: obj.customer, p_invoice_id: obj.id, p_amount: obj.amount_paid ?? obj.total, p_status: "paid",
-        p_period_start: new Date((line.start ?? obj.period_start) * 1000).toISOString(),
-        p_period_end: new Date((line.end ?? obj.period_end) * 1000).toISOString(),
-        p_hosted_url: obj.hosted_invoice_url ?? null, p_payment_id: obj.payment_intent ?? obj.charge ?? obj.id,
-      }, { cid });
-      await priv("billing_paid", {
-        p_account_id: acc, p_period_start: new Date((line.start ?? obj.period_start) * 1000).toISOString(),
-        p_period_end: new Date((line.end ?? obj.period_end) * 1000).toISOString(), p_author: "webhook:stripe",
-      }, { cid });
+    // Volta do checkout: liga a assinatura e a primeira fatura (os eventos dela também chegam, sem duplicar).
+    case "checkout.session.completed":
+    case "checkout.session.async_payment_succeeded":
+    case "checkout.session.async_payment_failed":
+      if (obj.subscription) await syncSubscription(obj.subscription, ctx);
+      if (obj.invoice) await syncInvoice(obj.invoice, ctx, { falhou: row.event_type === "checkout.session.async_payment_failed" });
       break;
-    }
-    case "invoice.payment_failed": {
-      const acc = await priv<string>("billing_record_invoice", {
-        p_customer_id: obj.customer, p_invoice_id: obj.id, p_amount: obj.amount_due ?? obj.total, p_status: "open",
-        p_period_start: new Date(obj.period_start * 1000).toISOString(), p_period_end: new Date(obj.period_end * 1000).toISOString(),
-        p_hosted_url: obj.hosted_invoice_url ?? null,
-      }, { cid });
-      await priv("billing_failed", { p_account_id: acc, p_author: "webhook:stripe" }, { cid });
-      break;
-    }
-    case "customer.subscription.updated":
+    // Assinatura criada, renovada, trocada de ciclo ou de lojas, marcada para cancelar, pausada ou encerrada.
     case "customer.subscription.created":
-    case "customer.subscription.deleted": {
-      // A ordem dos eventos não é garantida: quando dá, busca o estado atual no Stripe (E34).
-      const sub = stripeConfigured() && row.event_type !== "customer.subscription.deleted"
-        ? await stripe<Record<string, any>>("GET", `/subscriptions/${obj.id}`) : obj;
-      const extraPrice = Deno.env.get("STRIPE_EXTRA_STORE_PRICE_IDS")?.split(",") ?? [];
-      const extra = (sub.items?.data ?? []).filter((i: any) => extraPrice.includes(i.price?.id)).reduce((n: number, i: any) => n + (i.quantity ?? 0), 0);
-      await priv("billing_sync_subscription", {
-        p_customer_id: sub.customer, p_subscription_id: sub.id, p_status: sub.status,
-        p_cancel_at_period_end: !!sub.cancel_at_period_end,
-        p_period_start: sub.current_period_start ? new Date(sub.current_period_start * 1000).toISOString() : null,
-        p_period_end: sub.current_period_end ? new Date(sub.current_period_end * 1000).toISOString() : null,
-        p_cycle: sub.metadata?.cycle ?? null, p_extra_stores: extra,
-      }, { cid });
+    case "customer.subscription.updated":
+    case "customer.subscription.deleted":
+    case "customer.subscription.paused":
+    case "customer.subscription.resumed":
+      await syncSubscription(obj.id, ctx);
       break;
-    }
+    // Renovação paga, cartão recusado, banco pedindo confirmação (3DS), fatura anulada ou dada como incobrável.
+    case "invoice.paid":
+    case "invoice.voided":
+    case "invoice.marked_uncollectible":
+      await syncInvoice(obj.id, ctx);
+      break;
+    case "invoice.payment_failed":
+    case "invoice.payment_action_required":
+      await syncInvoice(obj.id, ctx, { falhou: true });
+      break;
+    // Estorno: total ou parcial, pelo painel do Stripe ou pela equipe.
+    case "charge.refunded":
+    case "charge.refund.updated":
+      await syncRefunds(row.event_type === "charge.refund.updated" ? obj.charge : obj.id, ctx);
+      break;
+    // Contestação (chargeback): aberta, com prazo de defesa, decidida.
+    case "charge.dispute.created":
+    case "charge.dispute.updated":
+    case "charge.dispute.closed":
+    case "charge.dispute.funds_withdrawn":
+    case "charge.dispute.funds_reinstated":
+      await syncDispute(obj.id, ctx);
+      break;
     default:
       break; // eventos que não usamos ficam registrados e marcados como processados
   }

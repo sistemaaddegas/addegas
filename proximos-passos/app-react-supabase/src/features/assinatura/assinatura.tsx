@@ -1,6 +1,7 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { montarCheckout } from '@/lib/stripe-js'
 import { useAuth } from '@/lib/auth'
 import { funcao, rpc } from '@/lib/supabase'
 import { brlc } from '@/lib/format'
@@ -56,25 +57,70 @@ export function AvisoAssinatura() {
   )
 }
 
+/** Formulário de pagamento do Stripe dentro da tela (checkout embutido): cartão, cupom e confirmação do banco. */
+function CheckoutEmbutido({ segredo }: { segredo: string }) {
+  const el = useRef<HTMLDivElement>(null)
+  const [erro, setErro] = useState<string | null>(null)
+  const [pronto, setPronto] = useState(false)
+  useEffect(() => {
+    let vivo = true
+    const { pronto: p, desmontar } = montarCheckout(el.current!, segredo)
+    p.then(() => { if (vivo) setPronto(true) }, (e: Error) => { if (vivo) setErro(e.message) })
+    return () => { vivo = false; desmontar() }
+  }, [segredo])
+  return (
+    <div className="flex flex-col gap-2">
+      {!pronto && !erro && <div className="py-8 text-center text-sm text-[#C4C4C9]">Abrindo o pagamento seguro…</div>}
+      {erro && <div className="p-3 rounded-[3px_10px_2px_9px] bg-[rgba(255,107,94,.10)] text-bad text-sm font-bold">{erro}</div>}
+      {/* O Stripe desenha o formulário claro dele aqui; a moldura branca evita o contraste com o fundo escuro. */}
+      <div ref={el} className={pronto ? 'rounded-[3px_11px_4px_10px] overflow-hidden bg-white p-1' : ''} />
+    </div>
+  )
+}
+
+/** Volta do checkout (?pagamento=cs_...): confere a sessão no servidor, que já libera a assinatura. */
+function useVoltaDoPagamento(accountId: string | undefined) {
+  const [params, setParams] = useSearchParams()
+  const sessao = params.get('pagamento')
+  const qc = useQueryClient()
+  const [estado, setEstado] = useState<'conferindo' | 'pago' | 'pendente' | 'aberto' | null>(null)
+  useEffect(() => {
+    if (!sessao || !accountId) return
+    setEstado('conferindo')
+    funcao<{ status: string; payment_status: string }>('billing/session-status', { account_id: accountId, session_id: sessao })
+      .then((r) => {
+        setEstado(r.status !== 'complete' ? 'aberto' : r.payment_status === 'paid' || r.payment_status === 'no_payment_required' ? 'pago' : 'pendente')
+        qc.invalidateQueries()
+      }, () => setEstado('pendente'))
+      .finally(() => setParams((p) => { p.delete('pagamento'); return p }, { replace: true }))
+  }, [sessao, accountId, qc, setParams])
+  return estado
+}
+
 export function AssinaturaTela() {
   const { loja, dono } = useContaAtual()
   const { data: a, isLoading, error } = useAssinatura(loja?.account_id, dono)
   const { data: precos } = useQuery({ queryKey: ['precos'], queryFn: () => rpc<Preco[]>('plan_prices'), staleTime: 3600_000 })
   const [ciclo, setCiclo] = useState<Preco['cycle']>('monthly')
   const [busy, setBusy] = useState(false)
-  const [params] = useSearchParams()
+  const [segredo, setSegredo] = useState<string | null>(null)
+  const volta = useVoltaDoPagamento(loja?.account_id)
   const toast = useToast()
 
   if (loja && !dono) return <div className="p-4 tablet:p-8 text-[#C4C4C9]">Só o dono da adega vê e altera a assinatura.</div>
   if (isLoading || !loja) return <div className="p-4 tablet:p-8 text-[#C4C4C9]">Carregando…</div>
   if (error || !a) return <div className="p-4 tablet:p-8 text-bad">Não deu para carregar a assinatura. {error?.message}</div>
 
-  const ir = async (rota: 'checkout' | 'portal') => {
+  // O portal (cartão, faturas, cancelamento) é a página do Stripe; o pagamento da assinatura acontece aqui dentro.
+  const portal = async () => {
     setBusy(true)
-    try {
-      const r = await funcao<{ url: string }>(`billing/${rota}`, { account_id: loja.account_id, cycle: ciclo })
-      window.location.assign(r.url)
-    } catch (e) { toast((e as Error).message); setBusy(false) }
+    try { window.location.assign((await funcao<{ url: string }>('billing/portal', { account_id: loja.account_id })).url) }
+    catch (e) { toast((e as Error).message); setBusy(false) }
+  }
+  const pagar = async () => {
+    setBusy(true)
+    try { setSegredo((await funcao<{ client_secret: string }>('billing/checkout', { account_id: loja.account_id, cycle: ciclo })).client_secret) }
+    catch (e) { toast((e as Error).message) } finally { setBusy(false) }
   }
   const mensal = precos?.find((p) => p.cycle === 'monthly')?.price ?? 0
   const assinante = a.status === 'active' || a.status === 'past_due'
@@ -87,26 +133,36 @@ export function AssinaturaTela() {
 
   return (
     <div className="p-4 tablet:p-8 flex flex-col gap-4 max-w-[900px] mx-auto w-full">
-      {params.get('status') === 'ok' && <div className="p-4 rounded-[3px_11px_4px_10px] bg-[#0D1A0F] border border-[#16C60C] text-[15px] font-bold">Pagamento enviado. A confirmação chega em instantes e libera tudo sozinha.</div>}
-      {params.get('status') === 'cancelado' && <div className="p-4 rounded-[3px_11px_4px_10px] bg-surface-2 text-[15px]">Pagamento não concluído. Você pode tentar de novo quando quiser.</div>}
+      {volta === 'conferindo' && <div className="p-4 rounded-[3px_11px_4px_10px] bg-surface-2 text-[15px] font-bold">Confirmando o pagamento…</div>}
+      {volta === 'pago' && <div className="p-4 rounded-[3px_11px_4px_10px] bg-[#0D1A0F] border border-[#16C60C] text-[15px] font-bold">Pagamento confirmado. Sua assinatura está ativa.</div>}
+      {volta === 'pendente' && <div className="p-4 rounded-[3px_11px_4px_10px] bg-[#0D1A0F] border border-[#16C60C] text-[15px] font-bold">Pagamento enviado. A confirmação do banco chega em instantes e libera tudo sozinha.</div>}
+      {volta === 'aberto' && <div className="p-4 rounded-[3px_11px_4px_10px] bg-surface-2 text-[15px]">Pagamento não concluído. Você pode tentar de novo quando quiser.</div>}
 
       <div className={`${card} p-5 gap-2`}>
         <div className="text-xs font-extrabold uppercase tracking-[.08em] text-[#ADADB4]">Addegas · {loja.name}</div>
         <div className="text-[28px] font-black" style={{ color: cor, fontStretch: '100%' }}>{titulo}</div>
         <div className="text-[15px] text-[#C4C4C9]">{sub}</div>
         <div className="text-sm text-[#ADADB4]">{a.stores_allowed} {a.stores_allowed === 1 ? 'loja' : 'lojas'} no plano{assinante ? ` · ${brlc(a.price)} por ${a.cycle === 'monthly' ? 'mês' : a.cycle === 'semiannual' ? 'semestre' : 'ano'}` : ''}</div>
-        {assinante && <button onClick={() => ir('portal')} disabled={busy} className="self-start mt-2 h-11 px-4 rounded-[3px_10px_2px_9px] border border-line-2 bg-surface-2 text-[15px] font-bold cursor-pointer">Cartão, faturas e cancelamento</button>}
+        {assinante && <button onClick={portal} disabled={busy} className="self-start mt-2 h-11 px-4 rounded-[3px_10px_2px_9px] border border-line-2 bg-surface-2 text-[15px] font-bold cursor-pointer">Cartão, faturas e cancelamento</button>}
       </div>
 
-      {(!assinante || a.access !== 'allowed') && (
+      {a.status === 'past_due' && (
+        <div className={`${card} p-5 gap-3`}>
+          <div className="text-[17px] font-extrabold">Regularizar</div>
+          <div className="text-[15px] text-[#C4C4C9]">A última cobrança não passou no cartão. Troque o cartão ou pague a fatura em aberto: o Stripe tenta de novo e o acesso volta sozinho.</div>
+          <button onClick={portal} disabled={busy} className="h-14 rounded-[3px_11px_4px_10px] bg-brand text-brand-ink text-[17px] font-extrabold cursor-pointer disabled:opacity-60">Trocar cartão e pagar</button>
+        </div>
+      )}
+
+      {!assinante && (
         <div className={`${card} p-5 gap-4`}>
-          <div className="text-[17px] font-extrabold">{a.status === 'past_due' ? 'Regularizar' : 'Escolha como pagar'}</div>
+          <div className="text-[17px] font-extrabold">Escolha como pagar</div>
           <div className="grid gap-2.5 grid-cols-[repeat(auto-fit,minmax(min(100%,180px),1fr))]">
             {(precos ?? []).map((p, k) => {
               const porMes = Math.round(p.price / p.months)
               const economia = mensal ? Math.round((1 - porMes / mensal) * 100) : 0
               return (
-                <button key={p.cycle} onClick={() => setCiclo(p.cycle)} className="flex flex-col gap-1.5 p-4 rounded-[3px_11px_4px_10px] border-2 text-left cursor-pointer"
+                <button key={p.cycle} onClick={() => { setCiclo(p.cycle); setSegredo(null) }} className="flex flex-col gap-1.5 p-4 rounded-[3px_11px_4px_10px] border-2 text-left cursor-pointer"
                   style={{ borderColor: ciclo === p.cycle ? '#FBC009' : '#2A2A2E', background: ciclo === p.cycle ? 'rgba(251,192,9,.08)' : 'transparent' }}>
                   <span className="flex items-center gap-2 text-sm font-extrabold">{CICLO[p.cycle]}{economia > 0 && <span className={chipCls} style={{ ...chip(true, k), height: 22, padding: '0 8px', fontSize: 11 }}>−{economia}%</span>}</span>
                   <span className="text-2xl font-black num" style={{ fontStretch: '100%' }}>{brlc(porMes)}<span className="text-sm font-bold text-[#ADADB4]">/mês</span></span>
@@ -115,8 +171,10 @@ export function AssinaturaTela() {
               )
             })}
           </div>
-          <button onClick={() => ir('checkout')} disabled={busy} className="h-14 rounded-[3px_11px_4px_10px] bg-brand text-brand-ink text-[17px] font-extrabold cursor-pointer disabled:opacity-60">{busy ? 'Abrindo o pagamento…' : 'Continuar para o pagamento'}</button>
-          <div className="text-[13px] text-[#ADADB4]">O pagamento é feito na página segura do Stripe, com cartão. Você volta para cá no fim.</div>
+          {segredo ? <CheckoutEmbutido key={segredo} segredo={segredo} /> : (
+            <button onClick={pagar} disabled={busy} className="h-14 rounded-[3px_11px_4px_10px] bg-brand text-brand-ink text-[17px] font-extrabold cursor-pointer disabled:opacity-60">{busy ? 'Abrindo o pagamento…' : 'Continuar para o pagamento'}</button>
+          )}
+          <div className="text-[13px] text-[#ADADB4]">Pagamento com cartão, processado pelo Stripe: os dados do cartão vão direto para ele e não ficam no Addegas.</div>
         </div>
       )}
     </div>

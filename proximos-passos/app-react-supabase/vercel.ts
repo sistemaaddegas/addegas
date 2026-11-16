@@ -11,12 +11,12 @@ const isAdmin = process.env.APP_KIND === 'admin'
 
 const csp = [
   "default-src 'self'",
-  "script-src 'self' https://challenges.cloudflare.com",
+  "script-src 'self' https://challenges.cloudflare.com https://js.stripe.com",
   "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
   "font-src 'self' https://fonts.gstatic.com",
-  `img-src 'self' data: blob: ${supabaseOrigin}`,
-  `connect-src 'self' ${supabaseOrigin} ${supabaseOrigin.replace('https://', 'wss://')} https://challenges.cloudflare.com`,
-  'frame-src https://challenges.cloudflare.com https://checkout.stripe.com https://billing.stripe.com',
+  `img-src 'self' data: blob: ${supabaseOrigin} https://*.stripe.com`,
+  `connect-src 'self' ${supabaseOrigin} ${supabaseOrigin.replace('https://', 'wss://')} https://challenges.cloudflare.com https://api.stripe.com https://checkout.stripe.com`,
+  'frame-src https://challenges.cloudflare.com https://js.stripe.com https://*.js.stripe.com https://hooks.stripe.com https://checkout.stripe.com https://billing.stripe.com',
   "frame-ancestors 'none'",
   "base-uri 'self'",
   "form-action 'self' https://checkout.stripe.com",
@@ -42,8 +42,8 @@ export const config: VercelConfig = {
       { key: 'X-Content-Type-Options', value: 'nosniff' },
       { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
       { key: 'X-Frame-Options', value: 'DENY' },
-      // Câmera liberada só para ler código de barras no caixa (E04).
-      { key: 'Permissions-Policy', value: 'camera=(self), microphone=(), geolocation=(), payment=()' },
+      // Câmera liberada só para ler código de barras no caixa (E04); pagamento só para o Stripe (Apple Pay e Google Pay).
+      { key: 'Permissions-Policy', value: 'camera=(self), microphone=(), geolocation=(), payment=(self "https://js.stripe.com")' },
       { key: process.env.CSP_ENFORCE === 'true' ? 'Content-Security-Policy' : 'Content-Security-Policy-Report-Only', value: csp },
     ]),
     // Service worker sem cache HTTP, senão a versão nova demora a chegar (E54).

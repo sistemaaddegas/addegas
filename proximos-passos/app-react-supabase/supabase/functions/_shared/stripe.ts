@@ -1,6 +1,12 @@
 // Stripe por fetch (E34): chamadas da API e verificação de assinatura do webhook com WebCrypto.
 
 const API = "https://api.stripe.com/v1";
+/**
+ * Versão da API fixada em todas as chamadas e no endpoint do webhook (scripts/stripe-sync.mjs). Conta nova do
+ * Stripe nasce na versão mais recente, que mudou de lugar campos que o sistema usa (período da assinatura,
+ * pagamento da fatura); fixando, o formato não muda sem a gente decidir.
+ */
+export const STRIPE_API_VERSION = "2024-06-20";
 
 function form(data: Record<string, unknown>, prefix = ""): string[] {
   return Object.entries(data).flatMap(([k, v]) => {
@@ -25,6 +31,7 @@ export async function stripe<T = Record<string, unknown>>(method: "GET" | "POST"
     headers: {
       Authorization: `Bearer ${key}`,
       "Content-Type": "application/x-www-form-urlencoded",
+      "Stripe-Version": STRIPE_API_VERSION,
       ...(idempotencyKey ? { "Idempotency-Key": idempotencyKey } : {}),
     },
     body: method === "POST" ? body : undefined,

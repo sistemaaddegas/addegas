@@ -19,6 +19,8 @@ const ROUTES: Record<string, { action: string; run: Handler }> = {
     const r = await priv<Body>("admin_snapshot", { p_staff: st.user_id }, c);
     // Fila de sugestões das adegas para o repositório (só para quem edita o catálogo).
     if (r?.ok && st.actions.includes("catalog.write")) r.data.suggestions = await priv("admin_catalog_suggestions", {}, c);
+    // Contestações (chargeback) vindas do Stripe, para o Financeiro.
+    if (r?.ok && st.actions.includes("billing.read")) r.data.disputes = await priv("admin_disputes", {}, c);
     return r;
   } },
   "catalog/suggestion": { action: "catalog.write", run: (b, st, c) =>

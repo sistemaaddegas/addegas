@@ -1,11 +1,14 @@
 // E34 · Assinatura no Stripe (D01, D29, D54). Só o dono da conta.
-//   POST /api/billing/checkout     {account_id, cycle}            cria cliente (se faltar) e a sessão do Checkout
+//   POST /api/billing/checkout     {account_id, cycle}            cria cliente (se faltar) e a sessão do Checkout embutido
+//                                                                 (o formulário do Stripe aparece dentro da tela de assinatura)
+//   POST /api/billing/session-status {account_id, session_id}     volta do checkout: confere a sessão e já sincroniza
 //   POST /api/billing/portal       {account_id}                   portal do cliente (cartão, segunda via)
 //   POST /api/billing/extra-stores {account_id, quantity}         lojas adicionais = item da mesma assinatura (D02)
 import { correlationId, fail, ok, preflight, readJson, subpath } from "../_shared/http.ts";
 import { logError } from "../_shared/log.ts";
 import { caller, priv, serviceClient } from "../_shared/supabase.ts";
 import { stripe, stripeConfigured } from "../_shared/stripe.ts";
+import { syncInvoice, syncSubscription } from "../_shared/billing-sync.ts";
 
 type Ctx = {
   account_id: string; account_name: string; owner_email: string; stripe_customer_id: string | null;
@@ -49,15 +52,32 @@ Deno.serve(async (req) => {
 
     if (route === "checkout") {
       if (!ctx.plan_price_id) return fail(req, cid, "PRICE_NOT_SYNCED", 503, "Rode o script de sincronização de preços do Stripe.");
+      // Quem já tem assinatura viva paga a fatura em aberto pelo portal: um segundo checkout criaria outra cobrança.
+      if (ctx.stripe_subscription_id && ["active", "past_due"].includes(ctx.status)) return fail(req, cid, "SUBSCRIPTION_EXISTS", 409);
       const items: Record<string, unknown> = { 0: { price: ctx.plan_price_id, quantity: 1 } };
       if (ctx.extra_stores > 0 && ctx.extra_store_price_id) items[1] = { price: ctx.extra_store_price_id, quantity: ctx.extra_stores };
-      const session = await stripe<{ url: string }>("POST", "/checkout/sessions", {
-        mode: "subscription", customer, line_items: items, locale: "pt-BR",
-        success_url: `${APP_URL}/assinatura?status=ok`, cancel_url: `${APP_URL}/assinatura?status=cancelado`,
+      const session = await stripe<{ client_secret: string }>("POST", "/checkout/sessions", {
+        mode: "subscription", ui_mode: "embedded", customer, line_items: items, locale: "pt-BR",
+        return_url: `${APP_URL}/assinatura?pagamento={CHECKOUT_SESSION_ID}`,
         subscription_data: { metadata: { account_id: acc.id, cycle } },
+        customer_update: { name: "auto", address: "auto" },
         allow_promotion_codes: true,
-      });
-      return ok(req, cid, { url: session.url });
+      }, `checkout:${acc.id}:${cycle}:${Math.floor(Date.now() / 60_000)}`);
+      return ok(req, cid, { client_secret: session.client_secret });
+    }
+
+    if (route === "session-status") {
+      const id = String(body.session_id ?? "");
+      if (!/^cs_[A-Za-z0-9_]+$/.test(id)) return fail(req, cid, "PAYLOAD_INVALID");
+      const session = await stripe<{ customer: string; status: string; payment_status: string; subscription: string | null; invoice: string | null }>(
+        "GET", `/checkout/sessions/${id}`);
+      if (session.customer !== customer) return fail(req, cid, "FORBIDDEN", 403);
+      // Libera na hora, sem esperar o webhook (ele chega depois e não duplica nada).
+      if (session.status === "complete") {
+        if (session.subscription) await syncSubscription(session.subscription, { cid });
+        if (session.invoice) await syncInvoice(session.invoice, { cid });
+      }
+      return ok(req, cid, { status: session.status, payment_status: session.payment_status });
     }
 
     if (route === "portal") {

@@ -12,7 +12,7 @@ import { Desenho } from './desenho'
 import { POR_PADRAO, POR_PAGINA, numerosPagina } from '@/lib/paginas'
 
 const MSG0 = { tpl: 'cobranca_proxima', canal: 'WhatsApp', aud: 'filtro', adega: '', plano: 'todos', assin: 'todas', venc: 'todos', regiao: 'todas', teste: 'todos', ativ: 'todos', seg: '', quando: 'agora', data: '' }
-const VAZIO = { adegas: [], plans: [], invoices: [], refunds: [], discounts: [], audit: [], queue: [], tpls: [], sends: [], tickets: null, groups: [], etapas: [], leads: [], catalog: [], suggestions: [], logs: [], team: [], staffNames: [], funnels: [], stock: {}, kits: {}, gifts: [], mkt: [], camps: [], feat: [], alerts: [], roles: [], actionNames: {} }
+const VAZIO = { adegas: [], plans: [], invoices: [], refunds: [], disputes: [], discounts: [], audit: [], queue: [], tpls: [], sends: [], tickets: null, groups: [], etapas: [], leads: [], catalog: [], suggestions: [], logs: [], team: [], staffNames: [], funnels: [], stock: {}, kits: {}, gifts: [], mkt: [], camps: [], feat: [], alerts: [], roles: [], actionNames: {} }
 
 export class Painel extends Component {
   state = {

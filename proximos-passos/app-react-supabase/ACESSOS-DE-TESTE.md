@@ -114,7 +114,26 @@ Desconto: cada função tem um limite (o dono ajusta em Equipe). Acima dele, que
 
 ## Pagamentos (Stripe, modo teste)
 
-Só funciona depois de colocar as chaves de teste em `supabase/functions/.env` (`STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`).
+Conta de teste do Stripe ligada em 16/11/2026 (acct_1UaXaTLbBMxnpVY1). As chaves ficam fora do git: a secreta em
+`supabase/functions/.env` (`STRIPE_SECRET_KEY`) e a publicável em `.env.local` (`VITE_STRIPE_PUBLISHABLE_KEY`).
+`npm run stripe:sync` cria (ou confere) o produto, os 6 preços e o portal do cliente.
+
+O pagamento é pelo checkout embutido, dentro da tela Assinatura do app (dono da adega → Assinatura).
 
 - Cartão aprovado: `4242 4242 4242 4242`, validade futura qualquer, CVC qualquer.
 - Cartão recusado: `4000 0000 0000 0002`.
+- Pede confirmação do banco (3DS): `4000 0025 0000 3155`.
+- Aprovado e depois contestado (chargeback): `4000 0000 0000 0259`.
+
+Webhook no local: sem o Stripe CLI, os eventos não chegam sozinhos. A tela já libera a assinatura na volta do
+pagamento; para os demais (renovação, estorno, contestação), rode `stripe listen` (ver `npm run stripe:sync`).
+
+Estado das adegas da massa depois dos testes de 16/11/2026 (somem no próximo `db:reset` + `db:massa`):
+
+| Adega | Situação no Stripe de teste |
+|---|---|
+| Adega Noite Feliz | assinou pelo checkout embutido; estorno parcial de R$ 50; marcada para cancelar no fim do ciclo (16/12) |
+| Adega Ponto Frio | assinatura num relógio de teste do Stripe, já renovada uma vez (período até 16/01/2027) |
+| Adega Copo Cheio | cartão recusado: em carência até 21/11 |
+| Distribuidora Butantã | banco pediu confirmação e ninguém confirmou: em carência até 21/11 |
+| Adega do Chico | contestação aberta (prazo 24/11) e assinatura cancelada na hora: acesso suspenso |

@@ -29,7 +29,7 @@ Verificação: 357 testes pgTAP (16/11), advisors sem aviso, 1000 vendas em para
 | E16 a E26 · Núcleo da adega | ✅ Back-end pronto | Telas (caixa, venda, comandas, fiado, relatórios) |
 | E27 a E31 · Gestão complementar | ✅ Back-end pronto | Telas |
 | E32, E33, E35 · Plano, ciclo da assinatura, e-mails | ✅ Back-end pronto | Domínio de envio no Resend (`dominio-e-email.md`) |
-| E34 · Stripe | 🟡 Código pronto | Conta Stripe, chaves e `scripts/stripe-sync.mjs` para criar os preços |
+| E34 · Stripe | 🟡 Teste ligado (16/11): checkout embutido e 20 eventos tratados | Chaves de produção e webhook na nuvem (`WEBHOOK_URL=... npm run stripe:sync`) |
 | E36 a E40 · Painel Addegas | ✅ Back-end pronto | Telas do admin; cadastrar a equipe (`admin/staff/invite`) |
 | E41, E42, E45 · Pedidos, webhooks, WhatsApp | ✅ Back-end pronto | Instância da W-API e o webhook apontando para `/api/hooks/wapi` |
 | E43, E44 · iFood e outros apps | ⏸️ Em espera (D21) | — |

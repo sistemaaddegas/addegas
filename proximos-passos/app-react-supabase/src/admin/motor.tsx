@@ -170,7 +170,8 @@ export function montar(snap) {
     const st = i.status === 'paid' ? 'paga' : i.status === 'open' ? (new Date(i.due_at) < NOW ? 'vencida' : 'aberta') : 'cancelada'
     return { id: 'F' + a.id.slice(1) + '-' + String(porConta[a.id]).padStart(2, '0'), uuid: i.id, a, venc: dt(i.due_at), val: r2(i.amount), base: r2(i.amount), dc: 0, st, pago: i.paid_at ? dt(i.paid_at) : null, taxa: 0, metodo: i.method, fonte: i.source, paymentId: i.payment_id }
   })
-  const refunds = (snap.refunds || []).filter((r) => A[r.account_id]).map((r) => ({ a: A[r.account_id].id, when: r.created_at, val: r2(r.amount), motivo: r.reason, who: r.who }))
+  const refunds = (snap.refunds || []).filter((r) => A[r.account_id]).map((r) => ({ a: A[r.account_id].id, when: r.created_at, val: r2(r.amount), motivo: r.reason, who: r.who || 'feito no Stripe' }))
+  const disputes = (snap.disputes || []).filter((d) => A[d.account_id]).map((d) => ({ a: A[d.account_id].id, when: d.created_at, val: r2(d.amount), motivo: d.reason || '', st: d.status, prazo: d.evidence_due_by, fim: d.closed_at, sid: d.stripe_dispute_id }))
   const discounts = (snap.discounts || []).map((d, i) => {
     const ids = (d.accounts || []).map((x) => accCod[x]).filter(Boolean)
     return { id: 'D-' + String(i + 1).padStart(3, '0'), uuid: d.id, ids, alvo: ids.length === 1 ? (A[d.accounts[0]] || {}).nome : 'Grupo: ' + ids.length + ' adegas', tipo: d.kind === 'pct' ? 'pct' : 'fixo', valor: d.kind === 'pct' ? +d.value : r2(+d.value), plano: 'todos', ini: d.starts_at, ciclos: d.cycles, aplic: d.cycles === 1 ? 'unica' : 'recorrente', motivo: d.reason, resp: d.who, acumula: d.stacks, criado: d.created_at, revog: d.revoked_at, revogMotivo: d.revoke_reason }
@@ -238,7 +239,7 @@ export function montar(snap) {
   return {
     me: { email: me.email, nome: me.name, role: ROLEKEY[me.role], uid: me.user_id, roleLabel: me.role_label, acts },
     roles: (snap.roles || []).map((r) => ({ key: ROLEKEY[r.code], code: r.code, label: r.name, acts: r.actions })), actionNames: snap.action_names || {},
-    plans, adegas, invoices, refunds, discounts, audit, queue, tpls, sends, tickets, groups: imps, etapas, leads, catalog, suggestions, logs, team, staffNames, funnels,
+    plans, adegas, invoices, refunds, disputes, discounts, audit, queue, tpls, sends, tickets, groups: imps, etapas, leads, catalog, suggestions, logs, team, staffNames, funnels,
     stock, kits, gifts, mkt, camps, feat, alerts: (st.alerts || {}).items || [], ret: st.retention || { fe: '30', be: '90', sec: '5' },
     cfg: { ...(st.automation || {}), sessao: (st.staff_session || {}).sessao || '30' }, updRule: (st.catalog_update_rule || {}).rule || 'manual',
   }

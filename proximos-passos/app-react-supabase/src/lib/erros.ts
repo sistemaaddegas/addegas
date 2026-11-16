@@ -146,6 +146,7 @@ export const MENSAGENS: Record<string, string> = {
   PRICE_NOT_SYNCED: 'Os preços ainda não foram configurados no meio de pagamento.',
   BILLING_NOT_CONFIGURED: 'O pagamento ainda não está disponível. Fale com o suporte.',
   BILLING_ERROR: 'Não foi possível falar com o meio de pagamento. Tente em instantes.',
+  SUBSCRIPTION_EXISTS: 'Você já tem uma assinatura. Para pagar a fatura em aberto ou trocar o cartão, use "Cartão, faturas e cancelamento".',
   INVOICE_NOT_FOUND: 'Fatura não encontrada.',
   INVOICE_ALREADY_PAID: 'Essa fatura já está paga.',
   PAYMENT_NOT_FOUND: 'Pagamento não encontrado.',
@@ -226,6 +227,10 @@ export const MENSAGENS: Record<string, string> = {
   UPLOAD_NOT_FOUND: 'O envio do arquivo não foi concluído. Tente de novo.',
   UPLOAD_TYPE_REJECTED: 'O conteúdo do arquivo não corresponde ao tipo informado.',
   WEBHOOK_SIGNATURE_INVALID: 'Assinatura do parceiro inválida.',
+  STRIPE_CUSTOMER_UNKNOWN: 'Evento do Stripe de um cliente que não é de nenhuma adega (ignorado).',
+  STRIPE_FULL_REFUND: 'Cobrança estornada por inteiro no Stripe: confira a assinatura da adega.',
+  STRIPE_DISPUTE: 'Contestação de cobrança (chargeback) no Stripe: responda até o prazo.',
+  STRIPE_DISPUTE_LOST: 'Contestação perdida no Stripe: o valor voltou para o cliente.',
 }
 
 export function mensagem(code: string | undefined | null): string {
