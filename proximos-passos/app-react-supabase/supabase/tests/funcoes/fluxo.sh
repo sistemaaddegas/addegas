@@ -20,6 +20,9 @@ new_user() { curl -s -X POST "$API/auth/v1/admin/users" -H "apikey: $SERVICE" -H
   -d "{\"email\":\"$1\",\"password\":\"$2\",\"email_confirm\":true${3:+,\"app_metadata\":$3}}" | j "['id']"; }
 SUF=$RANDOM
 
+# O runtime local sobe cada função na primeira chamada: espera até 30 s para o primeiro pedido não falhar à toa.
+for _ in $(seq 1 15); do curl -s -m 5 "$FN/health" | grep -q '"ok":true' && break; sleep 2; done
+for f in logs members terminals uploads leads hooks-stripe cron admin; do curl -s -m 10 -o /dev/null -X OPTIONS "$FN/$f"; done
 echo "== E04/E05 · saúde e logs"
 check "health responde" "$(curl -s "$FN/health" | j "['ok']")" "True"
 CID="corr-fluxo-$SUF" fn "$ANON" logs '{"level":"error","message":"Falha no caixa de joao@x.com","context":{"token":"abc"}}' > /dev/null
