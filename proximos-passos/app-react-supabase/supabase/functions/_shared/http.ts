@@ -58,7 +58,18 @@ export async function readJson<T = Record<string, unknown>>(req: Request, maxByt
   }
 }
 
-// IP real repassado pela Vercel/Kong; só usado para limite de taxa e auditoria.
+// IP repassado pela Vercel/Kong. O primeiro item do x-forwarded-for pode vir do próprio cliente (chamada direta em
+// <ref>.supabase.co), então serve só para auditoria e para o limite em memória, que é um extra: os limites que
+// valem de verdade ficam no banco, por chave de negócio (private.rate_hit).
 export function clientIp(req: Request): string | null {
   return req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? null;
+}
+
+// Comparação de segredo em tempo constante (cron, webhooks): não vaza pelo tempo de resposta quantos caracteres batem.
+export function safeEqual(a: string | null | undefined, b: string | null | undefined): boolean {
+  if (!a || !b) return false;
+  const x = new TextEncoder().encode(a), y = new TextEncoder().encode(b);
+  let diff = x.length ^ y.length;
+  for (let i = 0; i < Math.max(x.length, y.length); i++) diff |= (x[i] ?? 0) ^ (y[i] ?? 0);
+  return diff === 0;
 }

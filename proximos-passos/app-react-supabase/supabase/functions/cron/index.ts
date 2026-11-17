@@ -2,7 +2,7 @@
 //   POST /api/cron/billing   9h (São Paulo): reconfere no Stripe quem está com a carência vencida e roda o ciclo (E33, §8)
 //   POST /api/cron/webhooks  a cada 1 min: processa a caixa de entrada do Stripe (E42)
 //   POST /api/cron/outbox    a cada 1 min: envia WhatsApp e e-mail da fila, reconferindo a condição (E35, E45)
-import { correlationId, fail, ok, subpath } from "../_shared/http.ts";
+import { correlationId, fail, ok, safeEqual, subpath } from "../_shared/http.ts";
 import { logError } from "../_shared/log.ts";
 import { priv, privRows } from "../_shared/supabase.ts";
 import { sendEmail, sendWhatsApp } from "../_shared/senders.ts";
@@ -65,7 +65,7 @@ async function processStripeEvent(row: InboxRow, cid: string) {
 
 Deno.serve(async (req) => {
   const cid = correlationId(req);
-  if (req.headers.get("x-cron-secret") !== Deno.env.get("CRON_SECRET") || !Deno.env.get("CRON_SECRET")) {
+  if (req.method !== "POST" || !safeEqual(req.headers.get("x-cron-secret"), Deno.env.get("CRON_SECRET"))) {
     return fail(req, cid, "FORBIDDEN", 403);
   }
   const route = subpath(req, "cron");

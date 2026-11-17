@@ -54,7 +54,7 @@ async function anexar(accountId: string, ticketId: string, file: File) {
   const s = await funcao<{ bucket: string; path: string; token: string }>('uploads/sign', { purpose: 'ticket_attachment', account_id: accountId, ticket_id: ticketId, mime: file.type, size: file.size })
   const up = await supabase.storage.from(s.bucket).uploadToSignedUrl(s.path, s.token, file)
   if (up.error) throw new Error(up.error.message)
-  await funcao('uploads/finalize', { bucket: s.bucket, path: s.path, original_name: file.name })
+  await funcao('uploads/finalize', { purpose: 'ticket_attachment', bucket: s.bucket, path: s.path, original_name: file.name })
   await rpc('attach_ticket_file', { p_ticket_id: ticketId, p_path: s.path, p_name: file.name })
 }
 

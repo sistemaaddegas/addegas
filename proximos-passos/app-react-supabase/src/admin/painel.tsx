@@ -78,7 +78,7 @@ export class Painel extends Component {
     this.setState({ auth: 'sent', authErr: '' })
   }
   async novaSenha() {
-    const s = this.state; if (s.pass.length < 10) return this.setState({ authErr: 'Use ao menos 10 caracteres.' }); if (s.pass !== s.pass2) return this.setState({ authErr: 'As senhas não conferem.' })
+    const s = this.state; if (s.pass.length < 10 || !/\d/.test(s.pass) || !/[a-z]/i.test(s.pass)) return this.setState({ authErr: 'Use ao menos 10 caracteres, com letras e números.' }); if (s.pass !== s.pass2) return this.setState({ authErr: 'As senhas não conferem.' })
     const { error } = await adminAuth.updateUser({ password: s.pass }); if (error) return this.setState({ authErr: 'Não foi possível trocar a senha. Peça um novo link.' })
     history.replaceState(null, '', location.pathname); this.setState({ pass: '', pass2: '' }); this.toastMsg('Senha trocada.'); this.entrarComSessao()
   }
@@ -181,7 +181,10 @@ export class Painel extends Component {
   need(keys) { const e = {}; keys.forEach((k) => { const v = this.state.form[k]; if (v == null || String(v).trim() === '') e[k] = 'Obrigatório' }); if (Object.keys(e).length) { this.setState({ formErr: e }); return false } return true }
   openM(kind, p = {}, init = {}) { this.setState({ modal: { kind, ...p }, form: init, formErr: {}, pOpen: false, nOpen: false }) }
   csv(name, rows) {
-    const txt = rows.map((r) => r.map((c) => '"' + String(c == null ? '' : c).replace(/"/g, '""') + '"').join(';')).join('\n')
+    // Injeção de fórmula (CWE-1236): nome de adega como =HYPERLINK(...) rodaria no Excel de quem exporta. Célula que
+    // começa com = + - @ tab ou retorno ganha um apóstrofo e vira texto.
+    const cel = (c) => { let v = String(c == null ? '' : c); if (/^[=+\-@\t\r]/.test(v)) v = "'" + v; return '"' + v.replace(/"/g, '""') + '"' }
+    const txt = rows.map((r) => r.map(cel).join(';')).join('\n')
     try { const b = new Blob(['﻿' + txt], { type: 'text/csv;charset=utf-8' }); const u = URL.createObjectURL(b); const a = document.createElement('a'); a.href = u; a.download = name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(u), 1000) } catch (_) {}
     adminApi('export/log', { name, rows: rows.length - 1 }).catch(() => {})
     this.toastMsg('Arquivo ' + name + ' gerado com ' + (rows.length - 1) + ' linhas.')

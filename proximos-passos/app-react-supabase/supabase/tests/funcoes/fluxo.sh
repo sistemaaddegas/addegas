@@ -23,6 +23,8 @@ SUF=$RANDOM
 echo "== E04/E05 · saúde e logs"
 check "health responde" "$(curl -s "$FN/health" | j "['ok']")" "True"
 CID="corr-fluxo-$SUF" fn "$ANON" logs '{"level":"error","message":"Falha no caixa de joao@x.com","context":{"token":"abc"}}' > /dev/null
+CID="corr-forjado-$SUF" fn "$ANON" logs '{"level":"error","message":"erro forjado","store_id":"00000000-0000-0000-0000-000000000001"}' > /dev/null
+check "log anônimo não grava loja" "$("${PSQL[@]}" -c "select coalesce(store_id::text, 'nula') from audit.system_logs where correlation_id = 'corr-forjado-$SUF'")" "nula"
 check "log do front gravado com o correlation_id e mascarado" \
   "$("${PSQL[@]}" -c "select message || '|' || (context->>'token') from audit.system_logs where correlation_id = 'corr-fluxo-$SUF'")" "Falha no caixa de j***@x.com|[removido]"
 
@@ -44,18 +46,21 @@ check "app sabe que precisa trocar a senha" "$(rpc "$T_JOAO" must_change_passwor
 curl -s -X PUT "$API/auth/v1/user" -H "apikey: $ANON" -H "Authorization: Bearer $T_JOAO" -H "Content-Type: application/json" -d '{"password":"Nova-senha-456"}' > /dev/null
 T_JOAO=$(login "joao$SUF@u.$SLUG.addegas.invalid" "Nova-senha-456")
 check "trocou a senha, passa a ver a loja" "$(rpc "$T_JOAO" my_stores '{}' | j "['data'].__len__()")" "1"
+EVIL=$(fn "$T_DONO" members/create "{\"store_id\":\"$STORE\",\"name\":\"Vítima\",\"role\":\"cashier\",\"email\":\"vitima$SUF@x.com\",\"password\":\"Senha-do-atacante-1\"}")
+check "senha escolhida por quem cria é ignorada (sem sequestro do e-mail de outra pessoa)" "$(login "vitima$SUF@x.com" "Senha-do-atacante-1")" ""
+check "e-mail da equipe Addegas não vira login de loja" "$(fn "$T_DONO" members/create "{\"store_id\":\"$STORE\",\"name\":\"X\",\"role\":\"cashier\",\"email\":\"novo$SUF@addegas.com.br\"}" | j "['error']['code']")" "MEMBER_EMAIL_RESERVED"
 check "caixa não cria login de ninguém" "$(fn "$T_JOAO" members/create "{\"store_id\":\"$STORE\",\"name\":\"X\",\"role\":\"cashier\",\"username\":\"x$SUF\"}" | j "['error']['code']")" "FORBIDDEN"
 
-echo "== E09/E10 · terminal pareado e PIN"
+echo "== E09/E10 · terminal pareado e operador (sem PIN desde 30/10)"
 CODE=$(rpc "$T_DONO" create_pairing_code "{\"p_store_id\":\"$STORE\",\"p_terminal_name\":\"Balcao 1\"}" | j "['data']['code']")
-MPIN=$(rpc "$T_DONO" create_pin_member "{\"p_store_id\":\"$STORE\",\"p_display_name\":\"Bruno\",\"p_role\":\"cashier\",\"p_pin\":\"4821\"}" | j "['data']['member_id']")
+MPIN=$(rpc "$T_DONO" create_counter_member "{\"p_store_id\":\"$STORE\",\"p_display_name\":\"Bruno\",\"p_role\":\"cashier\"}" | j "['data']['member_id']")
 check "código errado não pareia" "$(curl -s -X POST "$FN/terminals/pair" -H 'Content-Type: application/json' -d "{\"store_slug\":\"$SLUG\",\"code\":\"000000\"}" | j "['error']['code']")" "PAIRING_CODE_INVALID"
 PAIR=$(curl -s -X POST "$FN/terminals/pair" -H 'Content-Type: application/json' -d "{\"store_slug\":\"$SLUG\",\"code\":\"$CODE\"}")
 T_TERM=$(echo "$PAIR" | j "['data']['session']['access_token']"); TERM_ID=$(echo "$PAIR" | j "['data']['terminal_id']")
 check "aparelho pareado recebe sessão" "$(echo "$PAIR" | j "['ok']")" "True"
-check "operador entra com PIN no terminal" "$(rpc "$T_TERM" operator_login "{\"p_member_id\":\"$MPIN\",\"p_pin\":\"4821\"}" | j "['data']['name']")" "Bruno"
+check "operador entra no terminal" "$(rpc "$T_TERM" operator_login "{\"p_member_id\":\"$MPIN\"}" | j "['data']['name']")" "Bruno"
 check "terminal revogado pelo dono" "$(fn "$T_DONO" terminals/revoke "{\"terminal_id\":\"$TERM_ID\"}" | j "['ok']")" "True"
-check "terminal revogado é recusado na hora, mesmo com o token ainda dentro da validade (§9)" "$(rpc "$T_TERM" operator_login "{\"p_member_id\":\"$MPIN\",\"p_pin\":\"4821\"}" | j "['error']['code']")" "TERMINAL_REQUIRED"
+check "terminal revogado é recusado na hora, mesmo com o token ainda dentro da validade (§9)" "$(rpc "$T_TERM" operator_login "{\"p_member_id\":\"$MPIN\"}" | j "['error']['code']")" "TERMINAL_REQUIRED"
 
 echo "== E14 · admin-api"
 new_user "lia$SUF@addegas.com.br" "Senha-forte-123" '{"kind":"staff"}' > /dev/null
@@ -74,8 +79,12 @@ check "evento assinado é aceito" "$(curl -s -X POST "$FN/hooks-stripe" -H "stri
 check "repetido é marcado como duplicado" "$(curl -s -X POST "$FN/hooks-stripe" -H "stripe-signature: t=$NOW,v1=$SIG" -d "$EVT" | j "['duplicate']")" "True"
 check "rotina sem segredo é recusada" "$(curl -s -X POST "$FN/cron/webhooks" | j "['error']['code']")" "FORBIDDEN"
 curl -s -X POST "$FN/cron/webhooks" -H "x-cron-secret: local-secret-123" > /dev/null
-check "fatura paga ativa a assinatura" "$("${PSQL[@]}" -c "select status || '/' || access from platform.subscriptions where account_id = '$ACC'")" "active/allowed"
-check "fatura e pagamento espelhados" "$("${PSQL[@]}" -c "select count(*) from platform.payments where stripe_payment_id = 'pi_$SUF'")" "1"
+# Desde 16/11 o processamento não confia no corpo do evento: busca a fatura no Stripe (billing-sync.ts). Evento com
+# fatura inventada (mesmo com a assinatura válida, caso de segredo vazado) não libera nada. O caminho feliz, com fatura
+# real, foi testado de ponta a ponta na nuvem com o webhook de teste do Stripe (16/11).
+check "fatura que não existe no Stripe não ativa a assinatura" "$("${PSQL[@]}" -c "select status || '/' || access from platform.subscriptions where account_id = '$ACC'")" "trial/allowed"
+check "nenhum pagamento inventado é registrado" "$("${PSQL[@]}" -c "select count(*) from platform.payments where stripe_payment_id = 'pi_$SUF'")" "0"
+check "o evento fica na caixa de entrada como falha, para retentativa e auditoria" "$("${PSQL[@]}" -c "select status from platform.webhook_inbox where event_id = 'evt_$SUF'")" "failed"
 
 echo "== E35/E45 · fila de mensagens (envio simulado)"
 "${PSQL[@]}" -c "select private.enqueue_message('email', 'service', 'dono$SUF@x.com', 'payment_confirmed', '{\"responsavel\":\"Dono\"}', 'fluxo:$SUF')" > /dev/null
@@ -83,7 +92,7 @@ curl -s -X POST "$FN/cron/outbox" -H "x-cron-secret: local-secret-123" > /dev/nu
 check "mensagem da fila enviada (dry-run)" "$("${PSQL[@]}" -c "select status from platform.outbox where dedupe_key = 'fluxo:$SUF'")" "sent"
 
 echo "== E48 · lead da landing"
-check "lead registrado" "$(curl -s -X POST "$FN/leads" -H 'Content-Type: application/json' -d "{\"name\":\"Zé\",\"phone\":\"11977$SUF\",\"utm\":{\"utm_source\":\"instagram\"}}" | j "['ok']")" "True"
+check "lead registrado" "$(curl -s -X POST "$FN/leads" -H 'Content-Type: application/json' -d "{\"name\":\"Zé\",\"phone\":\"11977$(printf %05d $SUF)\",\"utm\":{\"utm_source\":\"instagram\"}}" | j "['ok']")" "True"
 
 echo "== E15 · upload assinado e tipo real"
 SIGN=$(fn "$T_DONO" uploads/sign "{\"purpose\":\"product_image\",\"store_id\":\"$STORE\",\"mime\":\"image/png\",\"size\":100}")
@@ -91,7 +100,12 @@ UPATH=$(echo "$SIGN" | j "['data']['path']"); UURL=$(echo "$SIGN" | j "['data'][
 check "caminho decidido pelo servidor, na pasta da loja" "$(echo "$UPATH" | cut -d/ -f1)" "$STORE"
 printf 'isto nao e um png' > /tmp/falso.png
 curl -s -X PUT "$UURL" -H "Content-Type: image/png" --data-binary @/tmp/falso.png > /dev/null
-check "arquivo com extensão falsa é recusado e apagado" "$(fn "$T_DONO" uploads/finalize "{\"bucket\":\"store-public\",\"path\":\"$UPATH\"}" | j "['error']['code']")" "UPLOAD_TYPE_REJECTED"
+new_user "dono2$SUF@x.com" "Senha-forte-123" > /dev/null
+T_DONO2=$(login "dono2$SUF@x.com" "Senha-forte-123")
+rpc "$T_DONO2" complete_onboarding "{\"p_store_name\":\"Outra Adega $SUF\"}" > /dev/null
+check "outra adega não finaliza (nem apaga) o arquivo da loja" "$(fn "$T_DONO2" uploads/finalize "{\"purpose\":\"product_image\",\"path\":\"$UPATH\"}" | j "['error']['code']")" "FORBIDDEN"
+check "caminho fora do formato da finalidade é recusado" "$(fn "$T_DONO" uploads/finalize "{\"purpose\":\"product_image\",\"path\":\"$STORE/../x.png\"}" | j "['error']['code']")" "UPLOAD_INVALID"
+check "arquivo com extensão falsa é recusado e apagado" "$(fn "$T_DONO" uploads/finalize "{\"purpose\":\"product_image\",\"bucket\":\"store-public\",\"path\":\"$UPATH\"}" | j "['error']['code']")" "UPLOAD_TYPE_REJECTED"
 check "caixa não assina upload de foto de produto" "$(fn "$T_JOAO" uploads/sign "{\"purpose\":\"product_image\",\"store_id\":\"$STORE\",\"mime\":\"image/png\",\"size\":100}" | j "['error']['code']")" "FORBIDDEN"
 
 echo

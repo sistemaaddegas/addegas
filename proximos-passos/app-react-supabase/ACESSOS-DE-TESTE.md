@@ -80,9 +80,8 @@ Perdeu o celular do autenticador? No banco local, apague o fator e o painel pede
 
 ### Criados durante os testes (somem no próximo `db:reset`)
 
-Nenhum no momento. O banco local foi recriado em 31/10/2026 (seed + massa), e os acessos e dados criados nos testes
-anteriores (dono-teste, teste.prov, testeporte e os dados de teste do painel) saíram junto. O 2FA do
-`admin@addegas.com.br` foi mantido: o mesmo código do aplicativo autenticador continua valendo.
+Nenhum no momento. O banco local foi recriado em 17/11/2026 (seed + massa). O 2FA do `admin@addegas.com.br` saiu junto: no próximo
+login o painel mostra um QR novo (apague a entrada antiga do Addegas no aplicativo autenticador e escaneie de novo).
 
 ## Caixa: quem opera
 
@@ -132,7 +131,12 @@ Webhook na nuvem (16/11/2026): `we_1UcW7QLbBMxnpVY1uf9qjfQg`, apontando para
 Webhook no local: sem o Stripe CLI, os eventos não chegam sozinhos. A tela já libera a assinatura na volta do
 pagamento; para os demais (renovação, estorno, contestação), rode `stripe listen` (ver `npm run stripe:sync`).
 
-Estado das adegas da massa depois dos testes de 16/11/2026 (somem no próximo `db:reset` + `db:massa`):
+O banco local foi recriado em 17/11/2026 (auditoria de segurança): as adegas da massa voltaram sem vínculo com o
+Stripe, e o 2FA do `admin@addegas.com.br` foi apagado (o painel pede um QR novo no próximo login). No Stripe de
+teste continuam os clientes e as assinaturas abaixo, agora sem conta correspondente no banco local; um evento deles
+aparece no monitoramento como `STRIPE_CUSTOMER_UNKNOWN` e é ignorado.
+
+Estado das adegas da massa nos testes de 16/11/2026 (já não vale no banco local):
 
 | Adega | Situação no Stripe de teste |
 |---|---|

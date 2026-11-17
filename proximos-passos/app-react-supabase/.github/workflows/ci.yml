@@ -3,12 +3,20 @@ on:
   pull_request:
   push:
     branches: [main]
+
+# Segurança (17/11/2026): o token do GitHub só lê o código; actions fixadas por commit (uma tag pode ser movida
+# por quem invadir o repositório da action, como no caso tj-actions/changed-files de 2025). Este workflow não usa
+# segredos, então roda também em pull request de fork sem expor nada.
+permissions:
+  contents: read
+
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with: { persist-credentials: false }
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with: { node-version: 22, cache: npm }
       - run: npm ci
       - run: npm run check:erros
@@ -18,12 +26,12 @@ jobs:
           VITE_SUPABASE_ANON_KEY: ci-placeholder
 
   # Banco: aplica todas as migrations num Postgres local e roda lint e testes (E01).
-  # O push para o addegas-dev e o `db advisors` entram na E02.
   banco:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: supabase/setup-cli@v1
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with: { persist-credentials: false }
+      - uses: supabase/setup-cli@1dedf2c611547ede7232d26866dd3c56ab903bbb # v1.7.3
         with: { version: 2.122.0 }
       - run: supabase db start
       # Os testes partem do banco limpo; o seed é só para usar o app localmente.

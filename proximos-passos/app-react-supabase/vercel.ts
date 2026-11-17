@@ -11,7 +11,8 @@ const isAdmin = process.env.APP_KIND === 'admin'
 
 const csp = [
   "default-src 'self'",
-  "script-src 'self' https://challenges.cloudflare.com https://js.stripe.com",
+  "script-src 'self' https://challenges.cloudflare.com https://js.stripe.com https://*.js.stripe.com",
+  "object-src 'none'",
   "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
   "font-src 'self' https://fonts.gstatic.com",
   `img-src 'self' data: blob: ${supabaseOrigin} https://*.stripe.com`,

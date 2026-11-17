@@ -1,13 +1,15 @@
 // E45 · POST /api/hooks/wapi: mensagens recebidas pelo número do Addegas. "SAIR" desliga os alertas do número.
 // A W-API chama com o token configurado no painel dela (WAPI_WEBHOOK_TOKEN), no header ou na query.
-import { correlationId, fail, ok, readJson } from "../_shared/http.ts";
+import { correlationId, fail, ok, readJson, safeEqual } from "../_shared/http.ts";
 import { logError } from "../_shared/log.ts";
 import { priv } from "../_shared/supabase.ts";
 
 Deno.serve(async (req) => {
   const cid = correlationId(req);
+  if (req.method !== "POST") return fail(req, cid, "METHOD_NOT_ALLOWED", 405);
+  // Prefira o header: token na query fica gravado em log de proxy. A query fica só para painel que não manda header.
   const token = req.headers.get("x-webhook-token") ?? new URL(req.url).searchParams.get("token");
-  if (!token || token !== Deno.env.get("WAPI_WEBHOOK_TOKEN")) return fail(req, cid, "FORBIDDEN", 403);
+  if (!safeEqual(token, Deno.env.get("WAPI_WEBHOOK_TOKEN"))) return fail(req, cid, "FORBIDDEN", 403);
   const body = await readJson<Record<string, unknown>>(req);
   if (!body) return fail(req, cid, "PAYLOAD_INVALID");
   try {

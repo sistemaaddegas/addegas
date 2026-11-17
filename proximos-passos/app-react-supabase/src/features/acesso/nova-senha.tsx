@@ -15,7 +15,7 @@ export function NovaSenha() {
 
   const salvar = async (e: FormEvent) => {
     e.preventDefault()
-    if (senha.length < 8) return toast(mensagem('PASSWORD_WEAK'))
+    if (senha.length < 8 || !/\d/.test(senha) || !/[a-z]/i.test(senha)) return toast(mensagem('PASSWORD_WEAK'))
     if (senha !== repete) return toast(mensagem('PASSWORD_MISMATCH'))
     setBusy(true)
     // Trocar a senha já tira a pendência: o banco compara com o hash da provisória.

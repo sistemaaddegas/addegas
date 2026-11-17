@@ -16,6 +16,8 @@ Deno.serve(async (req) => {
       db_time: dbNow,
     });
   } catch (e) {
-    return fail(req, cid, "DB_UNAVAILABLE", 503, e instanceof Error ? e.message : String(e));
+    // A mensagem do driver (host, usuário, motivo) fica só no log da função; a rota é pública.
+    console.error(JSON.stringify({ level: "error", function: "health", correlation_id: cid, message: e instanceof Error ? e.message : String(e) }));
+    return fail(req, cid, "DB_UNAVAILABLE", 503);
   }
 });

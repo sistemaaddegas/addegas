@@ -404,6 +404,7 @@ function EnviarPedido({ storeId, fornecedores, sugestao, custo, onClose, onDone 
     if (!itens.length) throw new Error('Escolha ao menos um produto')
     // Abre a aba antes do await: depois dele o navegador bloqueia o pop-up.
     const aba = f?.phone ? window.open('', '_blank') : null
+    if (aba) aba.opener = null // a página aberta não alcança o app (tabnabbing)
     try {
       await rpc('save_purchase_order', { p_store_id: storeId, p_supplier_id: forn || null, p_status: 'sent',
         p_items: itens.map((g) => ({ product_id: g.product_id, quantity: q[g.product_id], unit_cost_estimate: custo.get(g.product_id) ?? null })) })

@@ -9,7 +9,7 @@ export const MENSAGENS: Record<string, string> = {
   AUTH_ERROR: 'Não foi possível concluir o acesso. Tente de novo.',
   LOGIN_INVALID: 'E-mail, usuário ou senha incorretos.',
   LOGIN_NEEDS_STORE: 'Digite o usuário com a loja, por exemplo diego@adega-esquina.',
-  PASSWORD_WEAK: 'A senha precisa ter pelo menos 8 caracteres.',
+  PASSWORD_WEAK: 'A senha precisa ter pelo menos 8 caracteres, com letras e números.',
   PASSWORD_MISMATCH: 'As duas senhas não são iguais.',
   PASSWORD_SAME: 'Escolha uma senha diferente da provisória.',
   FORBIDDEN: 'Você não tem permissão para fazer isso.',
@@ -51,6 +51,11 @@ export const MENSAGENS: Record<string, string> = {
   TERMINAL_NAME: 'Dê um nome ao aparelho (ex.: Balcão 1).',
   TERMINAL_NOT_FOUND: 'Aparelho não encontrado.',
   PAIRING_CODE_INVALID: 'Código de registro inválido ou vencido. Gere outro no celular do dono ou do gerente.',
+  PAIRING_LOCKED: 'Muitos códigos errados para esta loja. Espere 10 minutos e gere um código novo no celular do dono ou do gerente.',
+  MEMBER_EMAIL_RESERVED: 'Esse e-mail não pode ser usado para a equipe da loja.',
+  TEMPLATE_KIND_LOCKED: 'Modelo promocional não pode virar mensagem de serviço.',
+  REFUND_IN_STRIPE: 'Pagamento feito pelo Stripe é estornado no Stripe; o estorno aparece aqui sozinho.',
+  EXTRA_STORES_IN_USE: 'Há lojas adicionais em uso. Arquive uma loja antes de reduzir a quantidade.',
 
   // Produtos, estoque, combos
   PRODUCT_NAME: 'Informe o nome do produto.',
