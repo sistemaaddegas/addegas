@@ -88,11 +88,12 @@ Suspender bloqueia só as permissões marcadas como bloqueáveis (D11): a adega 
 
 ## Segurança antes da primeira versão (auditoria de 17/11/2026)
 O código já está corrigido (migration `20261117120000_seguranca_pre_lancamento.sql`, Edge Functions, `vercel.json` e `vercel.ts`; teste `018_seguranca.test.sql`). Falta o que depende de acesso ao painel ou de decisão:
-1. **Nuvem `addegas`:** aplicar as migrations (`npx supabase db push --linked`: as três de segurança, 20261117120000, 20261117130000 e 20261117140000, sobem juntas) e publicar todas as funções (`npx supabase functions deploy --use-api`; quase todas mudaram na auditoria). Até lá, a nuvem continua com as falhas corrigidas aqui.
+1. ✅ **Nuvem `addegas` (23/11/2026):** as três migrations de segurança (20261117120000, 20261117130000 e 20261117140000) foram aplicadas e as 11 funções publicadas; `/functions/v1/health` responde `ok`.
+1b. **Data API da nuvem** (Project Settings → Data API): a nuvem expunha só `public` e `graphql_public`, e o app chama tudo no schema `app` (`Invalid schema: app`). Deixar igual ao `config.toml`: Exposed schemas `app` e `graphql_public` (tirar `public`), Extra search path `public, extensions` e Max rows `1000`. Sem isso o app publicado não fala com o banco.
 2. **Auth da nuvem** (Authentication → Sign In / Providers e Bot protection): senha mínima 8 com `letters_digits`, "Secure password change" ligado e captcha Turnstile no cadastro, login e recuperação. Hoje a nuvem aceita senha de 6 caracteres e não tem captcha.
 3. **Turnstile:** criar a chave e gravar `TURNSTILE_SECRET` nos segredos das funções. Sem ela, o `/api/leads` recusa todo formulário em produção, o que é seguro mas derruba a landing.
 4. **CSP do app:** está em report-only (`CSP_ENFORCE` diferente de `true`). Passados 7 dias sem violação inesperada em `/api/logs` (código `CSP_VIOLATION`), definir `CSP_ENFORCE=true` na Vercel. Até lá, a CSP não bloqueia nada.
-5. **`pg_net`:** se o advisor do Supabase continuar acusando execução por `anon`/`authenticated` depois do push (nessa nuvem o dono das funções é o `supabase_admin`), abrir chamado no suporte ou aceitar o risco: hoje nenhuma rota da API chega nelas.
+5. **`pg_net`:** depois do push (23/11), `anon` e `authenticated` ainda têm `execute` em `net.http_post`, porque nessa nuvem o dono das funções é o `supabase_admin`. O schema `net` não é exposto (`PGRST106`), então nenhuma rota da API chega nelas. O único aviso do advisor é `pg_net` no schema `public`, que é o padrão do Supabase. Risco aceito, a não ser que alguém exponha o `net` na Data API.
 6. **Decisões conscientes que ficam registradas:** caixa sem PIN (quem está no aparelho entra como qualquer operador, inclusive o dono; ver `planejamento/duvidas.md`); `/admin` do site estático é uma demonstração com dados fictícios e acesso público.
 
 ## Contatos
