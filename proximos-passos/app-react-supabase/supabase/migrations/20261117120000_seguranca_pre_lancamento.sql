@@ -30,18 +30,21 @@ declare
   v_hits int;
   v_window interval := make_interval(secs => p_window_seconds);
 begin
+  -- Passou do limite (p_max + 1, o que o rate_peek enxerga): não grava mais nada até a janela virar, para a
+  -- enxurrada que o limite barra não virar uma escrita por pedido. Sem linha de volta = fora do limite.
   insert into private.rate_limits as r (key, window_start, hits) values (p_key, now(), 1)
   on conflict (key) do update set
     window_start = case when r.window_start < now() - v_window then now() else r.window_start end,
     hits = case when r.window_start < now() - v_window then 1 else r.hits + 1 end
+  where r.hits <= p_max or r.window_start < now() - v_window
   returning hits into v_hits;
-  -- Limpeza de chaves velhas de vez em quando (a tabela fica pequena sem precisar de rotina).
-  if random() < 0.01 then
-    delete from private.rate_limits where window_start < now() - interval '2 days';
-  end if;
-  return v_hits <= p_max;
+  return coalesce(v_hits <= p_max, false);
 end;
 $$;
+
+-- Chaves velhas saem uma vez por dia, fora do caminho dos pedidos.
+select cron.schedule('addegas-limpa-limites', '45 5 * * *',
+  $$delete from private.rate_limits where window_start < now() - interval '2 days'$$);
 
 -- Quantas ocorrências a chave tem na janela, sem contar uma nova.
 create or replace function private.rate_peek(p_key text, p_window_seconds int)
@@ -316,7 +319,8 @@ begin
   if p_counted is null or p_counted < 0 then
     return private.err('STOCK_ITEM_INVALID');
   end if;
-  if not private.store_owns_items(v_store, jsonb_build_array(jsonb_build_object('product_id', p_product_id))) or p_product_id is null then
+  if p_product_id is null or not exists (select 1 from app.products p join app.stores s on s.account_id = p.account_id
+                                         where s.id = v_store and p.id = p_product_id) then
     return private.err('PRODUCT_NOT_FOUND');
   end if;
   insert into app.stock_count_items (count_id, store_id, product_id, counted_qty, system_qty_at_count)
@@ -329,7 +333,8 @@ end;
 $$;
 
 -- ===== 7. Logs do front (/api/logs) =====
--- p_user vem do token já conferido pela Edge Function. Loja só fica no registro se a pessoa (ou o aparelho) for dela.
+-- p_user vem do token já conferido pela Edge Function (que também o põe no auth.uid() desta chamada, gravado pelo
+-- private.log). Loja só fica no registro se a pessoa (ou o aparelho) for dela.
 create or replace function private.log_from_front(p_user uuid, p_source text, p_level text, p_message text, p_code text,
   p_context jsonb, p_store_id uuid)
 returns boolean
@@ -349,11 +354,9 @@ begin
        or exists (select 1 from app.terminals t where t.store_id = p_store_id and t.auth_user_id = p_user and t.active)) then
     v_store := p_store_id;
   end if;
-  insert into audit.system_logs (source, level, code, message, correlation_id, store_id, user_id, context)
-  values (case when p_source = 'security' then 'security' else 'front' end,
+  perform private.log(case when p_source = 'security' then 'security' else 'front' end,
     case when p_level in ('debug', 'info', 'warn', 'error') then p_level else 'error' end,
-    left(p_code, 80), left(private.mask_email(coalesce(p_message, 'sem mensagem')), 2000),
-    private.correlation_id(), v_store, p_user, coalesce(private.redact(p_context), '{}'::jsonb));
+    coalesce(p_message, 'sem mensagem'), left(p_code, 80), p_context, v_store);
   return true;
 end;
 $$;
@@ -374,27 +377,14 @@ begin
 end;
 $$;
 
--- ===== Permissões das funções novas e das trocadas =====
-do $$
-declare f record;
-begin
-  for f in
-    select p.oid::regprocedure::text sig from pg_proc p join pg_namespace n on n.oid = p.pronamespace
-    where n.nspname = 'private' and p.proname in ('rate_hit', 'rate_peek', 'random_code6', 'redeem_pairing_code',
-      'store_owns_items', 'log_from_front', 'log_throttled')
-  loop
-    execute format('revoke execute on function %s from public, anon, authenticated', f.sig);
-    execute format('grant execute on function %s to service_role', f.sig);
-  end loop;
-  for f in
-    select p.oid::regprocedure::text sig from pg_proc p join pg_namespace n on n.oid = p.pronamespace
-    where n.nspname = 'app' and p.proname in ('create_pairing_code', 'add_alert_recipient', 'verify_alert_recipient',
-      'can_create_member', 'set_quick_access', 'save_purchase_order', 'save_count_item')
-  loop
-    execute format('revoke execute on function %s from public, anon', f.sig);
-    execute format('grant execute on function %s to authenticated, service_role', f.sig);
-  end loop;
-end $$;
+-- ===== Permissões das funções novas =====
+-- As trocadas (create or replace com a mesma assinatura) mantêm as permissões que já tinham.
+revoke execute on function private.rate_hit(text, int, int), private.rate_peek(text, int), private.random_code6(),
+  private.store_owns_items(uuid, jsonb), private.log_from_front(uuid, text, text, text, text, jsonb, uuid),
+  private.log_throttled(text, int, int, text, text) from public, anon, authenticated;
+grant execute on function private.rate_hit(text, int, int), private.rate_peek(text, int), private.random_code6(),
+  private.store_owns_items(uuid, jsonb), private.log_from_front(uuid, text, text, text, text, jsonb, uuid),
+  private.log_throttled(text, int, int, text, text) to service_role;
 
 -- ===== 8. Defesa em profundidade =====
 -- Nenhum caminho da API chega nessas funções hoje (só o schema app é exposto e o GraphQL está desligado), mas, se um

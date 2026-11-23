@@ -1,5 +1,6 @@
 // E04 · GET /api/health: versão, ambiente e horário do banco, com o ID de correlação de volta.
 import { correlationId, ok, preflight, fail } from "../_shared/http.ts";
+import { log } from "../_shared/log.ts";
 import { priv } from "../_shared/supabase.ts";
 
 Deno.serve(async (req) => {
@@ -17,7 +18,7 @@ Deno.serve(async (req) => {
     });
   } catch (e) {
     // A mensagem do driver (host, usuário, motivo) fica só no log da função; a rota é pública.
-    console.error(JSON.stringify({ level: "error", function: "health", correlation_id: cid, message: e instanceof Error ? e.message : String(e) }));
+    log("error", "health", cid, e instanceof Error ? e.message : String(e));
     return fail(req, cid, "DB_UNAVAILABLE", 503);
   }
 });

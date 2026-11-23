@@ -61,9 +61,9 @@ begin
     case when v_when > now() + interval '1 minute' then null else now() end, v_when)
   returning id into v_c;
   foreach v_ch in array p_channels loop
-    if not exists (select 1 from platform.message_templates where code = p_template and channel = v_ch) then continue; end if;
     -- O tipo vale por canal (a fila confere o consentimento do promocional).
     select * into v_t from platform.message_templates where code = p_template and channel = v_ch;
+    if not found then continue; end if;
     for v_acc in
       select a.id, a.name, u.email, coalesce(nullif(pr.full_name, ''), a.name) resp,
         coalesce(nullif(pr.phone, ''), (select whatsapp from app.stores where account_id = a.id order by created_at limit 1)) phone,
@@ -91,49 +91,8 @@ begin
 end;
 $$;
 
--- Campanha promocional (rota messages/campaign-send, que só exige messages.send): também só com marketing.
-create or replace function private.campaign_send(p_staff uuid, p_role text, p_campaign_id uuid)
-returns jsonb
-language plpgsql
-security definer
-set search_path = ''
-as $$
-declare
-  v_c platform.campaigns;
-  v_queued int := 0;
-  v_skipped int := 0;
-  v_acc record;
-begin
-  if not private.staff_role_can(p_role, 'marketing.write') then
-    perform private.audit_admin(p_staff, p_role, 'marketing.write', p_outcome => 'denied', p_reason => 'FORBIDDEN_ACTION');
-    return private.err('FORBIDDEN_ACTION');
-  end if;
-  select * into v_c from platform.campaigns where id = p_campaign_id for update;
-  if not found or v_c.status <> 'draft' then return private.err('CAMPAIGN_NOT_DRAFT'); end if;
-  if (select kind from platform.message_templates where code = v_c.template_code and channel = v_c.channel) <> 'promotional' then
-    return private.err('CAMPAIGN_TEMPLATE_NOT_PROMOTIONAL');
-  end if;
-  for v_acc in
-    select a.id, a.name, u.email, coalesce(pr.phone, (select whatsapp from app.stores where account_id = a.id order by created_at limit 1)) phone
-    from app.accounts a join auth.users u on u.id = a.owner_user_id left join app.profiles pr on pr.id = a.owner_user_id
-    join platform.subscriptions s on s.account_id = a.id
-    where (v_c.audience ->> 'status' is null or s.status::text = v_c.audience ->> 'status')
-  loop
-    if private.has_consent(v_acc.id, v_c.channel) then
-      perform private.enqueue_message(v_c.channel, 'promotional', case v_c.channel when 'email' then v_acc.email else v_acc.phone end,
-        v_c.template_code, jsonb_build_object('nome_adega', v_acc.name), 'campaign:' || v_c.id || ':' || v_acc.id, v_acc.id);
-      v_queued := v_queued + 1;
-    else
-      v_skipped := v_skipped + 1;
-    end if;
-  end loop;
-  update platform.campaigns set status = 'sent', sent_at = now(),
-    result = jsonb_build_object('queued', v_queued, 'skipped_no_consent', v_skipped) where id = p_campaign_id;
-  perform private.audit_admin(p_staff, p_role, 'messages.send', null, 'campaign', p_campaign_id::text, null,
-    jsonb_build_object('queued', v_queued, 'skipped_no_consent', v_skipped));
-  return private.ok(jsonb_build_object('queued', v_queued, 'skipped_no_consent', v_skipped));
-end;
-$$;
+-- Campanha promocional (private.campaign_send): toda campanha é promocional, então a regra é fixa e fica no
+-- catálogo de rotas da admin-api (messages/campaign-send exige marketing.write), conferida pelo staff_check.
 
 -- ===== E2 =====
 create or replace function private.admin_template_save(p_staff uuid, p_role text, p_code text, p_name text, p_kind text, p_body text)
@@ -152,7 +111,7 @@ begin
   if v_promo is null then return private.err('TEMPLATE_NOT_FOUND'); end if;
   -- Promocional nunca vira serviço (pularia o consentimento); tornar ou editar promocional é de marketing.
   if v_promo and p_kind <> 'promotional' then return private.err('TEMPLATE_KIND_LOCKED'); end if;
-  if (v_promo or p_kind = 'promotional') and not private.staff_role_can(p_role, 'marketing.write') then
+  if p_kind = 'promotional' and not private.staff_role_can(p_role, 'marketing.write') then
     perform private.audit_admin(p_staff, p_role, 'marketing.write', p_outcome => 'denied', p_reason => 'FORBIDDEN_ACTION');
     return private.err('FORBIDDEN_ACTION');
   end if;
@@ -199,8 +158,9 @@ end;
 $$;
 
 -- ===== R1 =====
--- Quantas lojas adicionais estão em uso (lojas ativas além das incluídas no plano). A rota billing/extra-stores
--- não aceita quantidade menor: para reduzir, a adega arquiva a loja antes.
+-- Quantas lojas adicionais estão em uso: lojas ativas além das incluídas no plano (stores_allowed sem as
+-- adicionais contratadas). A rota billing/extra-stores não aceita quantidade menor: para reduzir, a adega
+-- arquiva a loja antes.
 create or replace function private.billing_extra_stores_in_use(p_account_id uuid)
 returns int
 language sql
@@ -210,9 +170,8 @@ set search_path = ''
 as $$
   select greatest(0,
     (select count(*)::int from app.stores where account_id = p_account_id and archived_at is null)
-    - coalesce((select coalesce(f.limit_value, 1000000) from platform.subscriptions s
-                join platform.plan_features f on f.plan_id = s.plan_id and f.feature_code = 'stores_included'
-                where s.account_id = p_account_id), 1));
+    - (private.stores_allowed(p_account_id)
+       - coalesce((select extra_stores from platform.subscriptions where account_id = p_account_id), 0)));
 $$;
 revoke execute on function private.billing_extra_stores_in_use(uuid) from public, anon, authenticated;
 grant execute on function private.billing_extra_stores_in_use(uuid) to service_role;

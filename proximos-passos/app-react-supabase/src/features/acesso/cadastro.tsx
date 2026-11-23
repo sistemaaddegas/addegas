@@ -4,6 +4,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { supabase, rpc } from '@/lib/supabase'
 import { useAuth } from '@/lib/auth'
 import { mensagem } from '@/lib/erros'
+import { senhaForte } from '@/lib/senha'
 import { useToast } from '@/components/toast'
 import { chip, chipCls } from '@/lib/visual'
 import { AuthLayout, Field, btnPrimary, btnText } from './layout'
@@ -31,7 +32,7 @@ function Conta() {
     e.preventDefault()
     if (!f.nome.trim()) return toast('Informe seu nome')
     if (!EMAIL.test(f.email.trim())) return toast('Informe um e-mail válido')
-    if (f.senha.length < 8 || !/\d/.test(f.senha) || !/[a-z]/i.test(f.senha)) return toast('A senha precisa de 8 caracteres, com letras e números')
+    if (!senhaForte(f.senha)) return toast('A senha precisa de 8 caracteres, com letras e números')
     setBusy(true)
     const { error } = await supabase.auth.signUp({
       email: f.email.trim().toLowerCase(), password: f.senha,

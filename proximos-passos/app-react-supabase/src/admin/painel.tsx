@@ -10,6 +10,7 @@ import { telasC } from './telas-c'
 import { modais } from './modais'
 import { Desenho } from './desenho'
 import { POR_PADRAO, POR_PAGINA, numerosPagina } from '@/lib/paginas'
+import { senhaForte } from '@/lib/senha'
 
 const MSG0 = { tpl: 'cobranca_proxima', canal: 'WhatsApp', aud: 'filtro', adega: '', plano: 'todos', assin: 'todas', venc: 'todos', regiao: 'todas', teste: 'todos', ativ: 'todos', seg: '', quando: 'agora', data: '' }
 const VAZIO = { adegas: [], plans: [], invoices: [], refunds: [], disputes: [], discounts: [], audit: [], queue: [], tpls: [], sends: [], tickets: null, groups: [], etapas: [], leads: [], catalog: [], suggestions: [], logs: [], team: [], staffNames: [], funnels: [], stock: {}, kits: {}, gifts: [], mkt: [], camps: [], feat: [], alerts: [], roles: [], actionNames: {} }
@@ -78,7 +79,7 @@ export class Painel extends Component {
     this.setState({ auth: 'sent', authErr: '' })
   }
   async novaSenha() {
-    const s = this.state; if (s.pass.length < 10 || !/\d/.test(s.pass) || !/[a-z]/i.test(s.pass)) return this.setState({ authErr: 'Use ao menos 10 caracteres, com letras e números.' }); if (s.pass !== s.pass2) return this.setState({ authErr: 'As senhas não conferem.' })
+    const s = this.state; if (!senhaForte(s.pass, 10)) return this.setState({ authErr: 'Use ao menos 10 caracteres, com letras e números.' }); if (s.pass !== s.pass2) return this.setState({ authErr: 'As senhas não conferem.' })
     const { error } = await adminAuth.updateUser({ password: s.pass }); if (error) return this.setState({ authErr: 'Não foi possível trocar a senha. Peça um novo link.' })
     history.replaceState(null, '', location.pathname); this.setState({ pass: '', pass2: '' }); this.toastMsg('Senha trocada.'); this.entrarComSessao()
   }

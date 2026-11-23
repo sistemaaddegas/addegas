@@ -1,4 +1,5 @@
 // Stripe por fetch (E34): chamadas da API e verificação de assinatura do webhook com WebCrypto.
+import { safeEqual } from "./http.ts";
 
 const API = "https://api.stripe.com/v1";
 /**
@@ -52,12 +53,5 @@ export async function verifyStripeSignature(rawBody: string, header: string | nu
   const key = await crypto.subtle.importKey("raw", new TextEncoder().encode(secret), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
   const mac = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(`${t}.${rawBody}`));
   const expected = [...new Uint8Array(mac)].map((b) => b.toString(16).padStart(2, "0")).join("");
-  return signatures.some((s) => timingSafeEqual(s, expected));
-}
-
-function timingSafeEqual(a: string, b: string): boolean {
-  if (a.length !== b.length) return false;
-  let diff = 0;
-  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
-  return diff === 0;
+  return signatures.some((s) => safeEqual(s, expected));
 }

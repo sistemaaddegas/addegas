@@ -88,12 +88,14 @@ Deno.serve(async (req) => {
     if (route === "extra-stores") {
       const quantity = Number(body.quantity);
       if (!Number.isInteger(quantity) || quantity < 0 || quantity > 50) return fail(req, cid, "QUANTITY_INVALID");
+      if (!ctx.stripe_subscription_id || !ctx.extra_store_price_id) return fail(req, cid, "SUBSCRIPTION_REQUIRED", 409);
       // O limite de lojas só é conferido ao criar a loja: sem esta trava, o dono contratava extras, criava as lojas,
       // baixava a quantidade para 0 (crédito proporcional no Stripe) e seguia usando todas de graça.
-      const emUso = await priv<number>("billing_extra_stores_in_use", { p_account_id: acc.id }, { cid });
+      const [emUso, sub] = await Promise.all([
+        priv<number>("billing_extra_stores_in_use", { p_account_id: acc.id }, { cid }),
+        stripe<{ items: { data: { id: string; price: { id: string } }[] } }>("GET", `/subscriptions/${ctx.stripe_subscription_id}`),
+      ]);
       if (quantity < emUso) return fail(req, cid, "EXTRA_STORES_IN_USE", 409, `${emUso} lojas adicionais em uso: arquive uma loja antes de reduzir.`);
-      if (!ctx.stripe_subscription_id || !ctx.extra_store_price_id) return fail(req, cid, "SUBSCRIPTION_REQUIRED", 409);
-      const sub = await stripe<{ items: { data: { id: string; price: { id: string } }[] } }>("GET", `/subscriptions/${ctx.stripe_subscription_id}`);
       const item = sub.items.data.find((i) => i.price.id === ctx.extra_store_price_id);
       // Cobrança proporcional imediata; a loja só é liberada quando o invoice.paid chegar (E08).
       await stripe("POST", `/subscriptions/${ctx.stripe_subscription_id}`, {

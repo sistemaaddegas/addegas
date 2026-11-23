@@ -24,10 +24,9 @@ select ok((private.admin_send(pg_temp.id('lia'), 'support', 'payment_confirmed',
   'suporte segue enviando modelo de serviço');
 select is((select count(*) from platform.outbox where template_code = 'novidades' and account_id = pg_temp.id('conta')), 0::bigint,
   'promocional para quem não deu consentimento não entra na fila');
-insert into platform.campaigns (name, channel, template_code, audience, status, created_by)
-  values ('Teste', 'email', 'novidades', '{}', 'draft', pg_temp.id('lia')) returning id \gset camp_
-select is(private.campaign_send(pg_temp.id('lia'), 'support', :'camp_id') -> 'error' ->> 'code', 'FORBIDDEN_ACTION',
-  'suporte não dispara campanha promocional pela rota de campanha');
+-- Campanha (messages/campaign-send) exige marketing.write no catálogo de rotas da admin-api.
+select ok(not private.staff_role_can('support', 'marketing.write') and not private.staff_role_can('finance', 'marketing.write')
+  and private.staff_role_can('commercial', 'marketing.write'), 'só comercial e mestre têm a ação da rota de campanha');
 
 -- ===== E2: promocional não vira serviço =====
 select is(private.admin_template_save(pg_temp.id('lia'), 'support', 'novidades', 'Novidades', 'service', 'Novidades do Addegas para {nome_adega}') -> 'error' ->> 'code',

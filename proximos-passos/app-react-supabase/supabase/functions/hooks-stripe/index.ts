@@ -1,7 +1,7 @@
 // E34/E42 · POST /api/hooks/stripe: confere a assinatura, grava o evento bruto e responde 200 rápido.
 // O processamento é feito pela função cron (rota webhooks), com retentativa e sem duplicar.
 import { correlationId, fail, json } from "../_shared/http.ts";
-import { log, logError } from "../_shared/log.ts";
+import { log, logError, rateLimited } from "../_shared/log.ts";
 import { priv } from "../_shared/supabase.ts";
 import { verifyStripeSignature } from "../_shared/stripe.ts";
 
@@ -12,10 +12,13 @@ Deno.serve(async (req) => {
   const secret = Deno.env.get("STRIPE_WEBHOOK_SECRET");
   if (!secret || !(await verifyStripeSignature(raw, req.headers.get("stripe-signature"), secret))) {
     // Rejeitado: registra só o fato, sem o payload. A rota é pública: no banco entram no máximo 30 por minuto,
-    // para ninguém encher o monitoramento (e o disco) mandando lixo.
+    // para ninguém encher o monitoramento (e o disco) mandando lixo. O filtro em memória vem antes, para a enxurrada
+    // de lixo nem chegar ao banco.
     log("error", "hooks-stripe", cid, "assinatura do Stripe inválida", { code: "WEBHOOK_SIGNATURE_INVALID" });
-    await priv("log_throttled", { p_key: "stripe_bad_signature", p_max: 30, p_window_seconds: 60,
-      p_message: "hooks-stripe: assinatura do Stripe inválida", p_code: "WEBHOOK_SIGNATURE_INVALID" }, { cid }).catch(() => null);
+    if (!rateLimited("stripe_bad_signature", 30, 60_000)) {
+      await priv("log_throttled", { p_key: "stripe_bad_signature", p_max: 30, p_window_seconds: 60,
+        p_message: "hooks-stripe: assinatura do Stripe inválida", p_code: "WEBHOOK_SIGNATURE_INVALID" }, { cid }).catch(() => null);
+    }
     return fail(req, cid, "WEBHOOK_SIGNATURE_INVALID", 400);
   }
   try {

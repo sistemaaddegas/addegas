@@ -65,6 +65,10 @@ export function clientIp(req: Request): string | null {
   return req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? null;
 }
 
+export const UUID_PATTERN = "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}";
+const UUID_RE = new RegExp(`^${UUID_PATTERN}$`, "i");
+export const isUuid = (v: unknown): v is string => typeof v === "string" && UUID_RE.test(v);
+
 // Comparação de segredo em tempo constante (cron, webhooks): não vaza pelo tempo de resposta quantos caracteres batem.
 export function safeEqual(a: string | null | undefined, b: string | null | undefined): boolean {
   if (!a || !b) return false;

@@ -75,11 +75,9 @@ const ROUTES: Record<string, { action: string; run: Handler }> = {
     priv("admin_staff_update", { ...s(st), p_user_id: b.user_id, p_staff_role: b.role, p_active: b.active ?? null, p_reason: b.reason }, c) },
   "messages/template": { action: "messages.send", run: (b, st, c) =>
     priv("admin_template_save", { ...s(st), p_code: b.code, p_name: b.name, p_kind: b.kind, p_body: b.body }, c) },
-  "messages/send": { action: "messages.send", run: async (b, st, c) => {
-    // Campanha promocional exige também a ação de marketing (perfil comercial ou mestre).
-    if (b.promotional && !st.actions.includes("marketing.write")) return { ok: false, error: { code: "FORBIDDEN_ACTION" } };
-    return priv("admin_send", { ...s(st), p_template: b.template, p_channels: b.channels ?? [], p_accounts: b.accounts ?? [], p_when: b.when ?? null }, c);
-  } },
+  // Modelo promocional exige também marketing.write: o banco confere pelo tipo do modelo (private.admin_send).
+  "messages/send": { action: "messages.send", run: (b, st, c) =>
+    priv("admin_send", { ...s(st), p_template: b.template, p_channels: b.channels ?? [], p_accounts: b.accounts ?? [], p_when: b.when ?? null }, c) },
   "messages/cancel": { action: "messages.send", run: (b, st, c) => priv("admin_send_cancel", { ...s(st), p_campaign_id: b.campaign_id }, c) },
   "messages/retry": { action: "messages.send", run: (b, st, c) => priv("admin_send_retry", { ...s(st), p_campaign_id: b.campaign_id }, c) },
   "marketing/spend": { action: "marketing.write", run: (b, st, c) =>
@@ -90,7 +88,8 @@ const ROUTES: Record<string, { action: string; run: Handler }> = {
     priv("admin_gift_action", { ...s(st), p_action: b.action, p: b.data ?? {} }, c) },
   "export/log": { action: "export", run: (b, st, c) => priv("admin_log_export", { ...s(st), p_name: b.name, p_rows: b.rows ?? 0 }, c) },
   "crm/lead": { action: "crm.write", run: (b, st, c) => priv("admin_lead_update", { ...s(st), p_lead_id: b.lead_id, p: b.changes }, c) },
-  "messages/campaign-send": { action: "messages.send", run: (b, st, c) =>
+  // Toda campanha é promocional: só perfil com marketing (comercial ou mestre).
+  "messages/campaign-send": { action: "marketing.write", run: (b, st, c) =>
     priv("campaign_send", { ...s(st), p_campaign_id: b.campaign_id }, c) },
   "usage/funnel": { action: "usage.read", run: (b, _s, c) =>
     priv("funnel_report", { p_code: b.code ?? "onboarding", p_from: b.from, p_to: b.to }, c) },

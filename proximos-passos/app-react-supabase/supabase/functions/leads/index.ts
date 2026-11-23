@@ -20,6 +20,8 @@ Deno.serve(async (req) => {
   const cid = correlationId(req);
   if (req.method !== "POST") return fail(req, cid, "METHOD_NOT_ALLOWED", 405);
   const ip = clientIp(req);
+  // Extra em memória (por instância, por um IP que o cliente pode forjar); o limite que vale é o do banco
+  // (private.lead_from_landing: por telefone e no total).
   if (rateLimited(`leads:${ip}`, 5, 600_000)) return fail(req, cid, "RATE_LIMITED", 429);
   const body = await readJson<Record<string, unknown>>(req, 8_000);
   if (!body) return fail(req, cid, "PAYLOAD_INVALID");
@@ -29,7 +31,7 @@ Deno.serve(async (req) => {
       p: { name: body.name, store_name: body.store_name, phone: body.phone, email: body.email, neighborhood: body.neighborhood,
            city: body.city, utm: body.utm ?? {} },
     }, { cid, ip });
-    return res.ok ? ok(req, cid) : fail(req, cid, res.error!.code);
+    return res.ok ? ok(req, cid) : fail(req, cid, res.error!.code, res.error!.code === "RATE_LIMITED" ? 429 : 400);
   } catch (e) {
     await logError("leads", cid, e);
     return fail(req, cid, "INTERNAL", 500);

@@ -1,16 +1,20 @@
 // E15 · Upload com caminho decidido pelo servidor (§6) e conferência do tipo real depois do envio.
 //   POST /api/uploads/sign      {purpose, store_id?, account_id?, ticket_id?, mime, size}  → {path, signed_url, token}
 //   POST /api/uploads/finalize  {bucket, path, original_name?}                            → confere os primeiros bytes
-import { correlationId, fail, ok, preflight, readJson, subpath } from "../_shared/http.ts";
+import { correlationId, fail, isUuid, ok, preflight, readJson, subpath, UUID_PATTERN } from "../_shared/http.ts";
 import { logError } from "../_shared/log.ts";
 import { caller, priv, serviceClient, userClient } from "../_shared/supabase.ts";
 
-const PURPOSES: Record<string, { bucket: string; perm: string | null; maxMb: number; mimes: string[]; scope: "store" | "account" }> = {
-  product_image: { bucket: "store-public", perm: "precos", maxMb: 2, mimes: ["image/webp", "image/jpeg", "image/png"], scope: "store" },
-  store_logo: { bucket: "store-public", perm: "ajustes", maxMb: 2, mimes: ["image/webp", "image/jpeg", "image/png"], scope: "store" },
-  drink_image: { bucket: "store-public", perm: "ferramentas", maxMb: 2, mimes: ["image/webp", "image/jpeg", "image/png"], scope: "store" },
-  import_sheet: { bucket: "imports", perm: "precos", maxMb: 5, mimes: ["text/csv", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"], scope: "store" },
-  ticket_attachment: { bucket: "ticket-attachments", perm: null, maxMb: 10, mimes: ["image/webp", "image/jpeg", "image/png", "application/pdf"], scope: "account" },
+// Caminho de cada finalidade: <dono>/<sub><arquivo>, com <ticket> trocado pelo id do chamado. O /sign monta o
+// caminho a partir do `sub`, e o /finalize só aceita caminho nesse mesmo formato (a regex sai do mesmo `sub`) e
+// devolve o dono (loja ou conta) que está no começo dele, para conferir a permissão de novo.
+const TICKET = "<ticket>";
+const PURPOSES: Record<string, { bucket: string; perm: string | null; maxMb: number; mimes: string[]; scope: "store" | "account"; sub: string }> = {
+  product_image: { bucket: "store-public", perm: "precos", maxMb: 2, mimes: ["image/webp", "image/jpeg", "image/png"], scope: "store", sub: "products/" },
+  store_logo: { bucket: "store-public", perm: "ajustes", maxMb: 2, mimes: ["image/webp", "image/jpeg", "image/png"], scope: "store", sub: "logo-" },
+  drink_image: { bucket: "store-public", perm: "ferramentas", maxMb: 2, mimes: ["image/webp", "image/jpeg", "image/png"], scope: "store", sub: "drinks/" },
+  import_sheet: { bucket: "imports", perm: "precos", maxMb: 5, mimes: ["text/csv", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"], scope: "store", sub: "import/" },
+  ticket_attachment: { bucket: "ticket-attachments", perm: null, maxMb: 10, mimes: ["image/webp", "image/jpeg", "image/png", "application/pdf"], scope: "account", sub: `${TICKET}/` },
 };
 
 const EXT: Record<string, string> = {
@@ -18,19 +22,9 @@ const EXT: Record<string, string> = {
   "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": "xlsx",
 };
 
-const UUID = "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}";
-const isUuid = (v: unknown) => typeof v === "string" && new RegExp(`^${UUID}$`, "i").test(v);
-const FILE = `${UUID}\\.(?:webp|jpg|png|pdf|csv|xlsx)`;
-
-// Caminho de cada finalidade, igual ao que o /sign monta. O /finalize só aceita caminho nesse formato e devolve
-// o dono (loja ou conta) que está no começo dele, para conferir a permissão de novo.
-const PATHS: Record<string, RegExp> = {
-  product_image: new RegExp(`^(${UUID})/products/${FILE}$`, "i"),
-  store_logo: new RegExp(`^(${UUID})/logo-${FILE}$`, "i"),
-  drink_image: new RegExp(`^(${UUID})/drinks/${FILE}$`, "i"),
-  import_sheet: new RegExp(`^(${UUID})/import/${FILE}$`, "i"),
-  ticket_attachment: new RegExp(`^(${UUID})/${UUID}/${FILE}$`, "i"),
-};
+const FILE = `${UUID_PATTERN}\\.(?:${[...new Set(Object.values(EXT))].join("|")})`;
+const PATHS: Record<string, RegExp> = Object.fromEntries(Object.entries(PURPOSES).map(([k, p]) =>
+  [k, new RegExp(`^(${UUID_PATTERN})/${p.sub.replace(TICKET, UUID_PATTERN)}${FILE}$`, "i")]));
 
 /** Quem pede tem a permissão da finalidade na loja (ou é da conta, no anexo de chamado)? */
 async function allowed(req: Request, cid: string, p: (typeof PURPOSES)[string], owner: string): Promise<boolean> {
@@ -74,13 +68,10 @@ Deno.serve(async (req) => {
       }
       const owner = p.scope === "store" ? body.store_id : body.account_id;
       // Só UUID entra no caminho: nada de "/" ou ".." vindo do corpo.
-      if (!isUuid(owner) || (body.purpose === "ticket_attachment" && !isUuid(body.ticket_id))) return fail(req, cid, "UPLOAD_INVALID");
+      if (!isUuid(owner) || (p.sub.includes(TICKET) && !isUuid(body.ticket_id))) return fail(req, cid, "UPLOAD_INVALID");
       // Permissão conferida com o token de quem pede.
       if (!(await allowed(req, cid, p, owner))) return fail(req, cid, "FORBIDDEN", 403);
-      const name = `${crypto.randomUUID()}.${EXT[body.mime]}`;
-      const path = body.purpose === "ticket_attachment" ? `${owner}/${body.ticket_id}/${name}`
-        : body.purpose === "store_logo" ? `${owner}/logo-${name}`
-        : `${owner}/${body.purpose.replace("_image", "s").replace("_sheet", "")}/${name}`;
+      const path = `${owner}/${p.sub.replace(TICKET, body.ticket_id)}${crypto.randomUUID()}.${EXT[body.mime]}`;
       const signed = await admin.storage.from(p.bucket).createSignedUploadUrl(path);
       if (signed.error) throw signed.error;
       // Local: a URL sai com o host interno do Docker; PUBLIC_API_URL troca pelo endereço que o navegador alcança.
