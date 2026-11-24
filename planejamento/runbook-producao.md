@@ -82,6 +82,15 @@ Suspender bloqueia só as permissões marcadas como bloqueáveis (D11): a adega 
 | _(primeiro teste antes do piloto)_ | | | |
 
 ## Publicar uma versão
+**No ar desde 24/11/2026** (time `addegas-projects` na Vercel, Stripe em modo teste, sem captcha):
+| Site | Projeto Vercel | Endereço |
+| --- | --- | --- |
+| App da adega | `addegas-app` (`APP_KIND=app`) | https://addegas-app.vercel.app |
+| Painel Addegas | `addegas-admin` (`APP_KIND=admin`) | https://addegas-admin.vercel.app |
+
+- Os dois projetos usam o mesmo repositório, com Root Directory `proximos-passos/app-react-supabase`, Vite, e a produção sai da `main`. Variáveis: `APP_KIND`, `SUPABASE_FUNCTIONS_URL`, `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `VITE_STRIPE_PUBLISHABLE_KEY` (`pk_test`), `VITE_ADMIN_URL`, `VITE_APP_VERSION`.
+- O `.vercelignore` da pasta do app vale no lugar do da raiz (que esconde `proximos-passos/` do site estático `addegasapp`). Sem ele, o build falha com `Could not read package.json`.
+- `app.` e `admin.addegas.com.br` já estão nos projetos, mas o DNS ainda não aponta. Quando apontar (CNAME no Registro.br com o valor que a Vercel mostra em Domains), trocar no Supabase os segredos `APP_URL` e `ADMIN_URL` e a Site URL do Auth, e o `VITE_ADMIN_URL` na Vercel. `ALLOWED_ORIGINS` e os redirects do Auth já aceitam os dois endereços.
 - Banco e funções: push na `main` sobe no `addegas-dev`; tag `v*` sobe no `addegas-prd` com aprovação manual (`.github/workflows/banco.yml`).
 - Front: a Vercel publica sozinha. A atualização do PWA não derruba o caixa: o app espera o carrinho esvaziar para trocar de versão (E54).
 - Voltar uma versão do front: Vercel → Deployments → Promote na anterior. Migration não se desfaz: corrija com uma nova.
