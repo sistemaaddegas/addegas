@@ -1,0 +1,9 @@
+-- Dados de exemplo (rode depois de criar um usuário e uma loja pelo app)
+-- Substitua :store pelo id da loja.
+-- insert into categories (store_id, name, sort) values
+--   (:store,'Cervejas',1),(:store,'Destilados',2),(:store,'Energéticos',3),(:store,'Sem álcool',4),(:store,'Gelo e carvão',5);
+-- insert into products (store_id, name, barcode, price, cost, stock, min_stock) values
+--   (:store,'Heineken Long Neck 330ml','7896045506873',8.50,5.40,96,48),
+--   (:store,'Brahma Duplo Malte lata 350ml','7891149108718',4.99,3.10,12,48),
+--   (:store,'Tanqueray London Dry 750ml','5000291020706',139.90,98.00,4,3),
+--   (:store,'Gelo em cubo 5kg','2000000000018',14.00,6.00,20,10);

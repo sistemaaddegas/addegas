@@ -1,0 +1,38 @@
+name: Backup diário
+# E02/E51 · No plano gratuito do Supabase não há backup restaurável: este job faz o dump diário de produção,
+# criptografa e guarda como artefato privado por 30 dias. Teste de restauração trimestral (E51/E52).
+# Segredos do environment "production": SUPABASE_DB_URL_PRD (conexão direta, sessão), BACKUP_PASSPHRASE.
+# Os segredos entram só por variável de ambiente: nunca na linha de comando (onde aparecem na lista de processos)
+# nem interpolados no script.
+on:
+  schedule:
+    - cron: '30 6 * * *' # 03:30 em São Paulo
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  dump:
+    runs-on: ubuntu-latest
+    environment: production
+    env:
+      DB_URL: ${{ secrets.SUPABASE_DB_URL_PRD }}
+      BACKUP_PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
+    steps:
+      - uses: supabase/setup-cli@1dedf2c611547ede7232d26866dd3c56ab903bbb # v1.7.3
+        with: { version: 2.122.0 }
+      - name: Dump (schema + dados)
+        run: |
+          set -euo pipefail
+          supabase db dump --db-url "$DB_URL" -f schema.sql
+          supabase db dump --db-url "$DB_URL" --data-only -f data.sql
+          tar czf backup.tgz schema.sql data.sql
+          printf '%s' "$BACKUP_PASSPHRASE" | gpg --batch --yes --pinentry-mode loopback --passphrase-fd 0 -c backup.tgz
+          rm -f schema.sql data.sql backup.tgz
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: backup-${{ github.run_id }}
+          path: backup.tgz.gpg
+          retention-days: 30
+          if-no-files-found: error

@@ -19,15 +19,14 @@ npm run dev
 ```
 
 ## Supabase
+O back-end está sendo construído entrega por entrega (plano em `planejamento/` na raiz do repositório). Fluxo local, com o Docker Desktop aberto:
 ```bash
-npx supabase login
-npx supabase link --project-ref SEU_PROJECT_REF
-npx supabase db push            # aplica supabase/migrations
-npm run db:types                # gera src/types/database.ts
+npm run db:start      # sobe o Supabase local
+npm run db:reset      # aplica as migrations e o seed
+npm run db:test       # testes pgTAP
+npm run db:types      # gera src/types/database.ts
 ```
-- Toda tabela de negócio tem `store_id`. As políticas RLS liberam acesso só para membros da loja (`store_members`); contas a pagar, equipe e permissões só para dono/gerente.
-- Realtime está habilitado em `orders`, `sales` e `cash_sessions` para a tela Início do dono atualizar ao vivo.
-- Baixa de estoque (inclusive itens de combo) e saldo do fiado são feitos por triggers no banco — o front só insere a venda.
+Convenções, endereços locais e o catálogo de erros: [`supabase/README.md`](supabase/README.md). O rascunho antigo do schema está em `supabase/_referencia/`, só para consulta.
 
 ## Git + Vercel
 ```bash

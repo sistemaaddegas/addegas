@@ -15,7 +15,10 @@ Também não faça nada disto:
 - criar `package.json` na raiz (a Vercel passaria a tentar um build);
 - trocar caminhos relativos (`assets/...`, `data/...`, `./support.js`) por absolutos;
 - mudar maiúsculas ou minúsculas em nomes de arquivo (a Vercel roda em Linux, então `Logo.png` ≠ `logo.png`);
-- mexer em `proximos-passos/` (fase 2, fora do deploy) sem pedido.
+- mexer em `proximos-passos/` (fase 2, fora do deploy) sem pedido;
+- tirar `docs` ou `planejamento` do `.vercelignore`. São documentos internos (arquitetura, segurança, minutas jurídicas) e não podem ir para o site. O `verificar-deploy.sh` falha se eles estiverem publicados.
+
+Antes de planejar ou desenvolver o back-end, leia `planejamento/README.md` e `planejamento/duvidas.md`: as decisões já tomadas estão lá.
 
 ## 1. GitHub
 ```bash

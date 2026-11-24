@@ -26,6 +26,10 @@ check "$BASE/data/lucro-no-copo.js" "javascript"
 for f in addegas-icon.png addegas-logo-dark.png addegas-logo-preto.png addegas-logo-preto-dd-branco.png dd-amarelo.png dd-amarelo-vidro.png dd-login-vidro.png dd-pattern-canudo.png apps/99food.png apps/ifood-red.png apps/keeta.png apps/ze-delivery.png; do check "$BASE/assets/$f" "image/png"; done
 for f in favicon-32.png apple-touch-icon.png icon-192.png icon-512.png; do check "$BASE/icons/$f" "image/png"; done
 check "$BASE/manifest.webmanifest" "json"
+for p in "docs/Addegas%20%C2%B7%20Arquitetura%20do%20back-end.md" "planejamento/README.md" "planejamento/duvidas.md" "CLAUDE.md"; do
+  code=$(curl -s -o /dev/null -w "%{http_code}" "$BASE/$p")
+  if [ "$code" = "404" ]; then echo "OK     /$p não está publicado"; else echo "FALHA  /$p está publicado ($code); confira o .vercelignore"; FALHAS=$((FALHAS+1)); fi
+done
 check "https://unpkg.com/react@18.3.1/umd/react.production.min.js" "javascript"
 check "https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js" "javascript"
 check "https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,100..900&display=swap" "text/css"
