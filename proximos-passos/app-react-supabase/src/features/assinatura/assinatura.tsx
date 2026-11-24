@@ -9,6 +9,7 @@ import { Icon } from '@/components/icon'
 import { useToast } from '@/components/toast'
 import { useMyStores } from '@/features/acesso/lojas'
 import { card, chip, chipCls } from '@/lib/visual'
+import { lerOrigem } from '@/lib/origem'
 
 type Assinatura = {
   status: 'trial' | 'active' | 'past_due' | 'canceled' | 'expired'; access: 'allowed' | 'grace' | 'suspended'
@@ -101,7 +102,7 @@ export function AssinaturaTela() {
   const { loja, dono } = useContaAtual()
   const { data: a, isLoading, error } = useAssinatura(loja?.account_id, dono)
   const { data: precos } = useQuery({ queryKey: ['precos'], queryFn: () => rpc<Preco[]>('plan_prices'), staleTime: 3600_000 })
-  const [ciclo, setCiclo] = useState<Preco['cycle']>('monthly')
+  const [ciclo, setCiclo] = useState<Preco['cycle']>(() => lerOrigem().ciclo ?? 'monthly')
   const [busy, setBusy] = useState(false)
   const [segredo, setSegredo] = useState<string | null>(null)
   const volta = useVoltaDoPagamento(loja?.account_id)

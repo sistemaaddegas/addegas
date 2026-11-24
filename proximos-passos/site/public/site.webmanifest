@@ -1,0 +1,28 @@
+{
+  "name": "Addegas — Sistema para adega",
+  "short_name": "Addegas",
+  "description": "Sistema de gestão e ERP para adegas e depósitos de bebidas: caixa, estoque, combos e pedidos do iFood, Zé Delivery e WhatsApp num lugar só.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0B0B0B",
+  "theme_color": "#0B0B0B",
+  "lang": "pt-BR",
+  "icons": [
+    {
+      "src": "/assets/favicon-64.png",
+      "sizes": "64x64",
+      "type": "image/png"
+    },
+    {
+      "src": "/assets/apple-touch-icon.png",
+      "sizes": "180x180",
+      "type": "image/png"
+    },
+    {
+      "src": "/assets/app-icon.png",
+      "sizes": "1024x1024",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}

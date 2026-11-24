@@ -1,0 +1,34 @@
+# Addegas
+
+> Addegas é um sistema de gestão (ERP) para adegas, depósitos de bebidas e distribuidoras de bairro no Brasil. Junta PDV (caixa), controle de estoque de bebidas, combos, fechamento do dia, catálogo no WhatsApp e integração com iFood, Zé Delivery, 99Food e Keeta num lugar só. Disponível, com 14 dias grátis.
+
+## O que é
+- Categoria: ERP / PDV / sistema de gestão para adega
+- Público: adegas, depósitos de bebidas, distribuidoras e comércios de bebida — periferia e regiões urbanas de todo o Brasil
+- Plataformas: web (instalável no celular, tablet e computador)
+- Idioma: português (Brasil)
+- Status: disponível, com teste grátis de 14 dias sem cartão
+- Preço: plano único de R$ 149,90 por mês; semestral R$ 134,91/mês (−10%); anual R$ 119,92/mês (−20%); loja adicional R$ 49,90/mês
+- Cadastro: https://addegas-app.vercel.app/cadastro
+
+## Recursos
+- Caixa rápido (PDV) com Pix, cartão e dinheiro
+- Controle de estoque de bebidas com baixa automática
+- Combos cadastrados do jeito da casa
+- Fechamento do dia: entradas, saídas e mais vendidos
+- Catálogo no WhatsApp com pedido direto no sistema
+- Integração com iFood, Zé Delivery, 99Food e Keeta (em desenvolvimento)
+- Relatório de vendas por canal
+- Alertas no WhatsApp configuráveis: validade de produto chegando, produto parado há X dias, estoque baixo, caixa aberto/fechado, desconto fora da regra
+- Regras e permissões por funcionário (dono, gerente, caixa, estoque), limite de desconto, senha do dono e histórico de ações
+- Caixa que continua vendendo sem internet e lança as vendas quando a conexão volta
+
+## Links
+- Site: https://www.addegas.com.br/
+- Planos: https://www.addegas.com.br/#planos
+- Perguntas frequentes: https://www.addegas.com.br/#duvidas
+- WhatsApp: https://wa.me/5511986755103
+- E-mail: sistema.addegas@gmail.com
+- Instagram: https://www.instagram.com/sistema.addegas/
+- YouTube: https://www.youtube.com/@addegas
+- X: https://x.com/sistemaaddegas

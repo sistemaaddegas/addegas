@@ -1,0 +1,121 @@
+@import "tailwindcss";
+
+/* ---- Design tokens (handoff) ---- */
+@theme {
+  --color-yellow: #fbc009;
+  --color-yellow-hover: #ffd233;
+  --color-ink: #0a0a0a;
+  --color-bg: #0b0b0b;
+  --color-bg-deep: #050505;
+  --color-surface-1: #141414;
+  --color-surface-2: #1c1c1c;
+  --color-surface-3: #262626;
+  --color-cream: #efebe3;
+  --color-cream-ink: #2b2925;
+  --color-wa-green: #25d366;
+  --font-sans: var(--font-archivo), system-ui, sans-serif;
+}
+
+/* ---- Base ---- */
+html {
+  scroll-behavior: smooth;
+  background: #0b0b0b;
+}
+body {
+  margin: 0;
+  background: #0b0b0b;
+  color: #ffffff;
+  font-family: var(--font-archivo), system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  overflow-x: clip;
+}
+a {
+  color: #fbc009;
+  text-decoration: none;
+}
+a:hover {
+  color: #ffffff;
+}
+::selection {
+  background: #fbc009;
+  color: #0a0a0a;
+}
+input::placeholder {
+  color: #707070;
+}
+summary {
+  list-style: none;
+}
+summary::-webkit-details-marker {
+  display: none;
+}
+
+/* ---- Keyframes ---- */
+@keyframes addMarq {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+@keyframes addSpin {
+  to { transform: rotate(360deg); }
+}
+@keyframes addBub {
+  0% { bottom: -4%; opacity: 0; }
+  15% { opacity: 0.85; }
+  85% { opacity: 0.85; }
+  100% { bottom: 96%; opacity: 0; }
+}
+@keyframes addPulse {
+  0% { transform: scale(1); opacity: 0.7; }
+  100% { transform: scale(1.75); opacity: 0; }
+}
+
+/* ---- Hover / focus states (base styles stay inline in JSX) ---- */
+.nav-link:hover { color: #fbc009 !important; }
+.hdr-cta:hover { background: #ffffff !important; color: #0a0a0a !important; }
+.menu-link:hover { color: #fbc009 !important; }
+.wa-cta-yellow:hover { background: #ffd233 !important; color: #0a0a0a !important; }
+.cta-primary:hover {
+  background: #ffd233 !important;
+  color: #0a0a0a !important;
+  box-shadow: 0 10px 40px rgba(251, 192, 9, 0.35) !important;
+}
+.cta-outline:hover { border-color: #fbc009 !important; color: #fbc009 !important; }
+.bene:hover { border-color: #fbc009 !important; }
+.app-tile:hover { transform: scale(1.1) rotate(-3deg) !important; }
+.alert-row:hover { background: #121212 !important; }
+.perm-row:hover { background: #121212 !important; }
+.sys-item:hover { background: #fbc009 !important; }
+.pq-chip:hover { background: #0a0a0a !important; color: #fbc009 !important; }
+.mword:hover { transform: rotate(var(--rh)) scale(1.08) !important; color: #ffffff !important; }
+.pq-value:hover { background: #0a0a0a !important; color: #fbc009 !important; transform: rotate(var(--rh)) !important; }
+.gal-img:hover { transform: scale(1.07) !important; }
+.store-badge:hover { transform: translateY(-4px) rotate(-1.5deg) !important; }
+.faq-summary:hover { color: #6b5200 !important; }
+.foot-link:hover { color: #fbc009 !important; }
+.foot-word:hover { transform: translateY(-8px) rotate(var(--rh)) !important; color: #ffffff !important; }
+.field-input:focus { border-color: #fbc009 !important; background: #1a1a1a !important; }
+.wa-dark-btn:hover { background: #222222 !important; color: #fbc009 !important; }
+.chat-wa-brand:hover { background: #222222 !important; color: #fbc009 !important; transform: translateY(-2px) !important; }
+.chat-wa-green:hover { background: #1ebe5a !important; color: #ffffff !important; transform: translateY(-2px) !important; }
+.fab:hover { transform: scale(1.08) !important; }
+.linklike:hover { color: #fbc009 !important; }
+
+/* ---- Responsive helpers (menu breakpoint 1120px) ---- */
+@media (max-width: 1119px) {
+  .hide-narrow { display: none !important; }
+}
+@media (min-width: 1120px) {
+  .hide-wide { display: none !important; }
+}
+
+/* ---- Reduced motion: kill decorative CSS animations & transitions ---- */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}

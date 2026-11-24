@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react'
+import { useEffect, useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router'
 import { useQueryClient } from '@tanstack/react-query'
 import { supabase, rpc } from '@/lib/supabase'
@@ -9,6 +9,7 @@ import { useToast } from '@/components/toast'
 import { chip, chipCls } from '@/lib/visual'
 import { AuthLayout, Field, btnPrimary, btnText } from './layout'
 import { useMyStores } from './lojas'
+import { guardarOrigem, lerOrigem } from '@/lib/origem'
 
 const EMAIL = /^[^@\s]+@[^@\s]+\.[^@\s]+$/
 
@@ -18,6 +19,7 @@ const EMAIL = /^[^@\s]+@[^@\s]+\.[^@\s]+$/
  */
 export function Cadastro() {
   const { session, loading } = useAuth()
+  useEffect(() => guardarOrigem(location.search), [])
   if (loading) return null
   return session ? <Onboarding /> : <Conta />
 }
@@ -103,16 +105,19 @@ function Onboarding() {
       const [bairro, ...resto] = f.bairro.split(',').map((x) => x.trim())
       const cidade = resto.join(', ') || null
       const wa = f.wa.replace(/\D/g, '') || null
+      const origem = lerOrigem()
       const r = dono
         ? await rpc<{ store_id: string; slug?: string }>('create_store', { p_account_id: dono.account_id, p_name: f.nome.trim(), p_neighborhood: bairro || null, p_city: cidade, p_whatsapp: wa })
         : await rpc<{ store_id: string }>('complete_onboarding', {
           p_store_name: f.nome.trim(), p_neighborhood: bairro || null, p_city: cidade, p_whatsapp: wa,
           p_owner_name: (session?.user.user_metadata?.full_name as string | undefined) ?? null,
-          p_origin: { produtos: f.produtos, apps: f.apps },
+          p_origin: { produtos: f.produtos, apps: f.apps, ...(origem.ciclo && { ciclo: origem.ciclo }), ...(origem.utm && { utm: origem.utm }) },
         })
       await qc.invalidateQueries({ queryKey: ['my_stores'] })
       setStoreId(r.store_id)
       toast(dono ? `${f.nome.trim()} criada` : 'Tudo pronto! Seu teste grátis de 14 dias começou.')
+      // Veio de um plano da landing: vai direto para a Assinatura, com o ciclo marcado (o teste já está valendo).
+      if (!dono && origem.ciclo) return navigate('/assinatura', { replace: true })
       navigate(f.produtos === 'depois' || dono ? '/' : f.produtos === 'catalogo' ? '/estoque?catalogo=1' : '/estoque', { replace: true })
     } catch (e) {
       toast((e as Error).message)
