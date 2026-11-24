@@ -26,8 +26,12 @@ const csp = [
 
 export const config: VercelConfig = {
   framework: 'vite',
-  buildCommand: 'npm run build',
+  // A Vercel entrega um arquivo que existe antes de aplicar os rewrites: sem isso, a raiz do admin
+  // mostrava o index.html do app. No projeto do admin, o painel passa a ser o index.html.
+  buildCommand: isAdmin ? 'npm run build && cp dist/admin/index.html dist/index.html' : 'npm run build',
   outputDirectory: 'dist',
+  // O painel não funciona no site do app (a admin-api fica bloqueada lá): /admin leva para a raiz do app.
+  redirects: isAdmin ? [] : [{ source: '/admin', destination: '/', permanent: false }, { source: '/admin/(.*)', destination: '/', permanent: false }],
   rewrites: [
     // O app da adega não alcança a admin-api, e o admin só alcança ela (E04).
     ...(isAdmin
