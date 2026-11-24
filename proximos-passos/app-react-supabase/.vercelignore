@@ -1,0 +1,6 @@
+# Projetos addegas-app e addegas-admin na Vercel (Root Directory = esta pasta).
+# O .vercelignore da raiz do repositório esconde proximos-passos/ do site estático; este vale para o app.
+# O build (tsc -b && vite build) só usa src, public, admin, index.html e as configurações.
+supabase
+.github
+ACESSOS-DE-TESTE.md
