@@ -26,8 +26,9 @@ const csp = [
 
 export const config: VercelConfig = {
   framework: 'vite',
-  // A Vercel entrega um arquivo que existe antes de aplicar os rewrites: sem isso, a raiz do admin
-  // mostrava o index.html do app. No projeto do admin, o painel passa a ser o index.html.
+  // A Vercel entrega um arquivo que existe antes de aplicar os rewrites: sem a cópia, a raiz do admin
+  // mostrava o index.html do app. A Vercel não usou este buildCommand (24/11), então o mesmo comando está
+  // gravado em Settings → Build Command do projeto addegas-admin; mantenha os dois iguais.
   buildCommand: isAdmin ? 'npm run build && cp dist/admin/index.html dist/index.html' : 'npm run build',
   outputDirectory: 'dist',
   // O painel não funciona no site do app (a admin-api fica bloqueada lá): /admin leva para a raiz do app.
