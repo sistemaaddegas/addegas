@@ -12,7 +12,7 @@ export async function sendEmail(to: string, subject: string, text: string, reply
     method: "POST",
     headers: { Authorization: `Bearer ${Deno.env.get("RESEND_API_KEY")}`, "Content-Type": "application/json" },
     body: JSON.stringify({
-      from: Deno.env.get("EMAIL_FROM") ?? "Addegas <naoresponda@mail.addegas.com.br>",
+      from: Deno.env.get("EMAIL_FROM") ?? "Addegas <naoresponda@addegas.com.br>",
       to: [to],
       subject,
       text,

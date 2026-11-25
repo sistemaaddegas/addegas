@@ -1,5 +1,7 @@
 # Domínio, subdomínios e e-mail
 
+> **25/11/2026:** o envio ficou na **raiz** `addegas.com.br` (foi o domínio verificado no Resend), não em `mail.addegas.com.br`. Remetente: `naoresponda@addegas.com.br`. Os registros são `resend._domainkey` (DKIM), `send` (MX e SPF do retorno) e `_dmarc` (`p=none`). O que está abaixo sobre `mail.` é o plano original. Configuração aplicada: runbook-producao.md, item 2b.
+
 **Situação em 28/10/2026** (conferida por consulta DNS e HTTP):
 - `addegas.com.br` é registrado no Registro.br, com o **DNS no próprio Registro.br** (servidores `a.sec.dns.br` e `c.sec.dns.br`). Todos os registros abaixo são criados lá, em "Editar zona" / modo avançado.
 - `addegas.com.br` redireciona para `www.addegas.com.br`, que serve a **landing atual** (Next.js na Vercel, lista de espera).

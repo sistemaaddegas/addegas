@@ -240,10 +240,22 @@ otp_expiry = 3600
 # admin_email = "admin@email.com"
 # sender_name = "Admin"
 
-# Uncomment to customize email template
-# [auth.email.template.invite]
-# subject = "You have been invited"
-# content_path = "./supabase/templates/invite.html"
+# Addegas: e-mails do Auth em português (local no Mailpit; na nuvem saem pelo Resend, ver runbook).
+[auth.email.template.confirmation]
+subject = "Confirme seu e-mail na Addegas"
+content_path = "./supabase/templates/confirmacao.html"
+
+[auth.email.template.recovery]
+subject = "Criar uma senha nova na Addegas"
+content_path = "./supabase/templates/recuperacao.html"
+
+[auth.email.template.email_change]
+subject = "Confirme a troca de e-mail na Addegas"
+content_path = "./supabase/templates/troca-email.html"
+
+[auth.email.template.invite]
+subject = "Convite para a equipe Addegas"
+content_path = "./supabase/templates/convite.html"
 
 # Uncomment to customize notification email template
 # [auth.email.notification.password_changed]
