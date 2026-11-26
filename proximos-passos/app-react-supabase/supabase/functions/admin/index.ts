@@ -135,7 +135,9 @@ ROUTES["staff/invite"] = {
   run: async (b, st, c) => {
     const email = String(b.email ?? "").trim().toLowerCase();
     if (!email.endsWith("@addegas.com.br")) return { ok: false, error: { code: "STAFF_EMAIL_DOMAIN" } };
-    const inv = await serviceClient().auth.admin.inviteUserByEmail(email, { data: { full_name: b.name } });
+    // Sem redirectTo, o link do convite cai na Site URL do Auth, que é o app da adega.
+    const painel = `${(Deno.env.get("ADMIN_URL") ?? "").replace(/\/$/, "")}/`;
+    const inv = await serviceClient().auth.admin.inviteUserByEmail(email, { data: { full_name: b.name }, redirectTo: painel });
     if (inv.error) return { ok: false, error: { code: "AUTH_ERROR", detail: inv.error.message } };
     await serviceClient().auth.admin.updateUserById(inv.data.user.id, { app_metadata: { kind: "staff" } });
     return priv("admin_staff_upsert", { ...s(st), p_user_id: inv.data.user.id, p_name: b.name, p_email: email, p_staff_role: b.role }, c);

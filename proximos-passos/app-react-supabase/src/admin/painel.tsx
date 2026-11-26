@@ -31,6 +31,8 @@ export class Painel extends Component {
     // Volta a cada 5 min para os números de "agora" (carência, SLA, tarefas) não envelhecerem com a aba aberta.
     this.iv = setInterval(() => { if (this.state.auth === 'app' && !this.state.modal) this.carregar(true) }, 300000)
     if (/type=recovery/.test(location.hash)) return
+    // Convite da equipe: a pessoa ainda não tem senha, então cria uma antes do 2FA.
+    if (/type=invite/.test(location.hash)) return this.setState({ auth: 'newpass', authErr: '' })
     this.entrarComSessao()
   }
   componentWillUnmount() { window.removeEventListener('resize', this.onR); window.removeEventListener('keydown', this.onK); this.sub?.unsubscribe(); clearInterval(this.iv); clearTimeout(this.tt) }
